@@ -137,12 +137,11 @@ Object parse_value(String_View sv)
             exit(1);
         }
 
-        printf("Parse float num: %lf\n", d);
         return OBJ_FLOAT(d);
 
     } else {
+        // TODO: parse int
         uint64_t INT = sv_to_int(sv);
-        printf("Parse int num: %li\n", INT);
         return OBJ_INT(INT);
     }
 }
@@ -225,9 +224,6 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                     c->program[c->program_size++] = OBJ_REG(reg2);
 
                 } else if (inst == INST_MOVI || inst == INST_MOVF) {
-                    // TODO: add parsing for floating values
-                    //       and checks: INT or FLOAT
-                    
                     String_View reg1_sv = sv_trim(sv_div_by_delim(&line, ','));
 
                     if (line.count == 0)  {

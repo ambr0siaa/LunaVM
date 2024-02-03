@@ -53,7 +53,7 @@ typedef union {
 
 typedef struct {
     int64_t regs[RC];
-    double regfs[RC];
+    double regsf[RC];
     // TODO: add stack
 
     Object *program;

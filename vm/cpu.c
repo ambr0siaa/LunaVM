@@ -32,6 +32,13 @@ char *reg_as_cstr(uint64_t operand)
     }
 }
 
+#define AREFMETIC_OP(c, type, op1, op2, operand, acc)       \
+    do {                                                    \
+        (c)->regs##type [acc] = (op1) operand (op2);        \
+        (c)->ip += 1;                                       \
+    } while (0)
+
+
 void cpu_execute_inst(CPU *c)
 {
     if (c->ip >= c->program_size) {
@@ -44,10 +51,6 @@ void cpu_execute_inst(CPU *c)
     Register reg1;
     Register reg2;
     Object operand1;
-    double foperand1;
-    double foperand2;
-
-    // TODO: emplemation for F-insts
 
     switch (inst) {
         case INST_MOVI:
@@ -60,67 +63,47 @@ void cpu_execute_inst(CPU *c)
             reg1 = c->program[++c->ip].reg;
             operand1 = c->program[++c->ip];
 
-            c->regfs[reg1] = operand1.f64;
+            c->regsf[reg1] = operand1.f64;
             c->ip += 1;
             break;
 
         case INST_ADDI:
-            c->regs[ACC] = c->regs[c->program[++c->ip].reg] + c->regs[c->program[++c->ip].reg];
-            c->ip += 1;
+            AREFMETIC_OP(c, ,c->regs[c->program[++c->ip].reg], c->regs[c->program[++c->ip].reg], +, ACC);
             break;
         
         case INST_SUBI:
-            c->regs[ACC] = c->regs[c->program[++c->ip].reg] - c->regs[c->program[++c->ip].reg];
-            c->ip += 1;
+            AREFMETIC_OP(c, ,c->regs[c->program[++c->ip].reg], c->regs[c->program[++c->ip].reg], -, ACC);
             break;
 
         case INST_MULI:
-            c->regs[ACC] = c->regs[c->program[++c->ip].reg] * c->regs[c->program[++c->ip].reg];
-            c->ip += 1;
+            AREFMETIC_OP(c, ,c->regs[c->program[++c->ip].reg], c->regs[c->program[++c->ip].reg], *, ACC);
             break;
 
         case INST_DIVI:
-            c->regs[ACC] = c->regs[c->program[++c->ip].reg] / c->regs[c->program[++c->ip].reg];
-            c->ip += 1;
+            AREFMETIC_OP(c, ,c->regs[c->program[++c->ip].reg], c->regs[c->program[++c->ip].reg], /, ACC);
             break;
 
         case INST_ADDF:
-            foperand1 = c->regfs[c->program[++c->ip].reg];
-            foperand2 = c->regfs[c->program[++c->ip].reg];
-
-            c->regfs[ACCF] = foperand1 + foperand2;
-            c->ip += 1;
+            AREFMETIC_OP(c, f, c->regsf[c->program[++c->ip].reg], c->regsf[c->program[++c->ip].reg], +, ACCF);
             break;
         
         case INST_SUBF:
-            foperand1 = c->regfs[c->program[++c->ip].reg];
-            foperand2 = c->regfs[c->program[++c->ip].reg];
-
-            c->regfs[ACCF] = foperand1 - foperand2;
-            c->ip += 1;
+            AREFMETIC_OP(c, f, c->regsf[c->program[++c->ip].reg], c->regsf[c->program[++c->ip].reg], -, ACCF);
             break;
 
         case INST_MULF:
-            foperand1 = c->regfs[c->program[++c->ip].reg];
-            foperand2 = c->regfs[c->program[++c->ip].reg];
-
-            c->regfs[ACCF] = foperand1 * foperand2;
-            c->ip += 1;
+            AREFMETIC_OP(c, f, c->regsf[c->program[++c->ip].reg], c->regsf[c->program[++c->ip].reg], *, ACCF);
             break;
 
         case INST_DIVF:
-            foperand1 = c->regfs[c->program[++c->ip].reg];
-            foperand2 = c->regfs[c->program[++c->ip].reg];
-
-            c->regfs[ACCF] = foperand1 / foperand2;
-            c->ip += 1;
+            AREFMETIC_OP(c, f, c->regsf[c->program[++c->ip].reg], c->regsf[c->program[++c->ip].reg], /, ACCF);
             break;
 
         case INST_MOV:
             reg1 = c->program[++c->ip].reg;
             reg2 = c->program[++c->ip].reg;
 
-            if (reg1 >= F0) c->regfs[reg1] = c->regfs[reg2];
+            if (reg1 >= F0) c->regsf[reg1] = c->regsf[reg2];
             else c->regs[reg1] = c->regs[reg2];
 
             c->ip += 1;
@@ -147,7 +130,7 @@ void cpu_execute_inst(CPU *c)
             reg1 = c->program[++c->ip].reg;
             printf("%s: ", reg_as_cstr(reg1));
 
-            if (reg1 >= F0) printf("%lf\n",c->regfs[reg1]);
+            if (reg1 >= F0) printf("%lf\n",c->regsf[reg1]);
             else printf("%li\n", c->regs[reg1]);
 
             c->ip += 1;
