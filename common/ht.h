@@ -8,7 +8,7 @@
 #   include <stdlib.h>
 #   include <stdint.h>
 #   include <string.h>
-#   include "cpu.h"
+#   include "../include/cpu.h"
 #endif
 
 typedef struct {

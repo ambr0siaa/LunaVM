@@ -2,7 +2,7 @@
 #include "./include/bil.h"
 
 #define CC "gcc"
-#define SRC "./src/asm.c", "./src/sv.c", "./src/cpu.c", "./src/ht.c"
+#define SRC "./vm/asm.c", "./common/sv.c", "./vm/cpu.c", "./common/ht.c"
 
 // This `bil` file will build:
 //      in ./transalte `tsl` - translate assembly code to vm bytecode

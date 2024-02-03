@@ -132,10 +132,22 @@ void asm_cut_comments(String_View *line)
 void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
 {
     // TODO: - add more info about errors
-    //       - add line and symbol numbers where was error      
+    //       - add line and symbol numbers where was error  
+    
+    if (c->program_capacity == 0) {
+        c->program_capacity = PROGRAM_INIT_CAPACITY;
+        c->program = malloc(c->program_capacity * sizeof(c->program[0]));
+    }
+
     c->program_size = 0;  
     while (src.count > 0) {
-        assert(c->program_size != PROGRAM_CAPACITY);
+        assert(c->program_size <= c->program_capacity);
+
+        if (c->program_size + 1 > c->program_capacity) {
+            do { c->program_capacity *= 2; } while (c->program_size + 1 > c->program_capacity);
+            c->program = realloc(c->program, c->program_capacity);
+        }
+
         String_View line = sv_trim(sv_div_by_delim(&src, '\n'));
         asm_cut_comments(&line);
         

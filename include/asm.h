@@ -2,8 +2,8 @@
 #define ASM_H_
 
 #include "cpu.h"
-#include "sv.h"
-#include "ht.h"
+#include "../common/sv.h"
+#include "../common/ht.h"
 
 #define INIT_CAPACITY 32
 typedef uint64_t Inst_Addr;

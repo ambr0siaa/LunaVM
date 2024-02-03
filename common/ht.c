@@ -1,4 +1,4 @@
-#include "../include/ht.h"
+#include "ht.h"
 
 int ht_colisions_handle(hash_table *ht, uint64_t index)
 {

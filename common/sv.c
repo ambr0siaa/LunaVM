@@ -1,4 +1,4 @@
-#include "../include/sv.h"
+#include "sv.h"
 
 String_View sv_from_cstr(char *cstr)
 {

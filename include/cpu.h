@@ -11,7 +11,7 @@
 #define RIC 9                   // Register Int Count
 #define RFC 9                   // Register Float Count
 #define EXECUTION_LIMIT 256
-#define PROGRAM_CAPACITY 1024
+#define PROGRAM_INIT_CAPACITY 1024
 #define ARRAY_SIZE(arr) sizeof((arr)) / sizeof((arr)[0])
 
 typedef enum {
@@ -58,8 +58,8 @@ typedef struct {
     double regfs[RFC];
     // TODO: add stack
 
-    // TODO program as dynamic array
-    Object program[PROGRAM_CAPACITY];
+    Object *program;
+    uint64_t program_capacity;
     uint64_t program_size;
     uint64_t ip;
 

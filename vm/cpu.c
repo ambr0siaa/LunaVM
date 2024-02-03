@@ -237,6 +237,11 @@ void load_program_to_file(CPU *c, const char *file_path)
 
 void load_program_from_file(CPU *c, const char *file_path)
 {
+    if (c->program_capacity == 0) {
+        c->program_capacity = PROGRAM_INIT_CAPACITY;
+        c->program = malloc(c->program_capacity * sizeof(c->program[0]));
+    }
+
     FILE *fp = fopen(file_path, "rb");
     if (!fp) {
         fprintf(stderr, "Error: cannot open file by `%s` path\n", file_path);
@@ -254,12 +259,21 @@ void load_program_from_file(CPU *c, const char *file_path)
         exit(1);
     }
 
+    size_t object_count = file_size / sizeof(c->program[0]);
+
+    if (object_count >= c->program_capacity) {
+        do { 
+            c->program_capacity *= 2; 
+        } while (object_count >= c->program_capacity);
+        c->program = realloc(c->program, c->program_capacity); 
+    }
+
     if (fseek(fp, 0, SEEK_SET) < 0) {
         fprintf(stderr, "Error: cannot read from `%s` file\n", file_path);
         exit(1);
     }
 
-    c->program_size = fread(c->program, sizeof(c->program[0]), file_size / sizeof(c->program[0]), fp);
+    c->program_size = fread(c->program, sizeof(c->program[0]), object_count, fp);
 
     if (ferror(fp)) {
         fprintf(stderr, "Error: cannot read from `%s` file\n", file_path);
