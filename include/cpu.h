@@ -8,8 +8,6 @@
 #include <string.h>
 #include <errno.h>
 
-#define RIC 9                   // Register Int Count
-#define RFC 9                   // Register Float Count
 #define EXECUTION_LIMIT 256
 #define PROGRAM_INIT_CAPACITY 1024
 #define ARRAY_SIZE(arr) sizeof((arr)) / sizeof((arr)[0])
@@ -54,8 +52,8 @@ typedef union {
 } Object;
 
 typedef struct {
-    int64_t regs[RIC];
-    double regfs[RFC];
+    int64_t regs[RC];
+    double regfs[RC];
     // TODO: add stack
 
     Object *program;

@@ -114,6 +114,38 @@ Inst parse_inst(String_View inst_sv)
     Inst inst = ht_get(&Inst_Table, inst_cstr);
     return inst;
 } 
+
+Object parse_value(String_View sv)
+{
+    int is_float = 0;
+    for (size_t i = 0; i < sv.count; ++i) {
+        if (sv.data[i] == '.') {
+            is_float = 1;
+            break;
+        }
+    }
+
+    if (is_float) {
+        sv_append_nul(&sv);
+        char *float_cstr = sv.data;
+        char *endptr = float_cstr; 
+
+        double d = strtod(float_cstr, &float_cstr);
+
+        if (d == 0 && endptr == float_cstr) {
+            fprintf(stderr, "Error: cannot parse `%s` to float64\n",float_cstr);
+            exit(1);
+        }
+
+        printf("Parse float num: %lf\n", d);
+        return OBJ_FLOAT(d);
+
+    } else {
+        uint64_t INT = sv_to_int(sv);
+        printf("Parse int num: %li\n", INT);
+        return OBJ_INT(INT);
+    }
+}
  
 void asm_cut_comments(String_View *line) 
 {
@@ -208,7 +240,7 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                     c->program[c->program_size++] = OBJ_REG(reg1);
 
                     String_View val = sv_trim(line);
-                    c->program[c->program_size++] = OBJ_INT(sv_to_int(val));
+                    c->program[c->program_size++] = parse_value(val);
                     
                 } else if (inst == INST_DBR) {
                     String_View reg_sv = sv_trim(line);

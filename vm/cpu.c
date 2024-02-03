@@ -44,6 +44,8 @@ void cpu_execute_inst(CPU *c)
     Register reg1;
     Register reg2;
     Object operand1;
+    double foperand1;
+    double foperand2;
 
     // TODO: emplemation for F-insts
 
@@ -51,6 +53,14 @@ void cpu_execute_inst(CPU *c)
         case INST_MOVI:
             reg1 = c->program[++c->ip].reg;
             c->regs[reg1] = c->program[++c->ip].i64;
+            c->ip += 1;
+            break;
+
+        case INST_MOVF:
+            reg1 = c->program[++c->ip].reg;
+            operand1 = c->program[++c->ip];
+
+            c->regfs[reg1] = operand1.f64;
             c->ip += 1;
             break;
 
@@ -74,11 +84,45 @@ void cpu_execute_inst(CPU *c)
             c->ip += 1;
             break;
 
+        case INST_ADDF:
+            foperand1 = c->regfs[c->program[++c->ip].reg];
+            foperand2 = c->regfs[c->program[++c->ip].reg];
+
+            c->regfs[ACCF] = foperand1 + foperand2;
+            c->ip += 1;
+            break;
+        
+        case INST_SUBF:
+            foperand1 = c->regfs[c->program[++c->ip].reg];
+            foperand2 = c->regfs[c->program[++c->ip].reg];
+
+            c->regfs[ACCF] = foperand1 - foperand2;
+            c->ip += 1;
+            break;
+
+        case INST_MULF:
+            foperand1 = c->regfs[c->program[++c->ip].reg];
+            foperand2 = c->regfs[c->program[++c->ip].reg];
+
+            c->regfs[ACCF] = foperand1 * foperand2;
+            c->ip += 1;
+            break;
+
+        case INST_DIVF:
+            foperand1 = c->regfs[c->program[++c->ip].reg];
+            foperand2 = c->regfs[c->program[++c->ip].reg];
+
+            c->regfs[ACCF] = foperand1 / foperand2;
+            c->ip += 1;
+            break;
+
         case INST_MOV:
             reg1 = c->program[++c->ip].reg;
-            reg2 = c->program[++c->ip].reg; 
+            reg2 = c->program[++c->ip].reg;
 
-            c->regs[reg1] = c->regs[reg2];
+            if (reg1 >= F0) c->regfs[reg1] = c->regfs[reg2];
+            else c->regs[reg1] = c->regs[reg2];
+
             c->ip += 1;
             break;
 
@@ -101,7 +145,11 @@ void cpu_execute_inst(CPU *c)
 
         case INST_DBR:
             reg1 = c->program[++c->ip].reg;
-            printf("%s: %li\n", reg_as_cstr(reg1), c->regs[reg1]);
+            printf("%s: ", reg_as_cstr(reg1));
+
+            if (reg1 >= F0) printf("%lf\n",c->regfs[reg1]);
+            else printf("%li\n", c->regs[reg1]);
+
             c->ip += 1;
             break;
 
@@ -197,7 +245,7 @@ int inst_has_1_op(Inst inst)
 void debug_regs(CPU *c)
 {
     printf("ip: %lu\n", c->ip);
-    for (size_t i = 0; i < RIC; ++i) {
+    for (size_t i = 0; i < RC; ++i) {
         printf("%s: %li\n", reg_as_cstr(i), c->regs[i]);
     }
     printf("acc: %li\n", c->regs[ACC]);
