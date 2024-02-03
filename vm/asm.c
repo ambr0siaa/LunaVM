@@ -206,7 +206,6 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                 c->program[c->program_size++] = OBJ_INST(inst);
             
                 if (inst_has_2_regs(inst)) {
-                    // TODO: for all arefmetic insts add number support by `$` symbol
                     String_View reg1_sv = sv_trim(sv_div_by_delim(&line, ','));
                     
                     if (line.count == 0)  {
@@ -219,7 +218,7 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                     c->program[c->program_size++] = OBJ_REG(reg1);
 
                     String_View reg2_sv = sv_trim(line);
-
+                    
                     Register reg2 = parse_register(reg2_sv);
                     c->program[c->program_size++] = OBJ_REG(reg2);
 

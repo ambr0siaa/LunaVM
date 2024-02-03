@@ -38,7 +38,6 @@ char *reg_as_cstr(uint64_t operand)
         (c)->ip += 1;                                       \
     } while (0)
 
-
 void cpu_execute_inst(CPU *c)
 {
     if (c->ip >= c->program_size) {
