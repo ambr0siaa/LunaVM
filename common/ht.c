@@ -49,7 +49,7 @@ uint64_t hash_function(const char *str)
         case 2:
             return (sh.c0 + sh.c1) / 2;
         default:
-            break;
+            return -1;
     } 
 }
 
@@ -118,7 +118,7 @@ void inst_table_init(hash_table *ht, size_t inst_count)
 {
     if (ht->count == 0) ht_init(ht);
 
-    for (Inst i = 0; i < IC; ++i) {
+    for (Inst i = 0; i < inst_count; ++i) {
         ht_push(ht, inst_as_cstr(i), i);
     }
 }

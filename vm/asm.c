@@ -13,7 +13,7 @@ String_View asm_load_file(const char *file_path)
         exit(1);
     }
 
-    size_t file_size = ftell(fp);
+    long file_size = ftell(fp);
     if (file_size < 0) {
         fprintf(stderr, "Error: cannot read from `%s` file\n", file_path);
         exit(1);
@@ -24,7 +24,7 @@ String_View asm_load_file(const char *file_path)
         exit(1);
     }
 
-    char *buf = malloc(file_size);
+    char *buf = malloc(file_size * sizeof(char));
     if (!buf) {
         fprintf(stderr, "cannot allocate memory for file: %s\n", 
                 strerror(errno));
@@ -83,7 +83,7 @@ Register parse_register(String_View sv)
     if (sv_cmp(sv, sv_from_cstr(accf)))
         return ACCF;
 
-    size_t n = sv.data[1] - '0';
+    int n = sv.data[1] - '0';
 
     if (sv.data[0] == 'r') {
         return n;
@@ -95,7 +95,7 @@ Register parse_register(String_View sv)
     }
 
     else {
-        fprintf(stderr, "Error: cannot find register\n");
+        fprintf(stderr, "Error: cannot find register by `%d`\n", n);
         exit(1);
     }
 }
@@ -108,8 +108,9 @@ Inst parse_inst(String_View inst_sv)
         inst_table_init(&Inst_Table, IC);
     }
 
-    sv_append_nul(&inst_sv);
-    const char *inst_cstr = inst_sv.data;
+    String_View copy = inst_sv;
+    sv_append_nul(&copy);
+    const char *inst_cstr = copy.data;
 
     Inst inst = ht_get(&Inst_Table, inst_cstr);
     return inst;
@@ -237,6 +238,22 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                     String_View val = sv_trim(line);
                     c->program[c->program_size++] = parse_value(val);
                     
+                } else if (inst == INST_PUSH) {
+                    String_View obj = sv_trim(line);
+
+                    if (isdigit(*obj.data)) {
+                        c->program[c->program_size - 1] = OBJ_INST(INST_PUSH_VAL);
+                        c->program[c->program_size++] = parse_value(obj);
+                    } else {
+                        c->program[c->program_size - 1] = OBJ_INST(INST_PUSH_REG);
+                        Register reg = parse_register(obj);
+                        c->program[c->program_size++] = OBJ_REG(reg);
+                    }
+
+                } else if (inst == INST_POP) {
+                    String_View reg = sv_trim(line);
+                    c->program[c->program_size++] = OBJ_REG(parse_register(reg));
+
                 } else if (inst == INST_DBR) {
                     String_View reg_sv = sv_trim(line);
                     Register reg = parse_register(reg_sv);
@@ -247,7 +264,7 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                     String_View addr_sv = sv_trim(line);
 
                     if (isdigit(*addr_sv.data)) {
-                        uint64_t addr = sv_to_int(addr_sv);
+                        int64_t addr = sv_to_int(addr_sv);
                         if (addr < 0) {
                             fprintf(stderr, "Error: address must be greater than 0\n");
                             exit(1);
@@ -257,7 +274,7 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                     } else {
                         Lable lable = ll_search_lable(&PJ->current, addr_sv);
                     
-                        if (lable.addr != -1) {
+                        if (lable.addr != (uint64_t)(-1)) {
                             c->program[c->program_size++] = OBJ_UINT(lable.addr);
                         } else {
                             Lable dlable = {
@@ -277,7 +294,7 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
 
     for (size_t i = 0; i < PJ->deferred.count; ++i) {
         Lable lable = ll_search_lable(&PJ->current, PJ->deferred.lables[i].name);
-        if (lable.addr != -1) {
+        if (lable.addr != (uint64_t)(-1)) {
             c->program[PJ->deferred.lables[i].addr] = OBJ_UINT(lable.addr);
         }
     }
@@ -285,7 +302,7 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
 
 char *asm_shift_args(int *argc, char ***argv)
 {
-    assert(argc >= 0);
+    assert(*argc >= 0);
     char *result = **argv;
 
     *argv += 1;

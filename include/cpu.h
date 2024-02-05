@@ -8,8 +8,8 @@
 #include <string.h>
 #include <errno.h>
 
-#define EXECUTION_LIMIT 256
 #define PROGRAM_INIT_CAPACITY 1024
+#define STACK_CAPACITY 16384
 #define ARRAY_SIZE(arr) sizeof((arr)) / sizeof((arr)[0])
 
 typedef enum {
@@ -35,6 +35,14 @@ typedef enum {
     INST_DIVF,
     INST_MULF,
 
+    INST_PUSH,
+    INST_PUSH_VAL,
+    INST_PUSH_REG,
+
+    INST_POP,
+    INST_CALL,
+    INST_RET,
+
     INST_JMP,
     INST_JNZ,
     INST_JZ,
@@ -53,12 +61,16 @@ typedef union {
 typedef struct {
     int64_t regs[RC];
     double regsf[RC];
-    // TODO: add stack
 
     Object *program;
     uint64_t program_capacity;
     uint64_t program_size;
     uint64_t ip;
+
+    Object stack[STACK_CAPACITY];
+    uint64_t stack_size;
+    uint64_t sp;
+    uint64_t fp;
 
     int zero_flag : 1;
     int halt : 1;

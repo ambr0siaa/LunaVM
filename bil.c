@@ -3,6 +3,7 @@
 
 #define CC "gcc"
 #define SRC "./vm/asm.c", "./common/sv.c", "./vm/cpu.c", "./common/ht.c"
+#define CFLAGS "-Wall", "-Wextra"
 
 // This `bil` file will build:
 //      in ./transalte `tsl` - translate assembly code to vm bytecode
@@ -21,10 +22,11 @@ const char *outputs[] = { "./translate/tsl", "./emulate/eml" , "./disasm/dis"};
 int main(int argc, char **argv)
 {
     BIL_REBUILD(argv);
-    Bil_Cmd commands[] = { tsl, eml , dis};
+    Bil_Cmd commands[] = { tsl, eml , dis };
 
     for (size_t i = 0; i < BIL_ARRAY_SIZE(commands); ++i) {
         bil_cmd_append(&commands[i], CC);
+        bil_cmd_append(&commands[i], CFLAGS);
         bil_cmd_append(&commands[i], SRC, sources[i]);
         bil_cmd_append(&commands[i], "-o");
         bil_cmd_append(&commands[i], outputs[i]);
