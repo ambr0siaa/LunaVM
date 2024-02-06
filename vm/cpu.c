@@ -96,22 +96,22 @@ void cpu_execute_inst(CPU *c)
 
         case INST_ADDF:
             operand1.f64 = c->regsf[c->program[++c->ip].reg];
-            AREFMETIC_OP(c, ,operand1.f64, c->regs[c->program[++c->ip].reg], +, ACC);
+            AREFMETIC_OP(c, f, operand1.f64, c->regsf[c->program[++c->ip].reg], +, ACCF);
             break;
         
         case INST_SUBF:
             operand1.f64 = c->regsf[c->program[++c->ip].reg];
-            AREFMETIC_OP(c, ,operand1.f64, c->regs[c->program[++c->ip].reg], -, ACC);
+            AREFMETIC_OP(c, f, operand1.f64, c->regsf[c->program[++c->ip].reg], -, ACCF);
             break;
 
         case INST_MULF:
             operand1.f64 = c->regsf[c->program[++c->ip].reg];
-            AREFMETIC_OP(c, ,operand1.f64, c->regs[c->program[++c->ip].reg], *, ACC);
+            AREFMETIC_OP(c, f, operand1.f64, c->regsf[c->program[++c->ip].reg], *, ACCF);
             break;
 
         case INST_DIVF:
             operand1.f64 = c->regsf[c->program[++c->ip].reg];
-            AREFMETIC_OP(c, ,operand1.f64, c->regs[c->program[++c->ip].reg], /, ACC);
+            AREFMETIC_OP(c, f, operand1.f64, c->regsf[c->program[++c->ip].reg], /, ACCF);
             break;
 
         case INST_MOV:

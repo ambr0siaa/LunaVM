@@ -85,3 +85,15 @@ int sv_to_int(String_View sv)
     
     return result;
 }
+
+int sv_is_float(String_View sv)
+{
+    int res = 0;
+    for (size_t i = 0; i < sv.count; ++i) {
+        if (sv.data[i] == '.') {
+            res = 1;
+            break;
+        }
+    }
+    return res;
+}

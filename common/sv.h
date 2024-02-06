@@ -20,5 +20,6 @@ extern String_View sv_div_by_delim(String_View *sv, char delim);
 extern int sv_cmp(String_View sv1, String_View sv2);
 extern int sv_to_int(String_View sv);
 extern void sv_append_nul(String_View *sv);
+extern int sv_is_float(String_View sv);
 
 #endif // SV_H_

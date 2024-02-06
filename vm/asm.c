@@ -118,13 +118,7 @@ Inst parse_inst(String_View inst_sv)
 
 Object parse_value(String_View sv)
 {
-    int is_float = 0;
-    for (size_t i = 0; i < sv.count; ++i) {
-        if (sv.data[i] == '.') {
-            is_float = 1;
-            break;
-        }
-    }
+    int is_float = sv_is_float(sv);
 
     if (is_float) {
         sv_append_nul(&sv);
@@ -163,9 +157,9 @@ void asm_cut_comments(String_View *line)
 
 void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
 {
-    // TODO: - add more info about errors
+     // TODO: - add more info about errors
     //       - add line and symbol numbers where was error  
-    
+
     if (c->program_capacity == 0) {
         c->program_capacity = PROGRAM_INIT_CAPACITY;
         c->program = malloc(c->program_capacity * sizeof(c->program[0]));
@@ -202,65 +196,11 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
             }
 
             if (inst_name.count > 0) {
-                // if inst will be INST_HLT function won't do any checks and just push inst into a cpu program
                 Inst inst = parse_inst(inst_name);
                 c->program[c->program_size++] = OBJ_INST(inst);
-            
-                if (inst_has_2_regs(inst)) {
-                    String_View reg1_sv = sv_trim(sv_div_by_delim(&line, ','));
-                    
-                    if (line.count == 0)  {
-                        fprintf(stderr, "Usage: "SV_Fmt" <register>, <register>\n", SV_Args(inst_name));
-                        fprintf(stderr, "Error: inst `"SV_Fmt"` expected 2 args\n", SV_Args(inst_name));
-                        exit(1);
-                    }
-
-                    Register reg1 = parse_register(reg1_sv);
-                    c->program[c->program_size++] = OBJ_REG(reg1);
-
-                    String_View reg2_sv = sv_trim(line);
-                    
-                    Register reg2 = parse_register(reg2_sv);
-                    c->program[c->program_size++] = OBJ_REG(reg2);
-
-                } else if (inst == INST_MOVI || inst == INST_MOVF) {
-                    String_View reg1_sv = sv_trim(sv_div_by_delim(&line, ','));
-
-                    if (line.count == 0)  {
-                        fprintf(stderr, "Usage: "SV_Fmt" <register>, <val>\n", SV_Args(inst_name));
-                        fprintf(stderr, "Error: inst `"SV_Fmt"` expected 2 args\n", SV_Args(inst_name));
-                        exit(1);
-                    }
-
-                    Register reg1 = parse_register(reg1_sv);
-                    c->program[c->program_size++] = OBJ_REG(reg1);
-
-                    String_View val = sv_trim(line);
-                    c->program[c->program_size++] = parse_value(val);
-                    
-                } else if (inst == INST_PUSH) {
-                    String_View obj = sv_trim(line);
-
-                    if (isdigit(*obj.data)) {
-                        c->program[c->program_size - 1] = OBJ_INST(INST_PUSH_VAL);
-                        c->program[c->program_size++] = parse_value(obj);
-                    } else {
-                        c->program[c->program_size - 1] = OBJ_INST(INST_PUSH_REG);
-                        Register reg = parse_register(obj);
-                        c->program[c->program_size++] = OBJ_REG(reg);
-                    }
-
-                } else if (inst == INST_POP) {
-                    String_View reg = sv_trim(line);
-                    c->program[c->program_size++] = OBJ_REG(parse_register(reg));
-
-                } else if (inst == INST_DBR) {
-                    String_View reg_sv = sv_trim(line);
-                    Register reg = parse_register(reg_sv);
-
-                    c->program[c->program_size++] = OBJ_REG(reg);
-
-                } else if (inst == INST_JMP || inst == INST_JNZ || inst == INST_JZ) {
+                
+                
+                if (inst == INST_JMP || inst == INST_JNZ || inst == INST_JZ) {
                     String_View addr_sv = sv_trim(line);
 
                     if (isdigit(*addr_sv.data)) {
@@ -286,12 +226,28 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                             c->program[c->program_size++] = OBJ_INT(-1);                
                         }
                     }
+                } else {
 
+                    while (line.count > 0) {
+                        String_View arg_sv = sv_trim(sv_div_by_delim(&line, ','));
+
+                        if (inst == INST_PUSH) {
+                            if (isdigit(arg_sv.data[0])) c->program[c->program_size - 1] = OBJ_INST(INST_PUSH_VAL); 
+                            else c->program[c->program_size - 1] = OBJ_INST(INST_PUSH_REG);
+                        }
+
+                        if (isdigit(arg_sv.data[0])) {
+                            Object value = parse_value(arg_sv);
+                            c->program[c->program_size++] = value;
+                        } else {
+                            Register reg = parse_register(arg_sv);
+                            c->program[c->program_size++] = OBJ_REG(reg);
+                        }
+                    }
                 }
-            }  
-        }
+            }
+        }    
     }
-
     for (size_t i = 0; i < PJ->deferred.count; ++i) {
         Lable lable = ll_search_lable(&PJ->current, PJ->deferred.lables[i].name);
         if (lable.addr != (uint64_t)(-1)) {

@@ -8,7 +8,7 @@ divi r0, r1
 mov r0, acc
 dbr r0
 
-divf f0, f1
+mulf f0, f1
 mov f0, accf
 dbr f0
 
