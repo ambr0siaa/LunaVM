@@ -131,14 +131,18 @@ void cpu_execute_inst(CPU *c)
 
         case INST_JNZ:
             operand1 = c->program[++c->ip];
-            if (c->zero_flag) c->ip = operand1.u64;
+            if (c->zero_flag) {
+                c->ip = operand1.u64;
+            }
             else c->ip += 1;
             break;
 
         case INST_CMP:
+            // TODO: support floating point numbers
             reg1 = c->program[++c->ip].reg;
-            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regs[reg1], c->regs[c->program[++c->ip].reg], ==, ACCF);
-            else AREFMETIC_OP(c, , c->regs[reg1], c->regs[c->program[++c->ip].reg], ==, ACC);
+            reg2 = c->program[++c->ip].reg;
+            c->zero_flag = c->regs[reg1] == c->regs[reg2];
+            c->ip += 1;
             break;
 
         case INST_DBR:

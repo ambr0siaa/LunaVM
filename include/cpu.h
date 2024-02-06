@@ -72,7 +72,7 @@ typedef struct {
     uint64_t sp;
     uint64_t fp;
 
-    int zero_flag : 1;
+    int zero_flag;
     int halt : 1;
 } CPU;
 
