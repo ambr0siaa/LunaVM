@@ -172,8 +172,9 @@ void cpu_execute_inst(CPU *c)
                 exit(1);
             }
 
+            c->stack_size++;
             operand1 = c->program[++c->ip];
-            STACK_OP(c, stack, operand1, c->stack_size++, 1);
+            STACK_OP(c, stack, operand1, c->sp++, 1);
             break;
 
         case INST_PUSH_REG:
@@ -187,7 +188,8 @@ void cpu_execute_inst(CPU *c)
             if (reg1 >= F0) operand1 = OBJ_FLOAT(c->regsf[reg1]);
             else operand1 = OBJ_INT(c->regs[reg1]);
 
-            STACK_OP(c, stack, operand1, c->stack_size++, 1);
+            c->stack_size++;
+            STACK_OP(c, stack, operand1, c->sp++, 1);
             break;
 
         case INST_POP:
@@ -198,8 +200,9 @@ void cpu_execute_inst(CPU *c)
 
             reg1 = c->program[++c->ip].reg;
             
-            if (reg1 >= F0) STACK_OP(c, regsf, c->stack[--c->stack_size].f64, reg1, 1);
-            else STACK_OP(c, regs, c->stack[--c->stack_size].i64, reg1, 1);
+            --c->stack_size;
+            if (reg1 >= F0) STACK_OP(c, regsf, c->stack[--c->sp].f64, reg1, 1);
+            else STACK_OP(c, regs, c->stack[--c->sp].i64, reg1, 1);
             break;
 
         case INST_CALL:
@@ -218,16 +221,16 @@ void cpu_execute_inst(CPU *c)
             STACK_OP(c, stack, OBJ_UINT(c->sp), c->stack_size++, 0);
             STACK_OP(c, stack, OBJ_UINT(c->ip), c->stack_size++, 0);
 
-            c->ip = operand1.u64;
-            c->sp += ALL_REGS;
+            c->sp += ALL_REGS + 1;
             c->fp = c->sp;
+            c->ip = operand1.u64;
             break;
 
         case INST_RET:
-            c->ip = c->fp - 1;
-            c->sp = c->fp - 2;
-            c->zero_flag = c->fp - 3;
-            c->fp = c->fp - 4;
+            c->ip = c->stack[c->stack_size - 1].u64;
+            c->sp = c->stack[c->fp - 2].u64;
+            c->zero_flag = c->stack[c->fp - 3].u64;
+            c->fp = c->stack[c->fp - 4].u64;
 
             for (int i = ACCF; i >= F0; --i) {
                 STACK_OP(c, regsf, c->stack[--c->stack_size].f64, i, 0);
@@ -236,6 +239,8 @@ void cpu_execute_inst(CPU *c)
             for (int i = ACC; i >= R0; --i) {
                 STACK_OP(c, regs, c->stack[--c->stack_size].i64, i, 0);
             }
+
+            c->ip += 1;
             break;
 
         case IC:

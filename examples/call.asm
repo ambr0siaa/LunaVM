@@ -12,9 +12,9 @@ main:
     dbr r0
     dbr r1
 
-    pshr r0
     pshr r1
     call plus
-    dbr r0
 
+    dbr r0
+    pshv 23445
     hlt
