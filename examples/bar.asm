@@ -2,7 +2,7 @@ movi r0, 1          ;; init regs
 movi r1, 1
 
 main: 
-    cmp r1, r0
+    cmp r1, r2
     jnz loop
     dbr r1
     dbr r0

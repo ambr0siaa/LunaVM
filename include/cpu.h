@@ -35,7 +35,6 @@ typedef enum {
     INST_DIVF,
     INST_MULF,
 
-    INST_PUSH,
     INST_PUSH_VAL,
     INST_PUSH_REG,
 
@@ -58,6 +57,8 @@ typedef union {
     Register reg;
 } Object;
 
+#define ALL_REGS 25 // Register from enum + registers from CPU (ip, sp, fp, zero_flag)
+
 typedef struct {
     int64_t regs[RC];
     double regsf[RC];
@@ -72,7 +73,7 @@ typedef struct {
     uint64_t sp;
     uint64_t fp;
 
-    int zero_flag;
+    int zero_flag : 1;
     int halt : 1;
 } CPU;
 
@@ -83,8 +84,10 @@ typedef struct {
 #define OBJ_INT(val)     (Object) { .i64 = (val) }
 
 extern void debug_regs(CPU *c);
+extern void debug_stack(CPU *c);
+
 extern void cpu_execute_inst(CPU *c);
-extern void cpu_execute_program(CPU *c, int debug, int limit);
+extern void cpu_execute_program(CPU *c, int debug, int limit, int stk);
 
 extern void load_program_to_file(CPU *c, const char *file_path);
 extern void load_program_from_file(CPU *c, const char *file_path);

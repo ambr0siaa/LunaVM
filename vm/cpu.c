@@ -38,10 +38,10 @@ char *reg_as_cstr(uint64_t operand)
         (c)->ip += 1;                                       \
     } while (0)
 
-#define STACK_OP(c, place, op1, index)      \
+#define STACK_OP(c, place, op1, index, on)  \
     do {                                    \
         (c)->place [(index)] = op1;         \
-        (c)->ip += 1;                       \
+        if (on) (c)->ip += 1;               \
     } while(0)
 
 void cpu_execute_inst(CPU *c)
@@ -173,7 +173,7 @@ void cpu_execute_inst(CPU *c)
             }
 
             operand1 = c->program[++c->ip];
-            STACK_OP(c, stack, operand1, c->stack_size++);
+            STACK_OP(c, stack, operand1, c->stack_size++, 1);
             break;
 
         case INST_PUSH_REG:
@@ -187,7 +187,7 @@ void cpu_execute_inst(CPU *c)
             if (reg1 >= F0) operand1 = OBJ_FLOAT(c->regsf[reg1]);
             else operand1 = OBJ_INT(c->regs[reg1]);
 
-            STACK_OP(c, stack, operand1, c->stack_size++);
+            STACK_OP(c, stack, operand1, c->stack_size++, 1);
             break;
 
         case INST_POP:
@@ -198,8 +198,44 @@ void cpu_execute_inst(CPU *c)
 
             reg1 = c->program[++c->ip].reg;
             
-            if (reg1 >= F0) STACK_OP(c, regsf, c->stack[--c->stack_size].f64, reg1);
-            else STACK_OP(c, regs, c->stack[--c->stack_size].i64, reg1);
+            if (reg1 >= F0) STACK_OP(c, regsf, c->stack[--c->stack_size].f64, reg1, 1);
+            else STACK_OP(c, regs, c->stack[--c->stack_size].i64, reg1, 1);
+            break;
+
+        case INST_CALL:
+            operand1 = c->program[++c->ip];
+
+            for (size_t i = R0; i <= ACC; ++i) {
+                STACK_OP(c, stack, OBJ_INT(c->regs[i]), c->stack_size++, 0);
+            }
+
+            for (size_t i = F0; i <= ACCF; ++i) {
+                STACK_OP(c, stack, OBJ_FLOAT(c->regsf[i]), c->stack_size++, 0);
+            }
+
+            STACK_OP(c, stack, OBJ_UINT(c->fp), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_UINT(c->zero_flag), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_UINT(c->sp), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_UINT(c->ip), c->stack_size++, 0);
+
+            c->ip = operand1.u64;
+            c->sp += ALL_REGS;
+            c->fp = c->sp;
+            break;
+
+        case INST_RET:
+            c->ip = c->fp - 1;
+            c->sp = c->fp - 2;
+            c->zero_flag = c->fp - 3;
+            c->fp = c->fp - 4;
+
+            for (int i = ACCF; i >= F0; --i) {
+                STACK_OP(c, regsf, c->stack[--c->stack_size].f64, i, 0);
+            }
+
+            for (int i = ACC; i >= R0; --i) {
+                STACK_OP(c, regs, c->stack[--c->stack_size].i64, i, 0);
+            }
             break;
 
         case IC:
@@ -209,12 +245,13 @@ void cpu_execute_inst(CPU *c)
     }
 }
 
-void cpu_execute_program(CPU *c, int debug, int limit)
+void cpu_execute_program(CPU *c, int debug, int limit, int stk)
 {
     size_t ulimit = (size_t)(limit);
     for (size_t i = 0; c->halt == 0; ++i) {
         if (i > ulimit) break;
         if (debug) debug_regs(c);
+        if (stk) debug_stack(c);
         cpu_execute_inst(c);
     }
 }
@@ -239,7 +276,6 @@ char *inst_as_cstr(Inst inst)
         case INST_JNZ:      return "jnz";
         case INST_JZ:       return "jz";
         case INST_CMP:      return "cmp";
-        case INST_PUSH:     return "push";
         case INST_PUSH_REG: return "pshr";
         case INST_PUSH_VAL: return "pshv";
         case INST_POP:      return "pop";
@@ -273,6 +309,7 @@ int inst_has_no_ops(Inst inst)
 {
     switch (inst) {
         case INST_HLT: return 1;
+        case INST_RET: return 1;
         default:       return 0;
     }
 }
@@ -280,14 +317,15 @@ int inst_has_no_ops(Inst inst)
 int inst_has_1_op(Inst inst)
 {
     switch (inst) {
-        case INST_JMP: return 1;
-        case INST_JNZ: return 1;
-        case INST_DBR: return 1;
-        case INST_JZ:  return 1;
-        case INST_POP: return 1;
+        case INST_JMP:      return 1;
+        case INST_JNZ:      return 1;
+        case INST_DBR:      return 1;
+        case INST_JZ:       return 1;
+        case INST_POP:      return 1;
         case INST_PUSH_REG: return 1;
-        case INST_PUSH_VAL:  return 1;
-        default:       return 0;
+        case INST_PUSH_VAL: return 1;
+        case INST_CALL:     return 1;
+        default:            return 0;
     }
 }
 
@@ -301,6 +339,16 @@ void debug_regs(CPU *c)
     printf("zero flag: %d\n", c->zero_flag);
     printf("halt: %d\n", c->halt);
     printf("\n");
+}
+
+void debug_stack(CPU *c)
+{
+    printf("Stack:\n");
+    if (c->stack_size == 0) printf("    empty\n");
+    for (size_t i = 0; i < c->stack_size; ++i) {
+        printf("    i64: %li, u64: %lu, f64: %lf\n",
+                c->stack[i].i64, c->stack[i].u64, c->stack[i].f64);
+    }
 }
 
 void load_program_to_cpu(CPU *c, Object *program, size_t program_size)

@@ -11,6 +11,7 @@ int main(int argc, char **argv)
     const char *input_file_path;
     int limit = -1;
     int db = 0;
+    int stk = 0;
 
     const char *program = asm_shift_args(&argc, &argv);
 
@@ -42,6 +43,9 @@ int main(int argc, char **argv)
 
             limit = atoi(limit_cstr); 
 
+        } else if (!strcmp(flag, "-stk")) {
+            stk = 1;
+
         } else if (!strcmp(flag, "-db")) { 
             db = 1;
 
@@ -58,5 +62,5 @@ int main(int argc, char **argv)
     }
 
     load_program_from_file(&cpu, input_file_path);
-    cpu_execute_program(&cpu, db, limit);
+    cpu_execute_program(&cpu, db, limit, stk);
 }

@@ -157,7 +157,7 @@ void asm_cut_comments(String_View *line)
 
 void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
 {
-     // TODO: - add more info about errors
+    // TODO: - add more info about errors
     //       - add line and symbol numbers where was error  
 
     if (c->program_capacity == 0) {
@@ -200,7 +200,7 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                 c->program[c->program_size++] = OBJ_INST(inst);
                 
                 
-                if (inst == INST_JMP || inst == INST_JNZ || inst == INST_JZ) {
+                if (inst == INST_JMP || inst == INST_JNZ || inst == INST_JZ || inst == INST_CALL) {
                     String_View addr_sv = sv_trim(line);
 
                     if (isdigit(*addr_sv.data)) {
@@ -227,14 +227,8 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                         }
                     }
                 } else {
-
                     while (line.count > 0) {
                         String_View arg_sv = sv_trim(sv_div_by_delim(&line, ','));
-
-                        if (inst == INST_PUSH) {
-                            if (isdigit(arg_sv.data[0])) c->program[c->program_size - 1] = OBJ_INST(INST_PUSH_VAL); 
-                            else c->program[c->program_size - 1] = OBJ_INST(INST_PUSH_REG);
-                        }
 
                         if (isdigit(arg_sv.data[0])) {
                             Object value = parse_value(arg_sv);
