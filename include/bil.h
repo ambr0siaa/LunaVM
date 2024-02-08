@@ -468,8 +468,8 @@ bool bil_rename_file(const char *file_name, const char *new_name)
 {
     bil_log(BIL_INFO, "renaming %s -> %s", file_name, new_name);
 #ifdef _WIN32
-    if (!MoveFileEx(file_path, new_path, MOVEFILE_REPLACE_EXISTING)) {
-        bil_log(BIL_ERROR, "could not rename %s to %s: %lu", file_path, new_path, GetLastError());
+    if (!MoveFileEx(file_name, new_name, MOVEFILE_REPLACE_EXISTING)) {
+        bil_log(BIL_ERROR, "could not rename %s to %s: %lu", file_name, new_name, GetLastError());
         return false;
     }
     return true;

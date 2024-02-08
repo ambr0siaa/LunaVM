@@ -3,7 +3,12 @@
 
 #define CC "gcc"
 #define SRC "./kernel/asm.c", "./common/sv.c", "./kernel/cpu.c", "./common/ht.c"
-#define CFLAGS "-Wall", "-Wextra"
+
+#ifdef _Win32
+#   define CFLAGS " "
+#else 
+#   define CFLAGS "-Wall", "-Wextra"
+#endif
 
 // This `bil` file will build:
 //      in ./transalte `tsl` - translate assembly code to vm bytecode
