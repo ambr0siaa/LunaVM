@@ -172,9 +172,9 @@ void cpu_execute_inst(CPU *c)
                 exit(1);
             }
 
-            c->stack_size++;
             operand1 = c->program[++c->ip];
-            STACK_OP(c, stack, operand1, c->sp++, 1);
+            STACK_OP(c, stack, operand1, c->stack_size++, 1);
+            c->sp++;
             break;
 
         case INST_PUSH_REG:
@@ -188,8 +188,8 @@ void cpu_execute_inst(CPU *c)
             if (reg1 >= F0) operand1 = OBJ_FLOAT(c->regsf[reg1]);
             else operand1 = OBJ_INT(c->regs[reg1]);
 
-            c->stack_size++;
-            STACK_OP(c, stack, operand1, c->sp++, 1);
+            STACK_OP(c, stack, operand1, c->stack_size++, 1);
+            c->sp++;
             break;
 
         case INST_POP:
@@ -200,45 +200,77 @@ void cpu_execute_inst(CPU *c)
 
             reg1 = c->program[++c->ip].reg;
             
-            --c->stack_size;
-            if (reg1 >= F0) STACK_OP(c, regsf, c->stack[--c->sp].f64, reg1, 1);
-            else STACK_OP(c, regs, c->stack[--c->sp].i64, reg1, 1);
+            if (reg1 >= F0) STACK_OP(c, regsf, c->stack[--c->stack_size].f64, reg1, 1);
+            else STACK_OP(c, regs, c->stack[--c->stack_size].i64, reg1, 1);
+
+            c->sp--;
             break;
 
         case INST_CALL:
             operand1 = c->program[++c->ip];
 
-            for (size_t i = R0; i <= ACC; ++i) {
-                STACK_OP(c, stack, OBJ_INT(c->regs[i]), c->stack_size++, 0);
-            }
+            STACK_OP(c, stack, OBJ_INT(c->regs[R0]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_INT(c->regs[R1]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_INT(c->regs[R2]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_INT(c->regs[R3]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_INT(c->regs[R4]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_INT(c->regs[R5]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_INT(c->regs[R6]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_INT(c->regs[R7]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_INT(c->regs[R8]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_INT(c->regs[ACC]), c->stack_size++, 0);
 
-            for (size_t i = F0; i <= ACCF; ++i) {
-                STACK_OP(c, stack, OBJ_FLOAT(c->regsf[i]), c->stack_size++, 0);
-            }
+            STACK_OP(c, stack, OBJ_FLOAT(c->regsf[F0]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_FLOAT(c->regsf[F1]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_FLOAT(c->regsf[F2]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_FLOAT(c->regsf[F3]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_FLOAT(c->regsf[F4]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_FLOAT(c->regsf[F5]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_FLOAT(c->regsf[F6]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_FLOAT(c->regsf[F7]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_FLOAT(c->regsf[F8]), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_FLOAT(c->regsf[ACCF]), c->stack_size++, 0);
 
-            STACK_OP(c, stack, OBJ_UINT(c->fp), c->stack_size++, 0);
             STACK_OP(c, stack, OBJ_UINT(c->zero_flag), c->stack_size++, 0);
+            STACK_OP(c, stack, OBJ_UINT(c->fp), c->stack_size++, 0);
             STACK_OP(c, stack, OBJ_UINT(c->sp), c->stack_size++, 0);
             STACK_OP(c, stack, OBJ_UINT(c->ip), c->stack_size++, 0);
 
-            c->sp += ALL_REGS + 1;
+            c->sp += 24;
             c->fp = c->sp;
             c->ip = operand1.u64;
             break;
 
         case INST_RET:
-            c->ip = c->stack[c->stack_size - 1].u64;
+            uint64_t tmp = c->fp; 
+            c->ip = c->stack[c->fp - 1].u64;
             c->sp = c->stack[c->fp - 2].u64;
-            c->zero_flag = c->stack[c->fp - 3].u64;
-            c->fp = c->stack[c->fp - 4].u64;
+            c->fp = c->stack[c->fp - 3].u64;
+            c->zero_flag = c->stack[c->fp - 4].u64;
 
-            for (int i = ACCF; i >= F0; --i) {
-                STACK_OP(c, regsf, c->stack[--c->stack_size].f64, i, 0);
-            }
+            tmp -= 4;
 
-            for (int i = ACC; i >= R0; --i) {
-                STACK_OP(c, regs, c->stack[--c->stack_size].i64, i, 0);
-            }
+            c->regsf[ACCF] = c->stack[--tmp].f64;
+            c->regsf[F8] = c->stack[--tmp].f64;
+            c->regsf[F7] = c->stack[--tmp].f64;
+            c->regsf[F6] = c->stack[--tmp].f64;
+            c->regsf[F5] = c->stack[--tmp].f64;
+            c->regsf[F4] = c->stack[--tmp].f64;
+            c->regsf[F3] = c->stack[--tmp].f64;
+            c->regsf[F2] = c->stack[--tmp].f64;
+            c->regsf[F1] = c->stack[--tmp].f64;
+            c->regsf[F0] = c->stack[--tmp].f64;
+            
+            c->regs[ACC] = c->stack[--tmp].i64;
+            c->regs[R8] = c->stack[--tmp].i64;
+            c->regs[R7] = c->stack[--tmp].i64;
+            c->regs[R6] = c->stack[--tmp].i64;
+            c->regs[R5] = c->stack[--tmp].i64;
+            c->regs[R4] = c->stack[--tmp].i64;
+            c->regs[R3] = c->stack[--tmp].i64;
+            c->regs[R2] = c->stack[--tmp].i64;
+            c->regs[R1] = c->stack[--tmp].i64;
+            c->regs[R0] = c->stack[--tmp].i64;
 
             c->ip += 1;
             break;
