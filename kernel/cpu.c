@@ -3,27 +3,30 @@
 char *reg_as_cstr(uint64_t operand)
 {
     switch (operand) {
-        case R0: return  "r0";
-        case R1: return  "r1";
-        case R2: return  "r2";
-        case R3: return  "r3";
-        case R4: return  "r4";
-        case R5: return  "r5";
-        case R6: return  "r6";
-        case R7: return  "r7";
-        case R8: return  "r8";
-        case ACC: return "acc";
+        case R0:    return  "r0";
+        case R1:    return  "r1";
+        case R2:    return  "r2";
+        case R3:    return  "r3";
+        case R4:    return  "r4";
+        case R5:    return  "r5";
+        case R6:    return  "r6";
+        case R7:    return  "r7";
+        case R8:    return  "r8";
+        case ACC:   return "acc";
 
-        case F0: return  "f0";
-        case F1: return  "f1";
-        case F2: return  "f2";
-        case F3: return  "f3";
-        case F4: return  "f4";
-        case F5: return  "f5";
-        case F6: return  "f6";
-        case F7: return  "f7";
-        case F8: return  "f8";
-        case ACCF: return "accf";
+        case F0:    return  "f0";
+        case F1:    return  "f1";
+        case F2:    return  "f2";
+        case F3:    return  "f3";
+        case F4:    return  "f4";
+        case F5:    return  "f5";
+        case F6:    return  "f6";
+        case F7:    return  "f7";
+        case F8:    return  "f8";
+        case ACCF:  return "accf";
+
+        case RT:   return "rt";
+        case RTF:  return "rtf";
 
         case RC:
         default:
@@ -38,7 +41,7 @@ char *reg_as_cstr(uint64_t operand)
         (c)->ip += 1;                                       \
     } while (0)
 
-#define STACK_OP(c, place, op1, index, on)  \
+#define CPU_OP(c, place, op1, index, on)    \
     do {                                    \
         (c)->place [(index)] = op1;         \
         if (on) (c)->ip += 1;               \
@@ -57,21 +60,29 @@ void cpu_execute_inst(CPU *c)
     Register reg2;
     Object operand1;
 
-    // TODO: Impelementation of INST_CALL and INST_RET
-
     switch (inst) {
         case INST_MOVI:
             reg1 = c->program[++c->ip].reg;
-            c->regs[reg1] = c->program[++c->ip].i64;
-            c->ip += 1;
+            operand1 = c->program[++c->ip];
+
+            CPU_OP(c, regs, operand1.i64, reg1, 1);
             break;
 
         case INST_MOVF:
             reg1 = c->program[++c->ip].reg;
             operand1 = c->program[++c->ip];
 
-            c->regsf[reg1] = operand1.f64;
-            c->ip += 1;
+            CPU_OP(c, regsf, operand1.f64, reg1, 1);
+            break;
+
+        case INST_MOVS:
+            reg1 = c->program[++c->ip].reg;
+            operand1 = c->program[++c->ip];
+
+            Object stack_value = c->stack[c->stack_size - 1 - operand1.i64];
+
+            if (reg1 >= F0) CPU_OP(c, regsf, stack_value.f64, reg1, 1);
+            else CPU_OP(c, regs, stack_value.i64, reg1, 1);
             break;
 
         case INST_ADDI:
@@ -114,14 +125,15 @@ void cpu_execute_inst(CPU *c)
             AREFMETIC_OP(c, f, operand1.f64, c->regsf[c->program[++c->ip].reg], /, ACCF);
             break;
 
+        // TODO: Implement V-instructions
+
         case INST_MOV:
             reg1 = c->program[++c->ip].reg;
             reg2 = c->program[++c->ip].reg;
 
-            if (reg1 >= F0) c->regsf[reg1] = c->regsf[reg2];
-            else c->regs[reg1] = c->regs[reg2];
+            if (reg1 >= F0) CPU_OP(c, regsf, c->regsf[reg2], reg1, 1);
+            else CPU_OP(c, regs, c->regs[reg2], reg1, 1);
 
-            c->ip += 1;
             break;
 
         case INST_JMP:
@@ -173,7 +185,7 @@ void cpu_execute_inst(CPU *c)
             }
 
             operand1 = c->program[++c->ip];
-            STACK_OP(c, stack, operand1, c->stack_size++, 1);
+            CPU_OP(c, stack, operand1, c->stack_size++, 1);
             c->sp++;
             break;
 
@@ -188,7 +200,7 @@ void cpu_execute_inst(CPU *c)
             if (reg1 >= F0) operand1 = OBJ_FLOAT(c->regsf[reg1]);
             else operand1 = OBJ_INT(c->regs[reg1]);
 
-            STACK_OP(c, stack, operand1, c->stack_size++, 1);
+            CPU_OP(c, stack, operand1, c->stack_size++, 1);
             c->sp++;
             break;
 
@@ -200,8 +212,8 @@ void cpu_execute_inst(CPU *c)
 
             reg1 = c->program[++c->ip].reg;
             
-            if (reg1 >= F0) STACK_OP(c, regsf, c->stack[--c->stack_size].f64, reg1, 1);
-            else STACK_OP(c, regs, c->stack[--c->stack_size].i64, reg1, 1);
+            if (reg1 >= F0) CPU_OP(c, regsf, c->stack[--c->stack_size].f64, reg1, 1);
+            else CPU_OP(c, regs, c->stack[--c->stack_size].i64, reg1, 1);
 
             c->sp--;
             break;
@@ -210,19 +222,19 @@ void cpu_execute_inst(CPU *c)
             operand1 = c->program[++c->ip];
 
             for (size_t i = R0; i <= ACC; ++i) {
-                STACK_OP(c, stack, OBJ_INT(c->regs[i]), c->stack_size++, 0);
+                CPU_OP(c, stack, OBJ_INT(c->regs[i]  ), c->stack_size++, 0);
             }
 
             for (size_t i = F0; i <= ACCF; ++i) {
-                STACK_OP(c, stack, OBJ_FLOAT(c->regsf[i]), c->stack_size++, 0);
+                CPU_OP(c, stack, OBJ_FLOAT(c->regsf[i]  ), c->stack_size++, 0);
             }
 
-            STACK_OP(c, stack, OBJ_UINT(c->zero_flag), c->stack_size++, 0);
-            STACK_OP(c, stack, OBJ_UINT(c->fp), c->stack_size++, 0);
-            STACK_OP(c, stack, OBJ_UINT(c->sp), c->stack_size++, 0);
-            STACK_OP(c, stack, OBJ_UINT(c->ip), c->stack_size++, 0);
+            CPU_OP(c, stack, OBJ_UINT(c->zero_flag),   c->stack_size++, 0);
+            CPU_OP(c, stack, OBJ_UINT(c->fp),   c->stack_size++, 0);
+            CPU_OP(c, stack, OBJ_UINT(c->sp),   c->stack_size++, 0);
+            CPU_OP(c, stack, OBJ_UINT(c->ip),   c->stack_size++, 0);
 
-            c->sp += 24;
+            c->sp += STACK_FRAME_SIZE;
             c->fp = c->sp;
             c->ip = operand1.u64;
             break;
@@ -272,22 +284,34 @@ char *inst_as_cstr(Inst inst)
         case INST_SUBI:     return "subi";
         case INST_DIVI:     return "divi";
         case INST_MULI:     return "muli";
+
         case INST_ADDF:     return "addf";
         case INST_SUBF:     return "subf";
         case INST_DIVF:     return "divf";
         case INST_MULF:     return "mulf";
+
+        case INST_ADDV:     return "addv";
+        case INST_SUBV:     return "subv";
+        case INST_DIVV:     return "divv";
+        case INST_MULV:     return "mulv";
+
+        case INST_MOV:      return "mov";
         case INST_MOVI:     return "movi";
         case INST_MOVF:     return "movf";
+        case INST_MOVS:     return "movs";
+        
         case INST_HLT:      return "hlt";
         case INST_DBR:      return "dbr";
-        case INST_MOV:      return "mov";
+        case INST_CMP:      return "cmp";
+        
         case INST_JMP:      return "jmp";
         case INST_JNZ:      return "jnz";
         case INST_JZ:       return "jz";
-        case INST_CMP:      return "cmp";
+        
         case INST_PUSH_REG: return "pshr";
-        case INST_PUSH_VAL: return "pshv";
+        case INST_PUSH_VAL: return "push";
         case INST_POP:      return "pop";
+        
         case INST_CALL:     return "call";
         case INST_RET:      return "ret";
         case IC:        

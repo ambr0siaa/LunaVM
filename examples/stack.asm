@@ -13,5 +13,5 @@ pop r1
 dbr r0
 dbr r1
 
-pshv 1
+push 1
 hlt

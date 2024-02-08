@@ -155,6 +155,16 @@ void asm_cut_comments(String_View *line)
     } 
 }
 
+int64_t movs_option(String_View *arg)
+{
+    if (arg->data[0] == MOVS_OPTION) {
+        arg->data += 1;
+        arg->count -= 1;
+        return STACK_FRAME_SIZE;
+    } 
+    else return 0; 
+}
+
 void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
 {
     // TODO: - add more info about errors
@@ -230,8 +240,10 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                     while (line.count > 0) {
                         String_View arg_sv = sv_trim(sv_div_by_delim(&line, ','));
 
-                        if (isdigit(arg_sv.data[0])) {
+                        if (isdigit(arg_sv.data[0]) || arg_sv.data[0] == MOVS_OPTION) {
+                            int64_t frame_shift = movs_option(&arg_sv);
                             Object value = parse_value(arg_sv);
+                            value.i64 = value.i64 + frame_shift;
                             c->program[c->program_size++] = value;
                         } else {
                             Register reg = parse_register(arg_sv);

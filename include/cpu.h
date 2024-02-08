@@ -12,28 +12,46 @@
 #define STACK_CAPACITY 16384
 #define ARRAY_SIZE(arr) sizeof((arr)) / sizeof((arr)[0])
 
+// RT - return register
+// RTF - return float register
+// ACC - accumulator
+// ACCF - accumulator for float
+// RC - registers count
 typedef enum {
     R0 = 0, R1, R2, R3, R4, R5, R6, R7, R8, ACC,
-    F0, F1, F2, F3, F4, F5, F6, F7, F8, ACCF, RC,  
+    F0, F1, F2, F3, F4, F5, F6, F7, F8, ACCF, 
+    RT, RTF, RC,   
 } Register;
- 
+
+#define MOVS_OPTION '$'
+
 typedef enum {
     INST_MOV = 0,
-    INST_MOVI,
-    INST_MOVF,
+    INST_MOVI,      // Move integer to register 
+    INST_MOVF,      // Move float to register
+    INST_MOVS,      // Move value from stack relativly; `$` is option to get args for call from previous stack frame
 
     INST_HLT,
-    INST_DBR,   // DeBug Register
+    INST_DBR,       // DeBug Register
 
+    // Arefmetic insts
+    // For integer registers
     INST_ADDI,
     INST_SUBI,
     INST_DIVI,
     INST_MULI,
 
+    // For float registers
     INST_ADDF,
     INST_SUBF,
     INST_DIVF,
     INST_MULF,
+
+    // For values with registers
+    INST_ADDV,
+    INST_SUBV,
+    INST_MULV,
+    INST_DIVV,
 
     INST_PUSH_VAL,
     INST_PUSH_REG,
@@ -49,6 +67,7 @@ typedef enum {
     IC          // IC -> inst count
 } Inst;
 
+// Abstract representation of all types that can use vm
 typedef union {
     Inst inst;
     double f64;
@@ -57,8 +76,10 @@ typedef union {
     Register reg;
 } Object;
 
-#define ALL_REGS 25 // Register from enum + registers from CPU (ip, sp, fp, zero_flag)
+// Register from enum (without RT and RTF) + registers from CPU (ip, sp, fp, zero_flag)
+#define STACK_FRAME_SIZE 24
 
+// kernel of virtual machine
 typedef struct {
     int64_t regs[RC];
     double regsf[RC];

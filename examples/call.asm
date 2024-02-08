@@ -1,4 +1,4 @@
-jmp main
+jmp main 
 
 minus:
     movi r0, 1234
@@ -7,8 +7,16 @@ minus:
     ret
 
 plus:
-    addi r1, r0
-    mov r1, acc
+    movs r0, $0
+    movs r1, $1
+
+    dbr r0
+    dbr r1
+
+    addi r0, r1
+    mov r0, acc
+    dbr r0
+
     call minus
     dbr r1
     ret
@@ -19,9 +27,12 @@ main:
     dbr r0
     dbr r1
 
+    push 13
+    push 36324
     call plus
 
     dbr r0
     dbr r1
     dbr r2
+
     hlt

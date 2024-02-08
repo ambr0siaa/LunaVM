@@ -2,7 +2,7 @@
 #include "./include/bil.h"
 
 #define CC "gcc"
-#define SRC "./vm/asm.c", "./common/sv.c", "./vm/cpu.c", "./common/ht.c"
+#define SRC "./kernel/asm.c", "./common/sv.c", "./kernel/cpu.c", "./common/ht.c"
 #define CFLAGS "-Wall", "-Wextra"
 
 // This `bil` file will build:
