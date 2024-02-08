@@ -64,6 +64,8 @@ typedef enum {
     INST_JNZ,
     INST_JZ,
     INST_CMP,
+
+    INST_VLAD,
     IC          // IC -> inst count
 } Inst;
 

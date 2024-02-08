@@ -126,6 +126,41 @@ void cpu_execute_inst(CPU *c)
             break;
 
         // TODO: Implement V-instructions
+        case INST_ADDV:
+            reg1 = c->program[++c->ip].reg;
+            operand1 = c->program[++c->ip];
+
+            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1], operand1.f64, +, ACCF);
+            else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, +, ACC);
+
+            break;
+
+        case INST_SUBV:
+            reg1 = c->program[++c->ip].reg;
+            operand1 = c->program[++c->ip];
+
+            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1], operand1.f64, -, ACCF);
+            else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, -, ACC);
+
+            break;
+
+        case INST_DIVV:
+            reg1 = c->program[++c->ip].reg;
+            operand1 = c->program[++c->ip];
+
+            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1], operand1.f64, /, ACCF);
+            else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, /, ACC);
+
+            break;
+
+        case INST_MULV:
+            reg1 = c->program[++c->ip].reg;
+            operand1 = c->program[++c->ip];
+
+            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1], operand1.f64, *, ACCF);
+            else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, *, ACC);
+
+            break;
 
         case INST_MOV:
             reg1 = c->program[++c->ip].reg;
@@ -259,6 +294,11 @@ void cpu_execute_inst(CPU *c)
             c->ip += 1;
             break;
 
+        case INST_VLAD:
+            printf("Влад ест кал!\n");
+            c->ip += 1;
+            break;
+
         case IC:
         default:
             fprintf(stderr, "Error: undefine instruction\n");
@@ -314,6 +354,8 @@ char *inst_as_cstr(Inst inst)
         
         case INST_CALL:     return "call";
         case INST_RET:      return "ret";
+
+        case INST_VLAD:     return "vlad";
         case IC:        
         default:
             fprintf(stderr, "Error: `%u` this is not a inst\n", inst);
@@ -343,6 +385,7 @@ int inst_has_no_ops(Inst inst)
     switch (inst) {
         case INST_HLT: return 1;
         case INST_RET: return 1;
+        case INST_VLAD: return 1;
         default:       return 0;
     }
 }
