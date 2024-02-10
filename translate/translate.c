@@ -1,10 +1,10 @@
-#include "../include/asm.h"
+#include "../kernel/asm/asm.h"
 
 #define USAGE(program)                                                   \
     fprintf(stderr, "Usage: %s <input.asm> <output.ven>\n", (program))
 
-CPU cpu = {0};
-Program_Jumps PJ = {0};
+static Program_Jumps PJ = {0};
+static CPU cpu = {0};
 
 int main(int argc, char **argv)
 {
@@ -30,6 +30,10 @@ int main(int argc, char **argv)
     asm_translate_source(&cpu, &PJ, src);
     load_program_to_file(&cpu, output_file_path);
 
+    free(src.data);
+    free(PJ.current.lables);
+    free(PJ.deferred.lables);
+    
     fprintf(stdout, "file `%s` translate to `%s`\n", input_file_path, output_file_path);
     return 0;
 }

@@ -1,7 +1,7 @@
 #ifndef ASM_H_
 #define ASM_H_
 
-#include "cpu.h"
+#include "../cpu/cpu.h"
 #include "../common/sv.h"
 #include "../common/ht.h"
 

@@ -1,4 +1,4 @@
-#include "../include/asm.h"
+#include "./asm.h"
 
 String_View asm_load_file(const char *file_path)
 {
@@ -260,6 +260,8 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
             c->program[PJ->deferred.lables[i].addr] = OBJ_UINT(lable.addr);
         }
     }
+
+    free(Inst_Table.hs);
 }
 
 char *asm_shift_args(int *argc, char ***argv)

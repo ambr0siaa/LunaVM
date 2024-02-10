@@ -1,9 +1,9 @@
-#include "../include/asm.h"
+#include "../kernel/asm/asm.h"
 
 #define USAGE(program)                                                                              \
     fprintf(stderr, "Usage: %s <input.ven> -l <limit> -db <debug registers> -h <help>\n", (program))
 
-CPU cpu = {0};
+static CPU cpu = {0};
 
 int main(int argc, char **argv)
 {
@@ -14,6 +14,12 @@ int main(int argc, char **argv)
     int stk = 0;
 
     const char *program = asm_shift_args(&argc, &argv);
+
+    if (argc < 2) {
+        USAGE(program);
+        fprintf(stderr, "Error: not enough args\n");
+        exit(1);
+    }
 
     while (argc != 0) {
         flag = asm_shift_args(&argc, &argv);
@@ -63,4 +69,6 @@ int main(int argc, char **argv)
 
     load_program_from_file(&cpu, input_file_path);
     cpu_execute_program(&cpu, db, limit, stk);
+
+    cpu_clean_program(&cpu);
 }

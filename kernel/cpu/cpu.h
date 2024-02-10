@@ -60,6 +60,9 @@ typedef enum {
     INST_CALL,
     INST_RET,
 
+    // TODO: INST_INC, INST_DEC
+    // INST_AND, INST_OR, INST_NOT, INST_XOR, INST_RSR, INST_RSL
+
     INST_JMP,
     INST_JNZ,
     INST_JZ,
@@ -122,5 +125,7 @@ extern char *inst_as_cstr(Inst inst);
 extern int inst_has_2_regs(Inst inst);
 extern int inst_has_no_ops(Inst inst);
 extern int inst_has_1_op(Inst inst);
+
+extern void cpu_clean_program(CPU *c);
 
 #endif // CPU_H_

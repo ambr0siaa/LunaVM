@@ -1,4 +1,4 @@
-#include "../include/asm.h"
+#include "../kernel/asm/asm.h"
 
 #define USAGE(program)                                  \
     fprintf(stderr, "Usage: %s <input.ven>\n", (program))

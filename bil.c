@@ -1,8 +1,10 @@
+// This file build all project
+
 #define BIL_IMPLEMENTATION
-#include "./include/bil.h"
+#include "./kernel/common/bil.h"
 
 #define CC "gcc"
-#define SRC "./kernel/asm.c", "./common/sv.c", "./kernel/cpu.c", "./common/ht.c"
+#define SRC "./kernel/asm/asm.c", "./kernel/cpu/cpu.c", "./kernel/common/sv.c", "./kernel/common/ht.c"
 
 #ifdef _Win32
 #   define CFLAGS " "

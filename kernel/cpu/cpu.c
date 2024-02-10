@@ -1,4 +1,4 @@
-#include "../include/cpu.h"
+#include "./cpu.h"
 
 char *reg_as_cstr(uint64_t operand)
 {
@@ -125,7 +125,6 @@ void cpu_execute_inst(CPU *c)
             AREFMETIC_OP(c, f, operand1.f64, c->regsf[c->program[++c->ip].reg], /, ACCF);
             break;
 
-        // TODO: Implement V-instructions
         case INST_ADDV:
             reg1 = c->program[++c->ip].reg;
             operand1 = c->program[++c->ip];
@@ -502,4 +501,11 @@ void load_program_from_file(CPU *c, const char *file_path)
     }
 
     fclose(fp);
+}
+
+void cpu_clean_program(CPU *c)
+{
+    free(c->program);
+    c->program_capacity = 0;
+    c->program_size = 0;
 }
