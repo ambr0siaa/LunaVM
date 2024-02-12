@@ -8,8 +8,6 @@
 #define INIT_CAPACITY 32
 typedef uint64_t Inst_Addr;
 
-extern hash_table Inst_Table;
-
 typedef struct {
     String_View name;
     Inst_Addr addr;
