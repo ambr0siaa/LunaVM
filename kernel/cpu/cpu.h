@@ -1,33 +1,32 @@
 #ifndef CPU_H_
 #define CPU_H_
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <errno.h>
+
+#define ARRAY_SIZE(arr) (sizeof((arr)) / sizeof((arr)[0]))
 
 #define PROGRAM_INIT_CAPACITY 1024
-#define STACK_CAPACITY 16384
-#define ARRAY_SIZE(arr) sizeof((arr)) / sizeof((arr)[0])
+#define STACK_CAPACITY        16384
 
-// RT - return register
-// RTF - return float register
-// ACC - accumulator
+// RT   - return register
+// RTF  - return float register
+// ACC  - accumulator
 // ACCF - accumulator for float
-// RC - registers count
+// RC   - registers count
 typedef enum {
     R0 = 0, R1, R2, R3, R4, R5, R6, R7, R8, ACC,
-    F0, F1, F2, F3, F4, F5, F6, F7, F8, ACCF, 
-    RT, RTF, RC,   
+    F0, F1, F2, F3, F4, F5, F6, F7, F8, ACCF,
+    RT, RTF, RC,
 } Register;
 
 #define MOVS_OPTION '$'
 
 typedef enum {
     INST_MOV = 0,
-    INST_MOVI,      // Move integer to register 
+    INST_MOVI,      // Move integer to register
     INST_MOVF,      // Move float to register
     INST_MOVS,      // Move value from stack relativly; `$` is option to get args for call from previous stack frame
 
@@ -103,11 +102,11 @@ typedef struct {
     int halt : 1;
 } CPU;
 
-#define OBJ_INST(type)   (Object) { .inst = (type) }
-#define OBJ_FLOAT(val)   (Object) { .f64 = (val) }
-#define OBJ_UINT(val)    (Object) { .u64 = (val) }
-#define OBJ_REG(r)       (Object) { .reg = (r) }
-#define OBJ_INT(val)     (Object) { .i64 = (val) }
+#define OBJ_INST(type) (Object) { .inst = (type) }
+#define OBJ_FLOAT(val) (Object) { .f64 = (val) }
+#define OBJ_UINT(val)  (Object) { .u64 = (val) }
+#define OBJ_REG(r)     (Object) { .reg = (r) }
+#define OBJ_INT(val)   (Object) { .i64 = (val) }
 
 extern void debug_regs(CPU *c);
 extern void debug_stack(CPU *c);

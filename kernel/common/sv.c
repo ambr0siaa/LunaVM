@@ -80,9 +80,9 @@ int sv_to_int(String_View sv)
 {
     int result = 0;
     for (size_t i = 0; i < sv.count && isdigit(sv.data[i]); ++i) {
-        result = result * 10 + sv.data[i] - '0'; 
+        result = result * 10 + sv.data[i] - '0';
     }
-    
+
     return result;
 }
 

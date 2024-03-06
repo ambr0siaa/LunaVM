@@ -1,4 +1,7 @@
-#include "./asm.h"
+#include "asm.h"
+
+#include <assert.h>
+#include <errno.h>
 
 String_View asm_load_file(const char *file_path)
 {
@@ -27,7 +30,7 @@ String_View asm_load_file(const char *file_path)
     char *buf = malloc(file_size * sizeof(char) + 2);
 
     if (!buf) {
-        fprintf(stderr, "cannot allocate memory for file: %s\n", 
+        fprintf(stderr, "cannot allocate memory for file: %s\n",
                 strerror(errno));
     }
 
@@ -75,7 +78,7 @@ Lable ll_search_lable(Lable_List *ll, String_View name)
 }
 
 Register parse_register(String_View sv)
-{   
+{
     char *acc = reg_as_cstr(ACC);
     if (sv_cmp(sv, sv_from_cstr(acc)))
         return ACC;
@@ -115,7 +118,7 @@ Inst parse_inst(String_View inst_sv)
 
     Inst inst = ht_get(&Inst_Table, inst_cstr);
     return inst;
-} 
+}
 
 Object parse_value(String_View sv)
 {
@@ -125,7 +128,7 @@ Object parse_value(String_View sv)
         char *float_cstr = malloc(sizeof(char) * sv.count + 1);
         memcpy(float_cstr, sv.data, sv.count);
 
-        char *endptr = float_cstr; 
+        char *endptr = float_cstr;
 
         double d = strtod(float_cstr, &float_cstr);
 
@@ -142,8 +145,8 @@ Object parse_value(String_View sv)
         return OBJ_INT(INT);
     }
 }
- 
-void asm_cut_comments(String_View *line) 
+
+void asm_cut_comments(String_View *line)
 {
     size_t i = 0;
     size_t count = 0;
@@ -154,7 +157,7 @@ void asm_cut_comments(String_View *line)
 
     if (count == 2) {
         line->count = i - 2;
-    } 
+    }
 }
 
 int64_t movs_option(String_View *arg)
@@ -163,21 +166,21 @@ int64_t movs_option(String_View *arg)
         arg->data += 1;
         arg->count -= 1;
         return STACK_FRAME_SIZE;
-    } 
-    else return 0; 
+    }
+    else return 0;
 }
 
 void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
 {
     // TODO: - add more info about errors
-    //       - add line and symbol numbers where was error  
+    //       - add line and symbol numbers where was error
 
     if (c->program_capacity == 0) {
         c->program_capacity = PROGRAM_INIT_CAPACITY;
         c->program = malloc(c->program_capacity * sizeof(c->program[0]));
     }
 
-    c->program_size = 0;  
+    c->program_size = 0;
     while (src.count > 0) {
         if (c->program_size + 1 >= c->program_capacity) {
             c->program_capacity *= 2;
@@ -186,16 +189,16 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
 
         String_View line = sv_trim(sv_div_by_delim(&src, '\n'));
         asm_cut_comments(&line);
-        
+
         if (line.count > 0) {
             String_View inst_name = sv_trim(sv_div_by_delim(&line, ' '));
-            
+
             if (inst_name.count > 0 && inst_name.data[inst_name.count - 1] == ':') {
                 String_View lable_name = {
                     .count = inst_name.count - 1,
                     .data = inst_name.data
                 };
-                
+
                 Lable lable = {
                     .name = lable_name,
                     .addr = c->program_size
@@ -208,7 +211,7 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
             if (inst_name.count > 0) {
                 Inst inst = parse_inst(inst_name);
                 c->program[c->program_size++] = OBJ_INST(inst);
-                
+
                 if (inst == INST_JMP || inst == INST_JNZ || inst == INST_JZ || inst == INST_CALL) {
                     String_View addr_sv = sv_trim(line);
 
@@ -222,7 +225,7 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                         c->program[c->program_size++] = OBJ_UINT(addr);
                     } else {
                         Lable lable = ll_search_lable(&PJ->current, addr_sv);
-                    
+
                         if (lable.addr != (uint64_t)(-1)) {
                             c->program[c->program_size++] = OBJ_UINT(lable.addr);
                         } else {
@@ -232,7 +235,7 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                             };
 
                             ll_append(&PJ->deferred, dlable);
-                            c->program[c->program_size++] = OBJ_INT(-1);                
+                            c->program[c->program_size++] = OBJ_INT(-1);
                         }
                     }
                 } else {
@@ -251,9 +254,9 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                     }
                 }
             }
-        }    
+        }
     }
-    
+
     for (size_t i = 0; i < PJ->deferred.count; ++i) {
         Lable lable = ll_search_lable(&PJ->current, PJ->deferred.lables[i].name);
         if (lable.addr != (uint64_t)(-1)) {

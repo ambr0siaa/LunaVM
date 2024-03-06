@@ -13,15 +13,15 @@ int main(int argc, char **argv)
     if (argc < 1) {
         USAGE(program);
         fprintf(stderr, "Error: %s expected input and output\n", program);
-        exit(1);
+        return EXIT_FAILURE;
     }
 
     const char *input_file_path = asm_shift_args(&argc, &argv);
 
-    if (argc == 0) {
+    if (argc < 1) {
         USAGE(program);
         fprintf(stderr, "Error: %s expected output\n", program);
-        exit(1);       
+        return EXIT_FAILURE;
     }
 
     const char *output_file_path = asm_shift_args(&argc, &argv);
@@ -30,11 +30,13 @@ int main(int argc, char **argv)
     asm_translate_source(&cpu, &PJ, src);
     load_program_to_file(&cpu, output_file_path);
 
-    fprintf(stdout, "file `%s` translate to `%s`\n", input_file_path, output_file_path);
+    fprintf(stdout, "file `%s` was translated to `%s`\n", input_file_path, output_file_path);
+    fprintf(stdout, "done.\n");
 
     free(src.data);
     free(PJ.current.lables);
     free(PJ.deferred.lables);
     cpu_clean_program(&cpu);
-    return 0;
+
+    return EXIT_SUCCESS;
 }

@@ -50,11 +50,11 @@ uint64_t hash_function(const char *str)
             return (sh.c0 + sh.c1) / 2;
         default:
             return -1;
-    } 
+    }
 }
 
 void ht_insert(hash_table *ht, ui val, const char *key, uint64_t index, uint64_t hash)
-{   
+{
     hash_item hi = { .key = key, .val = val };
 
     if (hash > ht->capacity) {
@@ -63,7 +63,7 @@ void ht_insert(hash_table *ht, ui val, const char *key, uint64_t index, uint64_t
     }
 
     if (ht_colisions_handle(ht, index)) {
-        fprintf(stderr, "Error: cannot push `%u` by index `%lu`; In there [val = %u, key = %s]\n", 
+        fprintf(stderr, "Error: cannot push `%u` by index `%lu`; In there [val = %u, key = %s]\n",
                 val, index, ht->hs[index].val, ht->hs[index].key);
         exit(1);
     }
@@ -97,8 +97,8 @@ void ht_init(hash_table *ht)
 }
 
 void print_ht(hash_table *ht)
-{   
-    printf("\n--------- Hash Tabel ---------\n\n");
+{
+    printf("\n--------- Hash table ---------\n\n");
     for (size_t i = 0; i < ht->capacity; ++i) {
         if (ht->hs[i].key != NULL) {
             printf("index: %zu, val: %s, key: %s\n", i, inst_as_cstr(ht->hs[i].val), ht->hs[i].key);
