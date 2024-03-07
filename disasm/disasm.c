@@ -1,13 +1,13 @@
-#include "../kernel/asm/asm.h"
+#include "../lasm/lasm.h"
 
-#define USAGE(program)                                  \
+#define USAGE(program) \
     fprintf(stderr, "Usage: %s <input.ven>\n", (program))
 
-CPU cpu = {0};
+static CPU cpu = {0};
 
 int main(int argc, char **argv) 
 {
-    const char *program = asm_shift_args(&argc, &argv);
+    const char *program = luna_shift_args(&argc, &argv);
 
     if (argc < 1) {
         USAGE(program);
@@ -15,7 +15,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    const char *input_file_path = asm_shift_args(&argc, &argv);
+    const char *input_file_path = luna_shift_args(&argc, &argv);
     load_program_from_file(&cpu, input_file_path);
     
     for (size_t i = 0; i < cpu.program_size; ) {

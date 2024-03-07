@@ -1,4 +1,4 @@
-#include "../kernel/asm/asm.h"
+#include "../lasm.h"
 
 #define USAGE(program)                                                   \
     fprintf(stderr, "Usage: %s <input.asm> <output.ven>\n", (program))
@@ -8,7 +8,7 @@ static CPU cpu = {0};
 
 int main(int argc, char **argv)
 {
-    const char *program = asm_shift_args(&argc, &argv);
+    const char *program = luna_shift_args(&argc, &argv);
 
     if (argc < 1) {
         USAGE(program);
@@ -16,7 +16,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    const char *input_file_path = asm_shift_args(&argc, &argv);
+    const char *input_file_path = luna_shift_args(&argc, &argv);
 
     if (argc == 0) {
         USAGE(program);
@@ -24,7 +24,7 @@ int main(int argc, char **argv)
         exit(1);       
     }
 
-    const char *output_file_path = asm_shift_args(&argc, &argv);
+    const char *output_file_path = luna_shift_args(&argc, &argv);
     String_View src = asm_load_file(input_file_path);
 
     asm_translate_source(&cpu, &PJ, src);

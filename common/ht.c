@@ -81,12 +81,13 @@ void ht_push(hash_table *ht, const char* key, ui val)
 
 ui ht_get(hash_table *ht, const char *key)
 {
+    ui value;
     uint64_t index = make_index(ht, hash_function(key), key, 0);
     if (ht->hs[index].key == NULL) {
-        fprintf(stderr, "Error: cannot get inst by key `%s`\n", key);
-        exit(1);
+        value = 4040;
+    } else {
+        value = ht->hs[index].val;
     }
-    ui value = ht->hs[index].val;
     return value;
 }
 

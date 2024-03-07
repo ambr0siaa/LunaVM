@@ -6,10 +6,11 @@
 #ifndef ASM_H_
 #   include <stdio.h>
 #   include <stdlib.h>
-#   include <stdint.h>
 #   include <string.h>
-#   include "../cpu/cpu.h"
+#   include "../cpu/src/cpu.h"
 #endif
+
+#include <stdint.h>
 
 typedef struct {
     ui val;
