@@ -8,7 +8,7 @@
 
 #ifdef _Win32
 #   define CFLAGS " "
-#else 
+#else
 #   define CFLAGS "-Wall", "-Wextra"
 #endif
 
@@ -29,7 +29,7 @@ const char *outputs[] = { "./translate/tsl", "./emulate/eml" , "./disasm/dis"};
 int main(int argc, char **argv)
 {
     BIL_REBUILD(argv);
-    Bil_Cmd commands[] = { tsl, eml , dis };
+    Bil_Cmd commands[] = { tsl, eml, dis };
 
     for (size_t i = 0; i < BIL_ARRAY_SIZE(commands); ++i) {
         bil_cmd_append(&commands[i], CC);
@@ -38,7 +38,7 @@ int main(int argc, char **argv)
         bil_cmd_append(&commands[i], "-o");
         bil_cmd_append(&commands[i], outputs[i]);
 
-        if (!bil_cmd_build_sync(&commands[i])) return 1;
+        if (!bil_cmd_build_sync(&commands[i])) return EXIT_FAILURE;
     }
 
     bil_cmd_clean(&tsl);

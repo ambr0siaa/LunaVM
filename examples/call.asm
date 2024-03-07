@@ -1,4 +1,4 @@
-jmp main 
+jmp main
 
 minus:
     movi r0, 1234
@@ -22,7 +22,7 @@ plus:
     ret
 
 main:
-    movi r0, 12 
+    movi r0, 12
     movi r1, 435
     dbr r0
     dbr r1

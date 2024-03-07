@@ -14,10 +14,10 @@
 #include <errno.h>
 
 #ifdef _WIN32
-#   include <windows.h>
-#   include <dirent.h>
-#   include <direct.h>
-#   include <shellapi.h>
+#    include <windows.h>
+#    include <dirent.h>
+#    include <direct.h>
+#    include <shellapi.h>
 #else
 #    include <sys/types.h>
 #    include <sys/wait.h>
@@ -36,7 +36,7 @@ typedef HANDLE Bil_Proc;
 #else
 typedef int Bil_Proc;
 #define BIL_INVALID_PROC (-1)
-#endif 
+#endif
 
 typedef enum {
     BIL_INFO = 0,
@@ -108,7 +108,7 @@ void sb_join_many(Bil_String_Builder *sb, ...);
 Bil_String_Builder sb_from_cstr(char *cstr);
 Bil_String_Builder bil_cmd_create(Bil_Cmd *cmd);
 
-#define sb_join_nul(sb) { (sb)->str[(sb)->count] = '\0'; } 
+#define sb_join_nul(sb) { (sb)->str[(sb)->count] = '\0'; }
 #define SB_JOIN(sb, ...) sb_join_many((sb), __VA_ARGS__, NULL)
 #define sb_clean(sb) { (sb)->count = 0; (sb)->capacity = 0; BIL_FREE((sb)->str); }
 
@@ -138,7 +138,7 @@ Bil_String_Builder bil_cmd_create(Bil_Cmd *cmd);
     } while (0)
 
 int bil_file_exist(const char *file_path);
-void bil_delete_file(const char *file_path); 
+void bil_delete_file(const char *file_path);
 char *bil_shift_args(int *argc, char ***argv);
 
 #endif // BIL_H_
@@ -163,7 +163,7 @@ void cmd_append_many(Bil_Cmd *cmd, ...)
     va_end(args);
 }
 
-void cmd_append_cmd(Bil_Cmd *dst, Bil_Cmd *src) 
+void cmd_append_cmd(Bil_Cmd *dst, Bil_Cmd *src)
 {
     if (dst->count + src->count >= dst->capacity) {
         if (dst->capacity == 0) {
@@ -220,7 +220,7 @@ Bil_String_Builder sb_from_cstr(char *cstr)
     return (Bil_String_Builder) {
         .capacity = capacity,
         .count = len,
-        .str = buf  
+        .str = buf
     };
 }
 
@@ -249,7 +249,7 @@ void sb_join_many(Bil_String_Builder *sb, ...)
 {
     va_list args;
     va_start(args, sb);
-    
+
     char *arg = va_arg(args, char*);
     while (arg != NULL) {
         sb_join_cstr(sb, arg);
@@ -278,9 +278,8 @@ Bil_Proc bil_cmd_build_async(Bil_Cmd *cmd)
     }
 
 #ifdef _WIN32
-
     Bil_String_Builder command = bil_cmd_create(cmd);
-    sb_join_nul(&command); 
+    sb_join_nul(&command);
     bil_log(BIL_INFO, "Command: "SB_Fmt"", SB_Args(command));
 
     STARTUPINFO si;
@@ -406,14 +405,14 @@ bool bil_cmd_build_sync(Bil_Cmd *cmd)
     return bil_cmd_await(proc);
 }
 
-bool bil_check_for_rebuild(const char *output_file_path, const char *source_file_path) 
+bool bil_check_for_rebuild(const char *output_file_path, const char *source_file_path)
 {
 #ifdef _WIN32
     BOOL Proc;
 
     HANDLE src_file = CreateFile(source_file_path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
     if (src_file == INVALID_HANDLE_VALUE) {
-        bil_log(BIL_ERROR, "cannot open `%s`: %lu", source_file_path, GetLastError()); 
+        bil_log(BIL_ERROR, "cannot open `%s`: %lu", source_file_path, GetLastError());
     }
 
     FILETIME src_time;
@@ -421,12 +420,12 @@ bool bil_check_for_rebuild(const char *output_file_path, const char *source_file
     CloseHandle(src_file);
 
     if (!Proc) {
-        bil_log(BIL_ERROR, "cannot get `%s` time: %lu", source_file_path, GetLastError()); 
+        bil_log(BIL_ERROR, "cannot get `%s` time: %lu", source_file_path, GetLastError());
     }
 
     HANDLE output_file = CreateFile(output_file_path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
     if (output_file == INVALID_HANDLE_VALUE) {
-        bil_log(BIL_ERROR, "cannot open `%s`: %lu", output_file_path, GetLastError()); 
+        bil_log(BIL_ERROR, "cannot open `%s`: %lu", output_file_path, GetLastError());
     }
 
     FILETIME output_time;
@@ -434,12 +433,12 @@ bool bil_check_for_rebuild(const char *output_file_path, const char *source_file
     CloseHandle(output_file);
 
     if (!Proc) {
-        bil_log(BIL_ERROR, "cannot get `%s` time: %lu", output_file_path, GetLastError()); 
-    }    
+        bil_log(BIL_ERROR, "cannot get `%s` time: %lu", output_file_path, GetLastError());
+    }
 
     if (CompareFileTime(&src_time, &output_time) == 1)
         return true;
-    
+
     return false;
 #else
     struct stat statbuf = {0};
@@ -482,7 +481,7 @@ bool bil_rename_file(const char *file_name, const char *new_name)
 #endif
 }
 
-void bil_delete_file(const char *file_path) 
+void bil_delete_file(const char *file_path)
 {
 #ifdef _WIN32
     BOOL fSuccess = DeleteFile(file_path);
@@ -506,12 +505,12 @@ int bil_file_exist(const char *file_path)
         FindClose(handle);
     }
     return found;
-#else 
+#else
     if (access(file_path, F_OK) == 0) {
         return 1;
     }
-    return 0;    
-#endif 
+    return 0;
+#endif
 }
 
-#endif // BIL_IMPLEMENTATION 
+#endif // BIL_IMPLEMENTATION

@@ -1,6 +1,6 @@
-#include "./cpu.h"
+#include "cpu.h"
 
-char *reg_as_cstr(uint64_t operand)
+char *reg_as_cstr(const uint64_t operand)
 {
     switch (operand) {
         case R0:    return  "r0";
@@ -25,10 +25,9 @@ char *reg_as_cstr(uint64_t operand)
         case F8:    return  "f8";
         case ACCF:  return "accf";
 
-        case RT:   return "rt";
-        case RTF:  return "rtf";
+        case RT:    return "rt";
+        case RTF:   return "rtf";
 
-        case RC:
         default:
             fprintf(stderr, "Error: unreachable `%li`\n", operand);
             exit(1);
@@ -89,7 +88,7 @@ void cpu_execute_inst(CPU *c)
             operand1.i64 = c->regs[c->program[++c->ip].reg];
             AREFMETIC_OP(c, ,operand1.i64, c->regs[c->program[++c->ip].reg], +, ACC);
             break;
-        
+
         case INST_SUBI:
             operand1.i64 = c->regs[c->program[++c->ip].reg];
             AREFMETIC_OP(c, ,operand1.i64, c->regs[c->program[++c->ip].reg], -, ACC);
@@ -109,7 +108,7 @@ void cpu_execute_inst(CPU *c)
             operand1.f64 = c->regsf[c->program[++c->ip].reg];
             AREFMETIC_OP(c, f, operand1.f64, c->regsf[c->program[++c->ip].reg], +, ACCF);
             break;
-        
+
         case INST_SUBF:
             operand1.f64 = c->regsf[c->program[++c->ip].reg];
             AREFMETIC_OP(c, f, operand1.f64, c->regsf[c->program[++c->ip].reg], -, ACCF);
@@ -171,7 +170,7 @@ void cpu_execute_inst(CPU *c)
             break;
 
         case INST_JMP:
-            operand1.u64 = c->program[++c->ip].u64; 
+            operand1.u64 = c->program[++c->ip].u64;
             c->ip = operand1.u64;
             break;
 
@@ -245,7 +244,7 @@ void cpu_execute_inst(CPU *c)
             }
 
             reg1 = c->program[++c->ip].reg;
-            
+
             if (reg1 >= F0) CPU_OP(c, regsf, c->stack[--c->stack_size].f64, reg1, 1);
             else CPU_OP(c, regs, c->stack[--c->stack_size].i64, reg1, 1);
 
@@ -274,14 +273,14 @@ void cpu_execute_inst(CPU *c)
             break;
 
         case INST_RET:
-            uint64_t tmp = c->fp; 
+            uint64_t tmp = c->fp;
             c->ip = c->stack[c->fp - 1].u64;
             c->sp = c->stack[c->fp - 2].u64;
             c->fp = c->stack[c->fp - 3].u64;
             c->zero_flag = c->stack[c->fp - 4].u64;
 
             tmp -= 4;
-            
+
             for (int i = ACCF; i >= F0; --i) {
                 c->regsf[i] = c->stack[--tmp].f64;
             }
@@ -316,7 +315,7 @@ void cpu_execute_program(CPU *c, int debug, int limit, int stk)
     }
 }
 
-char *inst_as_cstr(Inst inst)
+char *inst_as_cstr(const Inst inst)
 {
     switch (inst) {
         case INST_ADDI:     return "addi";
@@ -338,31 +337,30 @@ char *inst_as_cstr(Inst inst)
         case INST_MOVI:     return "movi";
         case INST_MOVF:     return "movf";
         case INST_MOVS:     return "movs";
-        
+
         case INST_HLT:      return "hlt";
         case INST_DBR:      return "dbr";
         case INST_CMP:      return "cmp";
-        
+
         case INST_JMP:      return "jmp";
         case INST_JNZ:      return "jnz";
         case INST_JZ:       return "jz";
-        
+
         case INST_PUSH_REG: return "pshr";
         case INST_PUSH_VAL: return "push";
         case INST_POP:      return "pop";
-        
+
         case INST_CALL:     return "call";
         case INST_RET:      return "ret";
 
         case INST_VLAD:     return "vlad";
-        case IC:        
         default:
             fprintf(stderr, "Error: `%u` this is not a inst\n", inst);
             exit(1);
     }
 }
 
-int inst_has_2_regs(Inst inst)
+int inst_has_2_regs(const Inst inst)
 {
     switch (inst) {
         case INST_MOV:  return 1;
@@ -379,17 +377,17 @@ int inst_has_2_regs(Inst inst)
     }
 }
 
-int inst_has_no_ops(Inst inst)
+int inst_has_no_ops(const Inst inst)
 {
     switch (inst) {
-        case INST_HLT: return 1;
-        case INST_RET: return 1;
+        case INST_HLT:  return 1;
+        case INST_RET:  return 1;
         case INST_VLAD: return 1;
-        default:       return 0;
+        default:        return 0;
     }
 }
 
-int inst_has_1_op(Inst inst)
+int inst_has_1_op(const Inst inst)
 {
     switch (inst) {
         case INST_JMP:      return 1;
@@ -404,7 +402,7 @@ int inst_has_1_op(Inst inst)
     }
 }
 
-void debug_regs(CPU *c)
+void debug_regs(CPU *const c)
 {
     printf("ip: %lu\n", c->ip);
     for (size_t i = 0; i < RC; ++i) {
@@ -416,7 +414,7 @@ void debug_regs(CPU *c)
     printf("\n");
 }
 
-void debug_stack(CPU *c)
+void debug_stack(CPU *const c)
 {
     printf("Stack:\n");
     if (c->stack_size == 0) printf("    empty\n");
@@ -426,12 +424,12 @@ void debug_stack(CPU *c)
     }
 }
 
-void load_program_to_cpu(CPU *c, Object *program, size_t program_size)
+void load_program_to_cpu(CPU *c, Object *program, const size_t program_size)
 {
     size_t all_size = sizeof(program[0]) * program_size;
     memcpy(c->program, program, all_size);
     c->program_size += program_size;
-}   
+}
 
 void load_program_to_file(CPU *c, const char *file_path)
 {
@@ -473,7 +471,7 @@ void load_program_from_file(CPU *c, const char *file_path)
         exit(1);
     }
 
-    long int file_size = ftell(fp);
+    long file_size = ftell(fp);
     if (file_size < 0) {
         fprintf(stderr, "Error: cannot read from `%s` file\n", file_path);
         exit(1);
@@ -482,10 +480,10 @@ void load_program_from_file(CPU *c, const char *file_path)
     size_t object_count = file_size / sizeof(c->program[0]);
 
     if (object_count + 1>= c->program_capacity) {
-        do { 
-            c->program_capacity *= 2; 
+        do {
+            c->program_capacity *= 2;
         } while (object_count + 1 >= c->program_capacity);
-        c->program = realloc(c->program, c->program_capacity * sizeof(*c->program)); 
+        c->program = realloc(c->program, c->program_capacity * sizeof(*c->program));
     }
 
     if (fseek(fp, 0, SEEK_SET) < 0) {
@@ -503,7 +501,7 @@ void load_program_from_file(CPU *c, const char *file_path)
     fclose(fp);
 }
 
-void cpu_clean_program(CPU *c)
+void cpu_clean_program(CPU *const c)
 {
     free(c->program);
     c->program_capacity = 0;
