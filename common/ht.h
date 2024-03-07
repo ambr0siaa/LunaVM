@@ -1,7 +1,7 @@
 #ifndef HT_H_
 #define HT_H_
 
-#define ui unsigned int 
+#define ui unsigned int
 
 #ifndef ASM_H_
 #   include <stdio.h>

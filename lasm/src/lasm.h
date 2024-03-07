@@ -24,7 +24,7 @@ typedef struct {
     Lable_List deferred;
 } Program_Jumps;
 
-extern String_View asm_load_file(const char *file_path); 
+extern String_View asm_load_file(const char *file_path);
 extern Register parse_register(String_View sv);
 extern Inst parse_inst(String_View inst_sv);
 

@@ -1,4 +1,4 @@
-#include "./lasm.h"
+#include "./asm.h"
 
 String_View asm_load_file(const char *file_path)
 {
@@ -262,4 +262,15 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
     }
 
     free(Inst_Table.hs);
+}
+
+char *asm_shift_args(int *argc, char ***argv)
+{
+    assert(*argc >= 0);
+    char *result = **argv;
+
+    *argv += 1;
+    *argc -= 1;
+
+    return result;
 }

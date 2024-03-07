@@ -7,7 +7,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
-#include <ctype.h>
 
 #define PROGRAM_INIT_CAPACITY 1024
 #define STACK_CAPACITY 16384
@@ -73,7 +72,7 @@ typedef enum {
     IC          // IC -> inst count
 } Inst;
 
-// Abstract representation of all types that vm can use
+// Abstract representation of all types that can use vm
 typedef union {
     Inst inst;
     double f64;
@@ -128,5 +127,5 @@ extern int inst_has_no_ops(Inst inst);
 extern int inst_has_1_op(Inst inst);
 
 extern void cpu_clean_program(CPU *c);
-extern char *luna_shift_args(int *argc, char ***argv);
+
 #endif // CPU_H_

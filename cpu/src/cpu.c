@@ -184,7 +184,7 @@ void cpu_execute_inst(CPU *c)
             break;
 
         case INST_CMP:
-            // TODO: support floating point numbers; checking >, >=, <, ,<=
+            // TODO: support floating point numbers
             reg1 = c->program[++c->ip].reg;
             reg2 = c->program[++c->ip].reg;
             c->zero_flag = c->regs[reg1] == c->regs[reg2];
@@ -294,7 +294,7 @@ void cpu_execute_inst(CPU *c)
             break;
 
         case INST_VLAD:
-            printf("Vlad est kal!\n");
+            printf("Влад ест кал!\n");
             c->ip += 1;
             break;
 
@@ -506,18 +506,6 @@ void load_program_from_file(CPU *c, const char *file_path)
 void cpu_clean_program(CPU *c)
 {
     free(c->program);
-    c->program = NULL;
     c->program_capacity = 0;
     c->program_size = 0;
-}
-
-char *luna_shift_args(int *argc, char ***argv)
-{
-    assert(*argc >= 0);
-    char *result = **argv;
-
-    *argv += 1;
-    *argc -= 1;
-
-    return result;
 }

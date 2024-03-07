@@ -1,7 +1,7 @@
-#include "../src/cpu.h"
+#include "../kernel/asm/asm.h"
 
-#define USAGE(program) \
-    fprintf(stderr, "Usage: %s -i <input.ven> -l <limit> -db <debug registers> -h <help>\n", (program))
+#define USAGE(program)                                                                              \
+    fprintf(stderr, "Usage: %s <input.ven> -l <limit> -db <debug registers> -h <help>\n", (program))
 
 static CPU cpu = {0};
 
@@ -13,7 +13,7 @@ int main(int argc, char **argv)
     int db = 0;
     int stk = 0;
 
-    const char *program = luna_shift_args(&argc, &argv);
+    const char *program = asm_shift_args(&argc, &argv);
 
     if (argc < 2) {
         USAGE(program);
@@ -22,7 +22,7 @@ int main(int argc, char **argv)
     }
 
     while (argc != 0) {
-        flag = luna_shift_args(&argc, &argv);
+        flag = asm_shift_args(&argc, &argv);
         
         if (!strcmp(flag, "-i")) {
             if (argc < 1) {
@@ -31,7 +31,7 @@ int main(int argc, char **argv)
                 exit(1);
             }
 
-            input_file_path = luna_shift_args(&argc, &argv);
+            input_file_path = asm_shift_args(&argc, &argv);
 
         } else if (!strcmp(flag, "-l")) {
             if (argc < 1) {
@@ -40,7 +40,7 @@ int main(int argc, char **argv)
                 exit(1);
             }
 
-            const char *limit_cstr = luna_shift_args(&argc, &argv);
+            const char *limit_cstr = asm_shift_args(&argc, &argv);
 
             if (!isdigit(*limit_cstr)) {
                 fprintf(stderr, "Error: limit must be integer!\n");
@@ -69,6 +69,6 @@ int main(int argc, char **argv)
 
     load_program_from_file(&cpu, input_file_path);
     cpu_execute_program(&cpu, db, limit, stk);
+
     cpu_clean_program(&cpu);
-    return 0;
 }
