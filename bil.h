@@ -1,6 +1,5 @@
 // This custom build system like MakeFile, Cmake and etc
 // The main idea was stolen from `https://github.com/tsoding/nobuild`
-// BIL compiles on Windows and Linux
 
 #ifndef BIL_H_
 #define BIL_H_
@@ -16,8 +15,6 @@
 #ifdef _WIN32
 #    include <windows.h>
 #    include <dirent.h>
-#    include <direct.h>
-#    include <shellapi.h>
 #else
 #    include <sys/types.h>
 #    include <sys/wait.h>
@@ -43,6 +40,9 @@ typedef enum {
     BIL_ERROR,
     BIL_WARNING
 } bil_log_flags;
+
+#define BIL_EXIT_SUCCESS 0
+#define BIL_EXIT_FAILURE 1
 
 #ifndef BIL_REBUILD_COMMAND
 #  if _WIN32
@@ -91,18 +91,17 @@ bool bil_cmd_await(Bil_Proc proc);
 bool bil_cmd_build_sync(Bil_Cmd *cmd);
 Bil_Proc bil_cmd_build_async(Bil_Cmd *cmd);
 
-#define BIL_SB_INIT_CAPACITY 128
-#define SB_Args(sb) (int) (sb).count, (sb).str
-#define SB_Fmt "%.*s"
-
 typedef struct {
     char *str;
     size_t count;
     size_t capacity;
 } Bil_String_Builder;
 
+#define BIL_SB_INIT_CAPACITY 128
+#define SB_Args(sb) (int) (sb).count, (sb).str
+#define SB_Fmt "%.*s"
+
 void sb_join_cstr(Bil_String_Builder *sb, const char *cstr);
-void sb_join_sb(Bil_String_Builder *dst, const Bil_String_Builder *src);
 void sb_join_many(Bil_String_Builder *sb, ...);
 
 Bil_String_Builder sb_from_cstr(char *cstr);
@@ -112,7 +111,7 @@ Bil_String_Builder bil_cmd_create(Bil_Cmd *cmd);
 #define SB_JOIN(sb, ...) sb_join_many((sb), __VA_ARGS__, NULL)
 #define sb_clean(sb) { (sb)->count = 0; (sb)->capacity = 0; BIL_FREE((sb)->str); }
 
-// After rebuilding file old file renames to `DELETME`
+// After rebuilding old file renames to `DELETME`
 #define BIL_REBUILD(argv)                                                                           \
     do {                                                                                            \
         const char *output_file_path = (argv[0]);                                                   \
@@ -141,9 +140,33 @@ int bil_file_exist(const char *file_path);
 void bil_delete_file(const char *file_path);
 char *bil_shift_args(int *argc, char ***argv);
 
+Bil_String_Builder bil_mk_path(char *file, ...);
+#define PATH(file, ...) bil_mk_path(file, __VA_ARGS__, NULL)
+
 #endif // BIL_H_
 
 #ifdef BIL_IMPLEMENTATION
+
+Bil_String_Builder bil_mk_path(char *file, ...) 
+{
+    Bil_String_Builder sb = {0};
+    sb_join_cstr(&sb, file);
+    sb_join_cstr(&sb, "/");
+
+    va_list args;
+    va_start(args, file);
+
+    char *arg = va_arg(args, char*);
+    while (1) {
+        sb_join_cstr(&sb, arg);
+        arg = va_arg(args, char*);
+        if (arg == NULL) break;
+        sb_join_cstr(&sb, "/");
+    }
+    va_end(args);
+    
+    return sb;
+}
 
 void cmd_append_one(Bil_Cmd *cmd, char *new_item)
 {
@@ -214,7 +237,7 @@ Bil_String_Builder sb_from_cstr(char *cstr)
         } while (len > capacity);
     }
 
-    char *buf = (char*) malloc(capacity);
+    char *buf = malloc(capacity * sizeof(char));
     memcpy(buf, cstr, len);
 
     return (Bil_String_Builder) {
@@ -227,7 +250,7 @@ Bil_String_Builder sb_from_cstr(char *cstr)
 void sb_join_cstr(Bil_String_Builder *sb, const char *cstr)
 {
     if (sb->count == 0) {
-        sb->str = (char*) malloc(BIL_CMD_INIT_CAPACITY);
+        sb->str = malloc(BIL_CMD_INIT_CAPACITY * sizeof(*sb->str));
         sb->capacity = BIL_CMD_INIT_CAPACITY;
     }
 
@@ -238,7 +261,7 @@ void sb_join_cstr(Bil_String_Builder *sb, const char *cstr)
             sb->capacity *= 2;
         } while (sb->count + cstr_len > sb->capacity);
 
-        sb->str = realloc(sb->str, sb->capacity);
+        sb->str = realloc(sb->str, sb->capacity * sizeof(*sb->str));
     }
 
     memcpy(sb->str + sb->count, cstr, cstr_len);

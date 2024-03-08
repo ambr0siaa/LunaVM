@@ -1,6 +1,8 @@
 #ifndef PARSER_H_
 #define PARSER_H_
 
+//TODO: implemenet parser
+
 #include "./lexer.h"
 
 typedef struct ast_node {

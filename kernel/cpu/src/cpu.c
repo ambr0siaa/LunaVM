@@ -25,8 +25,8 @@ char *reg_as_cstr(uint64_t operand)
         case F8:    return  "f8";
         case ACCF:  return "accf";
 
-        case RT:   return "rt";
-        case RTF:  return "rtf";
+        case RT:    return "rt";
+        case RTF:   return "rtf";
 
         case RC:
         default:
@@ -47,7 +47,13 @@ char *reg_as_cstr(uint64_t operand)
         if (on) (c)->ip += 1;               \
     } while(0)
 
-void cpu_execute_inst(CPU *c)
+Object cpu_fetch(CPU *const c)
+{
+    c->ip += 1;
+    return c->program[c->ip];
+}
+
+void cpu_execute_inst(CPU *const c)
 {
     if (c->ip >= c->program_size) {
         fprintf(stderr, "Error: illigal instruction access\n");
@@ -62,22 +68,22 @@ void cpu_execute_inst(CPU *c)
 
     switch (inst) {
         case INST_MOVI:
-            reg1 = c->program[++c->ip].reg;
-            operand1 = c->program[++c->ip];
+            reg1 = cpu_fetch(c).reg;
+            operand1 = cpu_fetch(c);
 
             CPU_OP(c, regs, operand1.i64, reg1, 1);
             break;
 
         case INST_MOVF:
-            reg1 = c->program[++c->ip].reg;
-            operand1 = c->program[++c->ip];
+            reg1 = cpu_fetch(c).reg;
+            operand1 = cpu_fetch(c);
 
             CPU_OP(c, regsf, operand1.f64, reg1, 1);
             break;
 
         case INST_MOVS:
-            reg1 = c->program[++c->ip].reg;
-            operand1 = c->program[++c->ip];
+            reg1 = cpu_fetch(c).reg;
+            operand1 = cpu_fetch(c);
 
             Object stack_value = c->stack[c->stack_size - 1 - operand1.i64];
 
@@ -86,48 +92,56 @@ void cpu_execute_inst(CPU *c)
             break;
 
         case INST_ADDI:
-            operand1.i64 = c->regs[c->program[++c->ip].reg];
-            AREFMETIC_OP(c, ,operand1.i64, c->regs[c->program[++c->ip].reg], +, ACC);
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
+            AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], +, ACC);
             break;
         
         case INST_SUBI:
-            operand1.i64 = c->regs[c->program[++c->ip].reg];
-            AREFMETIC_OP(c, ,operand1.i64, c->regs[c->program[++c->ip].reg], -, ACC);
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
+            AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], -, ACC);
             break;
 
         case INST_MULI:
-            operand1.i64 = c->regs[c->program[++c->ip].reg];
-            AREFMETIC_OP(c, ,operand1.i64, c->regs[c->program[++c->ip].reg], *, ACC);
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
+            AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], *, ACC);
             break;
 
         case INST_DIVI:
-            operand1.i64 = c->regs[c->program[++c->ip].reg];
-            AREFMETIC_OP(c, ,operand1.i64, c->regs[c->program[++c->ip].reg], /, ACC);
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
+            AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], /, ACC);
             break;
 
         case INST_ADDF:
-            operand1.f64 = c->regsf[c->program[++c->ip].reg];
-            AREFMETIC_OP(c, f, operand1.f64, c->regsf[c->program[++c->ip].reg], +, ACCF);
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
+            AREFMETIC_OP(c, f, c->regsf[reg1], c->regsf[reg2], +, ACCF);
             break;
         
         case INST_SUBF:
-            operand1.f64 = c->regsf[c->program[++c->ip].reg];
-            AREFMETIC_OP(c, f, operand1.f64, c->regsf[c->program[++c->ip].reg], -, ACCF);
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
+            AREFMETIC_OP(c, f, c->regsf[reg1], c->regsf[reg2], -, ACCF);
             break;
 
         case INST_MULF:
-            operand1.f64 = c->regsf[c->program[++c->ip].reg];
-            AREFMETIC_OP(c, f, operand1.f64, c->regsf[c->program[++c->ip].reg], *, ACCF);
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
+            AREFMETIC_OP(c, f, c->regsf[reg1], c->regsf[reg2], *, ACCF);
             break;
 
         case INST_DIVF:
-            operand1.f64 = c->regsf[c->program[++c->ip].reg];
-            AREFMETIC_OP(c, f, operand1.f64, c->regsf[c->program[++c->ip].reg], /, ACCF);
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
+            AREFMETIC_OP(c, f, c->regsf[reg1], c->regsf[reg2], /, ACCF);
             break;
 
         case INST_ADDV:
-            reg1 = c->program[++c->ip].reg;
-            operand1 = c->program[++c->ip];
+            reg1 = cpu_fetch(c).reg;
+            operand1 = cpu_fetch(c);
 
             if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1], operand1.f64, +, ACCF);
             else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, +, ACC);
@@ -135,8 +149,8 @@ void cpu_execute_inst(CPU *c)
             break;
 
         case INST_SUBV:
-            reg1 = c->program[++c->ip].reg;
-            operand1 = c->program[++c->ip];
+            reg1 = cpu_fetch(c).reg;
+            operand1 = cpu_fetch(c);
 
             if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1], operand1.f64, -, ACCF);
             else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, -, ACC);
@@ -144,8 +158,8 @@ void cpu_execute_inst(CPU *c)
             break;
 
         case INST_DIVV:
-            reg1 = c->program[++c->ip].reg;
-            operand1 = c->program[++c->ip];
+            reg1 = cpu_fetch(c).reg;
+            operand1 = cpu_fetch(c);
 
             if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1], operand1.f64, /, ACCF);
             else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, /, ACC);
@@ -153,8 +167,8 @@ void cpu_execute_inst(CPU *c)
             break;
 
         case INST_MULV:
-            reg1 = c->program[++c->ip].reg;
-            operand1 = c->program[++c->ip];
+            reg1 = cpu_fetch(c).reg;
+            operand1 = cpu_fetch(c);
 
             if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1], operand1.f64, *, ACCF);
             else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, *, ACC);
@@ -162,8 +176,8 @@ void cpu_execute_inst(CPU *c)
             break;
 
         case INST_MOV:
-            reg1 = c->program[++c->ip].reg;
-            reg2 = c->program[++c->ip].reg;
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
 
             if (reg1 >= F0) CPU_OP(c, regsf, c->regsf[reg2], reg1, 1);
             else CPU_OP(c, regs, c->regs[reg2], reg1, 1);
@@ -171,12 +185,12 @@ void cpu_execute_inst(CPU *c)
             break;
 
         case INST_JMP:
-            operand1.u64 = c->program[++c->ip].u64; 
+            operand1.u64 = cpu_fetch(c).u64;
             c->ip = operand1.u64;
             break;
 
         case INST_JNZ:
-            operand1 = c->program[++c->ip];
+            operand1 = cpu_fetch(c);
             if (c->zero_flag) {
                 c->ip = operand1.u64;
             }
@@ -185,14 +199,14 @@ void cpu_execute_inst(CPU *c)
 
         case INST_CMP:
             // TODO: support floating point numbers
-            reg1 = c->program[++c->ip].reg;
-            reg2 = c->program[++c->ip].reg;
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
             c->zero_flag = c->regs[reg1] == c->regs[reg2];
             c->ip += 1;
             break;
 
         case INST_DBR:
-            reg1 = c->program[++c->ip].reg;
+            reg1 = cpu_fetch(c).reg;
             printf("%s: ", reg_as_cstr(reg1));
 
             if (reg1 >= F0) printf("%lf\n",c->regsf[reg1]);
@@ -206,7 +220,7 @@ void cpu_execute_inst(CPU *c)
             break;
 
         case INST_JZ:
-            operand1 = c->program[++c->ip];
+            operand1 = cpu_fetch(c);
 
             if (!c->zero_flag) c->ip = operand1.u64;
             else c->ip += 1;
@@ -218,7 +232,7 @@ void cpu_execute_inst(CPU *c)
                 exit(1);
             }
 
-            operand1 = c->program[++c->ip];
+            operand1 = cpu_fetch(c);
             CPU_OP(c, stack, operand1, c->stack_size++, 1);
             c->sp++;
             break;
@@ -229,7 +243,7 @@ void cpu_execute_inst(CPU *c)
                 exit(1);
             }
 
-            reg1 = c->program[++c->ip].reg;
+            reg1 = cpu_fetch(c).reg;
 
             if (reg1 >= F0) operand1 = OBJ_FLOAT(c->regsf[reg1]);
             else operand1 = OBJ_INT(c->regs[reg1]);
@@ -244,7 +258,7 @@ void cpu_execute_inst(CPU *c)
                 exit(1);
             }
 
-            reg1 = c->program[++c->ip].reg;
+            reg1 = cpu_fetch(c).reg;
             
             if (reg1 >= F0) CPU_OP(c, regsf, c->stack[--c->stack_size].f64, reg1, 1);
             else CPU_OP(c, regs, c->stack[--c->stack_size].i64, reg1, 1);
@@ -253,7 +267,7 @@ void cpu_execute_inst(CPU *c)
             break;
 
         case INST_CALL:
-            operand1 = c->program[++c->ip];
+            operand1 = cpu_fetch(c);
 
             for (size_t i = R0; i <= ACC; ++i) {
                 CPU_OP(c, stack, OBJ_INT(c->regs[i]  ), c->stack_size++, 0);
@@ -294,7 +308,7 @@ void cpu_execute_inst(CPU *c)
             break;
 
         case INST_VLAD:
-            printf("Влад ест кал!\n");
+            printf("Vlad eat's poop!\n");
             c->ip += 1;
             break;
 
@@ -305,7 +319,7 @@ void cpu_execute_inst(CPU *c)
     }
 }
 
-void cpu_execute_program(CPU *c, int debug, int limit, int stk)
+void cpu_execute_program(CPU *const c, int debug, int limit, int stk)
 {
     size_t ulimit = (size_t)(limit);
     for (size_t i = 0; c->halt == 0; ++i) {
@@ -382,10 +396,10 @@ int inst_has_2_regs(Inst inst)
 int inst_has_no_ops(Inst inst)
 {
     switch (inst) {
-        case INST_HLT: return 1;
-        case INST_RET: return 1;
+        case INST_HLT:  return 1;
+        case INST_RET:  return 1;
         case INST_VLAD: return 1;
-        default:       return 0;
+        default:        return 0;
     }
 }
 
@@ -404,7 +418,7 @@ int inst_has_1_op(Inst inst)
     }
 }
 
-void debug_regs(CPU *c)
+void debug_regs(CPU *const c)
 {
     printf("ip: %lu\n", c->ip);
     for (size_t i = 0; i < RC; ++i) {
@@ -416,7 +430,7 @@ void debug_regs(CPU *c)
     printf("\n");
 }
 
-void debug_stack(CPU *c)
+void debug_stack(CPU *const c)
 {
     printf("Stack:\n");
     if (c->stack_size == 0) printf("    empty\n");
@@ -485,7 +499,7 @@ void load_program_from_file(CPU *c, const char *file_path)
         do { 
             c->program_capacity *= 2; 
         } while (object_count + 1 >= c->program_capacity);
-        c->program = realloc(c->program, c->program_capacity * sizeof(*c->program)); 
+        c->program = realloc(c->program, c->program_capacity * sizeof(*c->program));
     }
 
     if (fseek(fp, 0, SEEK_SET) < 0) {
@@ -503,9 +517,25 @@ void load_program_from_file(CPU *c, const char *file_path)
     fclose(fp);
 }
 
-void cpu_clean_program(CPU *c)
+void cpu_clean_program(CPU *const c)
 {
     free(c->program);
+    c->program = NULL;
     c->program_capacity = 0;
     c->program_size = 0;
+}
+
+char *luna_shift_args(int *argc, char ***argv)
+{
+    if (*argc <= 0) {
+        fprintf(stderr, "Error: not enough args for `luna_shift_args`\n");
+        exit(1);
+    }
+
+    char *result = **argv;
+
+    *argv += 1;
+    *argc -= 1;
+
+    return result;
 }

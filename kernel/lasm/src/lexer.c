@@ -1,4 +1,4 @@
-#include "./lexer.h"
+#include "../include/lexer.h"
 
 Value tokenise_value(String_View sv)
 {

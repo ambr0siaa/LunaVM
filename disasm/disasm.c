@@ -1,4 +1,4 @@
-#include "../lasm/lasm.h"
+#include "../kernel/lasm/include/lasm.h"
 
 #define USAGE(program) \
     fprintf(stderr, "Usage: %s <input.ven>\n", (program))

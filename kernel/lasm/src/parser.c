@@ -1,3 +1,5 @@
+//TODO: Impelment parser for luna's assembler
+
 #include "../include/parser.h"
 
 void print_node(Ast_Node *node)
@@ -63,7 +65,7 @@ Ast_Node *resolve_ast(Ast_Node *node)
                 case '/': BINARY_OP(new_node, /, node->left_operand, node->right_operand, type); break;
                 default: {
                     fprintf(stderr, "Error, unknown operator `%c`\n", node->token.op);
-                    EXIT;
+                    exit(1);
                 }
             }
 
@@ -94,7 +96,7 @@ void ast_clean(Ast_Node *node, size_t *node_count)
                 free(node->left_operand);
                 *node_count -= 2; 
             }
-        } else if (node->token.type == TYPE_VALUE) { 
+        } else if (node->token.type == TYPE_VALUE) {
             return;
         } else {
             ast_clean(node->left_operand, node_count);
@@ -208,10 +210,10 @@ Ast_Node *parse_expr(Token tk, Lexer *lex)
 
                     } else {
                         fprintf(stderr, "Error: in function `parse_expr` unknown condition\n");
-                        EXIT;
+                        exit(1);
                     }
 
-                    if (val2 == NULL) EXIT;
+                    if (val2 == NULL) exit(1);
                     
                     opr->left_operand = val1;
                     opr->right_operand = val2;
@@ -221,7 +223,7 @@ Ast_Node *parse_expr(Token tk, Lexer *lex)
                 Token t1 = token_next(lex);
                 Ast_Node *subtree = parse_expr(t1, lex);
                 
-                if (subtree == NULL) EXIT;
+                if (subtree == NULL) exit(1);
                 return subtree;
 
             } else if (type == TYPE_NONE) {
@@ -236,7 +238,7 @@ Ast_Node *parse_expr(Token tk, Lexer *lex)
                 print_token(lex->items[lex->tp]);
                 printf("tp: %zu\n", lex->tp);
                 printf("count: %zu\n", lex->count);
-                EXIT;
+                exit(1);
             }
         } while(1); 
 
@@ -259,7 +261,7 @@ Ast_Node *parse_expr(Token tk, Lexer *lex)
                     Token tk3 = token_next(lex);
                     val = parse_expr(tk3, lex);
                     
-                    if (val == NULL) EXIT;
+                    if (val == NULL) exit(1);
 
                     Token t2 = token_next(lex);
                     if (t2.type == TYPE_OPERATOR) {
@@ -271,7 +273,7 @@ Ast_Node *parse_expr(Token tk, Lexer *lex)
                             Token t4 = token_next(lex);
                             subval = parse_expr(t4, lex);
 
-                            if (subval == NULL) EXIT;
+                            if (subval == NULL) exit(1);
 
                         } else if (t3.type == TYPE_VALUE) {
                             subval = parse_term(t3, lex);
@@ -333,10 +335,10 @@ Ast_Node *parse_term(Token tk, Lexer *lex)
             
                 } else if (t1.type == TYPE_NONE) {
                     fprintf(stderr, "Error: expected second operand\n");
-                    EXIT;
+                    exit(1);
                 }
 
-                if (val2 == NULL) EXIT;
+                if (val2 == NULL) exit(1);
 
                 opr_node->left_operand = val1;
                 opr_node->right_operand = val2;
@@ -369,7 +371,7 @@ void parse_value(Ast *ast, Lexer *lex)
                     lex->tp -= 1;
 
                     Ast_Node *subtree = parse_expr(tk, lex);
-                    if (subtree == NULL) EXIT;
+                    if (subtree == NULL) exit(1);
 
                     subtree_node_count(subtree, &count);
                     ast_push_subtree(ast, subtree);
@@ -394,11 +396,11 @@ void parse_value(Ast *ast, Lexer *lex)
             } else if (tok.type == TYPE_OPEN_BRACKET) {
                 Token t = token_next(lex);
                 val = parse_expr(t, lex);    
-                if (val == NULL) EXIT;
+                if (val == NULL) exit(1);
 
             } else {
                 fprintf(stderr, "Error: in function `parser` unknown condition\n");
-                EXIT;
+                exit(1);
             }
 
             count += 1; // its `opr`
@@ -410,7 +412,7 @@ void parse_value(Ast *ast, Lexer *lex)
         } else if (tk.type == TYPE_OPEN_BRACKET) {
             Token tok = token_next(lex);
             Ast_Node *subtree = parse_expr(tok, lex);
-            if (subtree == NULL) EXIT;
+            if (subtree == NULL) exit(1);
 
             subtree_node_count(subtree, &count);
             ast_push_subtree(ast, subtree);

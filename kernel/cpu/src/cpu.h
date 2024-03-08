@@ -1,26 +1,27 @@
 #ifndef CPU_H_
 #define CPU_H_
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
+#include <ctype.h>
 #include <errno.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+#define ARRAY_SIZE(arr) sizeof((arr)) / sizeof((arr)[0])
 
 #define PROGRAM_INIT_CAPACITY 1024
 #define STACK_CAPACITY 16384
-#define ARRAY_SIZE(arr) sizeof((arr)) / sizeof((arr)[0])
 
-// RT - return register
-// RTF - return float register
-// ACC - accumulator
+// RC   - registers count
+// RT   - return register
+// RTF  - return float register
+// ACC  - accumulator for int
 // ACCF - accumulator for float
-// RC - registers count
 typedef enum {
     R0 = 0, R1, R2, R3, R4, R5, R6, R7, R8, ACC,
-    F0, F1, F2, F3, F4, F5, F6, F7, F8, ACCF, 
-    RT, RTF, RC,   
+    F0, F1, F2, F3, F4, F5, F6, F7, F8, ACCF,
+    RT, RTF, RC,
 } Register;
 
 #define MOVS_OPTION '$'
@@ -55,7 +56,6 @@ typedef enum {
 
     INST_PUSH_VAL,
     INST_PUSH_REG,
-
     INST_POP,
     INST_CALL,
     INST_RET,
@@ -109,15 +109,17 @@ typedef struct {
 #define OBJ_REG(r)       (Object) { .reg = (r) }
 #define OBJ_INT(val)     (Object) { .i64 = (val) }
 
-extern void debug_regs(CPU *c);
-extern void debug_stack(CPU *c);
+extern void debug_regs(CPU *const c);
+extern void debug_stack(CPU *const c);
 
-extern void cpu_execute_inst(CPU *c);
-extern void cpu_execute_program(CPU *c, int debug, int limit, int stk);
+extern Object cpu_fetch(CPU *const c);
+extern void cpu_execute_inst(CPU *const c);
+extern void cpu_execute_program(CPU *const c, int debug, int limit, int stk);
 
 extern void load_program_to_file(CPU *c, const char *file_path);
 extern void load_program_from_file(CPU *c, const char *file_path);
 extern void load_program_to_cpu(CPU *c, Object *program, size_t program_size);
+extern char *luna_shift_args(int *argc, char ***argv);
 
 extern char *reg_as_cstr(uint64_t operand);
 extern char *inst_as_cstr(Inst inst);
@@ -126,6 +128,6 @@ extern int inst_has_2_regs(Inst inst);
 extern int inst_has_no_ops(Inst inst);
 extern int inst_has_1_op(Inst inst);
 
-extern void cpu_clean_program(CPU *c);
+extern void cpu_clean_program(CPU *const c);
 
 #endif // CPU_H_

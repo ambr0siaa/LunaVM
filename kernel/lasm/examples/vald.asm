@@ -1,6 +1,6 @@
-;; Влад
+;; Example of special instruction
 movi r0, 0
-movi r1, 50000
+movi r1, 5000
 
 main:
     vlad

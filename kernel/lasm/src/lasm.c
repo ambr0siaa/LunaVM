@@ -1,4 +1,4 @@
-#include "./asm.h"
+#include "../include/lasm.h"
 
 String_View asm_load_file(const char *file_path)
 {
@@ -164,13 +164,13 @@ int64_t movs_option(String_View *arg)
         arg->count -= 1;
         return STACK_FRAME_SIZE;
     } 
-    else return 0; 
+    else return 0;
 }
 
 void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
 {
     // TODO: - add more info about errors
-    //       - add line and symbol numbers where was error  
+    //       - add line and symbol numbers where was error
 
     if (c->program_capacity == 0) {
         c->program_capacity = PROGRAM_INIT_CAPACITY;
@@ -232,7 +232,7 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
                             };
 
                             ll_append(&PJ->deferred, dlable);
-                            c->program[c->program_size++] = OBJ_INT(-1);                
+                            c->program[c->program_size++] = OBJ_INT(-1);
                         }
                     }
                 } else {
@@ -262,15 +262,4 @@ void asm_translate_source(CPU *c, Program_Jumps *PJ, String_View src)
     }
 
     free(Inst_Table.hs);
-}
-
-char *asm_shift_args(int *argc, char ***argv)
-{
-    assert(*argc >= 0);
-    char *result = **argv;
-
-    *argv += 1;
-    *argc -= 1;
-
-    return result;
 }

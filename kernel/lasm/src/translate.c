@@ -1,6 +1,6 @@
-#include "../lasm.h"
+#include "../include/lasm.h"
 
-#define USAGE(program)                                                   \
+#define USAGE(program) \
     fprintf(stderr, "Usage: %s <input.asm> <output.ven>\n", (program))
 
 static Program_Jumps PJ = {0};

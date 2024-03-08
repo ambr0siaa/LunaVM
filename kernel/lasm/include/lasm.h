@@ -1,6 +1,8 @@
 #ifndef ASM_H_
 #define ASM_H_
 
+#include <assert.h>
+
 #include "../../common/sv.h"
 #include "../../common/ht.h"
 #include "../../cpu/src/cpu.h"

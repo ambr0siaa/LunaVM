@@ -1,7 +1,7 @@
 #ifndef LEXER_H_
 #define LEXER_H_
 
-#include "../lasm.h"
+#include "lasm.h"
 
 typedef enum {
     VAL_FLOAT = 0,
@@ -32,8 +32,7 @@ typedef enum {
 
 typedef struct {
     Token_Type type;
-    union 
-    {
+    union {
         Value val;
         char op;
         String_View txt;
