@@ -25,32 +25,37 @@ char *reg_as_cstr(uint64_t operand)
         case F8:    return  "f8";
         case ACCF:  return "accf";
 
-        case RT:    return "rt";
-        case RTF:   return "rtf";
-
         case RC:
         default:
-            fprintf(stderr, "Error: unreachable `%li`\n", operand);
+            fprintf(stderr, "Error: unreachable reg `%li`\n", operand);
             exit(1);
     }
 }
-
-#define AREFMETIC_OP(c, type, op1, op2, operand, acc)       \
-    do {                                                    \
-        (c)->regs##type [acc] = (op1) operand (op2);        \
-        (c)->ip += 1;                                       \
-    } while (0)
-
-#define CPU_OP(c, place, op1, index, on)    \
-    do {                                    \
-        (c)->place [(index)] = op1;         \
-        if (on) (c)->ip += 1;               \
-    } while(0)
 
 Object cpu_fetch(CPU *const c)
 {
     c->ip += 1;
     return c->program[c->ip];
+}
+
+void cpu_inst_return(CPU *c)
+{
+    uint64_t tmp = c->fp;
+    c->ip = c->stack[c->fp - 1].u64;
+    c->sp = c->stack[c->fp - 2].u64;
+    c->fp = c->stack[c->fp - 3].u64;
+    c->zero_flag = c->stack[c->fp - 4].u64;
+
+    tmp -= 4;
+    
+    for (int i = ACCF; i >= F0; --i) {
+        int t = i - CPU_REGS;
+        c->regsf[t] = c->stack[--tmp].f64;
+    }
+
+    for (int i = ACC; i >= R0; --i) {
+        c->regs[i] = c->stack[--tmp].i64;
+    }
 }
 
 void cpu_execute_inst(CPU *const c)
@@ -60,25 +65,30 @@ void cpu_execute_inst(CPU *const c)
         exit(1);
     }
 
-    Inst inst = c->program[c->ip].inst;
+    uint64_t ip = c->ip;
+    Inst inst = c->program[ip].inst;
 
     Register reg1;
     Register reg2;
     Object operand1;
 
     switch (inst) {
-        case INST_MOVI:
+        case INST_MOV_RR:
             reg1 = cpu_fetch(c).reg;
-            operand1 = cpu_fetch(c);
+            reg2 = cpu_fetch(c).reg;
 
-            CPU_OP(c, regs, operand1.i64, reg1, 1);
+            if (reg1 >= F0) CPU_OP(c, regsf, c->regsf[reg2 - CPU_REGS], reg1 - CPU_REGS, IP_INC_TRUE);
+            else CPU_OP(c, regs, c->regs[reg2], reg1, IP_INC_TRUE);
+
             break;
 
-        case INST_MOVF:
+        case INST_MOV_RV:
             reg1 = cpu_fetch(c).reg;
             operand1 = cpu_fetch(c);
 
-            CPU_OP(c, regsf, operand1.f64, reg1, 1);
+            if (reg1 >= F0) CPU_OP(c, regsf, operand1.f64, reg1 - CPU_REGS, IP_INC_TRUE);
+            else CPU_OP(c, regs, operand1.i64, reg1, IP_INC_TRUE);
+
             break;
 
         case INST_MOVS:
@@ -87,100 +97,79 @@ void cpu_execute_inst(CPU *const c)
 
             Object stack_value = c->stack[c->stack_size - 1 - operand1.i64];
 
-            if (reg1 >= F0) CPU_OP(c, regsf, stack_value.f64, reg1, 1);
-            else CPU_OP(c, regs, stack_value.i64, reg1, 1);
+            if (reg1 >= F0) CPU_OP(c, regsf, stack_value.f64, reg1 - CPU_REGS, IP_INC_TRUE);
+            else CPU_OP(c, regs, stack_value.i64, reg1, IP_INC_TRUE);
             break;
 
-        case INST_ADDI:
+        case INST_ADD_RR:
             reg1 = cpu_fetch(c).reg;
             reg2 = cpu_fetch(c).reg;
-            AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], +, ACC);
-            break;
-        
-        case INST_SUBI:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
-            AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], -, ACC);
+
+            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], c->regsf[reg2 - CPU_REGS], +, ACCF - CPU_REGS);
+            else AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], +, ACC);
+
             break;
 
-        case INST_MULI:
+        case INST_SUB_RR:
             reg1 = cpu_fetch(c).reg;
             reg2 = cpu_fetch(c).reg;
-            AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], *, ACC);
+
+            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], c->regsf[reg2 - CPU_REGS], -, ACCF - CPU_REGS);
+            else AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], -, ACC);
+
             break;
 
-        case INST_DIVI:
+        case INST_DIV_RR:
             reg1 = cpu_fetch(c).reg;
             reg2 = cpu_fetch(c).reg;
-            AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], /, ACC);
+
+            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], c->regsf[reg2 - CPU_REGS], /, ACCF - CPU_REGS);
+            else AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], /, ACC);
+
             break;
 
-        case INST_ADDF:
+        case INST_MUL_RR:
             reg1 = cpu_fetch(c).reg;
             reg2 = cpu_fetch(c).reg;
-            AREFMETIC_OP(c, f, c->regsf[reg1], c->regsf[reg2], +, ACCF);
-            break;
-        
-        case INST_SUBF:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
-            AREFMETIC_OP(c, f, c->regsf[reg1], c->regsf[reg2], -, ACCF);
+
+            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], c->regsf[reg2 - CPU_REGS], *, ACCF - CPU_REGS);
+            else AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], *, ACC);
+
             break;
 
-        case INST_MULF:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
-            AREFMETIC_OP(c, f, c->regsf[reg1], c->regsf[reg2], *, ACCF);
-            break;
-
-        case INST_DIVF:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
-            AREFMETIC_OP(c, f, c->regsf[reg1], c->regsf[reg2], /, ACCF);
-            break;
-
-        case INST_ADDV:
+        case INST_ADD_RV:
             reg1 = cpu_fetch(c).reg;
             operand1 = cpu_fetch(c);
 
-            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1], operand1.f64, +, ACCF);
+            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], operand1.f64, +, ACCF - CPU_REGS);
             else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, +, ACC);
 
             break;
 
-        case INST_SUBV:
+        case INST_SUB_RV:
             reg1 = cpu_fetch(c).reg;
             operand1 = cpu_fetch(c);
 
-            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1], operand1.f64, -, ACCF);
+            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], operand1.f64, -, ACCF - CPU_REGS);
             else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, -, ACC);
 
             break;
 
-        case INST_DIVV:
+        case INST_DIV_RV:
             reg1 = cpu_fetch(c).reg;
             operand1 = cpu_fetch(c);
 
-            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1], operand1.f64, /, ACCF);
+            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], operand1.f64, /, ACCF - CPU_REGS);
             else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, /, ACC);
 
             break;
 
-        case INST_MULV:
+        case INST_MUL_RV:
             reg1 = cpu_fetch(c).reg;
             operand1 = cpu_fetch(c);
 
-            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1], operand1.f64, *, ACCF);
+            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], operand1.f64, *, ACCF - CPU_REGS);
             else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, *, ACC);
-
-            break;
-
-        case INST_MOV:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
-
-            if (reg1 >= F0) CPU_OP(c, regsf, c->regsf[reg2], reg1, 1);
-            else CPU_OP(c, regs, c->regs[reg2], reg1, 1);
 
             break;
 
@@ -198,10 +187,18 @@ void cpu_execute_inst(CPU *const c)
             break;
 
         case INST_CMP:
-            // TODO: support floating point numbers
             reg1 = cpu_fetch(c).reg;
             reg2 = cpu_fetch(c).reg;
-            c->zero_flag = c->regs[reg1] == c->regs[reg2];
+            
+            if (reg1 >= F0 && reg2 >= F0) {
+                c->zero_flag = c->regs[reg1 - CPU_REGS] == c->regs[reg2 - CPU_REGS];
+            } else if (reg1 < F0 && reg1 < F0) {
+                c->zero_flag = c->regsf[reg1] == c->regs[reg2];
+            } else {
+                fprintf(stderr, "Error: in inst `cmp` registers must be with equal types\n");
+                exit(1);
+            }
+
             c->ip += 1;
             break;
 
@@ -209,7 +206,7 @@ void cpu_execute_inst(CPU *const c)
             reg1 = cpu_fetch(c).reg;
             printf("%s: ", reg_as_cstr(reg1));
 
-            if (reg1 >= F0) printf("%lf\n",c->regsf[reg1]);
+            if (reg1 >= F0) printf("%lf\n",c->regsf[reg1 - CPU_REGS]);
             else printf("%li\n", c->regs[reg1]);
 
             c->ip += 1;
@@ -226,18 +223,18 @@ void cpu_execute_inst(CPU *const c)
             else c->ip += 1;
             break;
 
-        case INST_PUSH_VAL:
+        case INST_PUSH_V:
             if (c->stack_size > STACK_CAPACITY) {
                 fprintf(stderr, "Error: stack overflow\n");
                 exit(1);
             }
 
             operand1 = cpu_fetch(c);
-            CPU_OP(c, stack, operand1, c->stack_size++, 1);
+            CPU_OP(c, stack, operand1, c->stack_size++, IP_INC_TRUE);
             c->sp++;
             break;
 
-        case INST_PUSH_REG:
+        case INST_PUSH_R:
             if (c->stack_size > STACK_CAPACITY) {
                 fprintf(stderr, "Error: stack overflow\n");
                 exit(1);
@@ -245,14 +242,14 @@ void cpu_execute_inst(CPU *const c)
 
             reg1 = cpu_fetch(c).reg;
 
-            if (reg1 >= F0) operand1 = OBJ_FLOAT(c->regsf[reg1]);
+            if (reg1 >= F0) operand1 = OBJ_FLOAT(c->regsf[reg1 - CPU_REGS]);
             else operand1 = OBJ_INT(c->regs[reg1]);
 
-            CPU_OP(c, stack, operand1, c->stack_size++, 1);
+            CPU_OP(c, stack, operand1, c->stack_size++, IP_INC_TRUE);
             c->sp++;
             break;
 
-        case INST_POP:
+        case INST_POP_R:
             if (c->stack_size < 1) {
                 fprintf(stderr, "Error: stack underflow\n");
                 exit(1);
@@ -260,51 +257,70 @@ void cpu_execute_inst(CPU *const c)
 
             reg1 = cpu_fetch(c).reg;
             
-            if (reg1 >= F0) CPU_OP(c, regsf, c->stack[--c->stack_size].f64, reg1, 1);
-            else CPU_OP(c, regs, c->stack[--c->stack_size].i64, reg1, 1);
+            if (reg1 >= F0) CPU_OP(c, regsf, c->stack[--c->stack_size].f64, reg1 - CPU_REGS, IP_INC_TRUE);
+            else CPU_OP(c, regs, c->stack[--c->stack_size].i64, reg1, IP_INC_TRUE);
 
-            c->sp--;
+            c->sp -= 1;
+            break;
+
+        case INST_POP_N:
+            if (c->stack_size < 1) {
+                fprintf(stderr, "Error: stack underflow\n");
+                exit(1);
+            }
+
+            c->stack_size -= 1;
+            c->sp -= 1;
+            c->ip += 1;
             break;
 
         case INST_CALL:
             operand1 = cpu_fetch(c);
 
-            for (size_t i = R0; i <= ACC; ++i) {
-                CPU_OP(c, stack, OBJ_INT(c->regs[i]  ), c->stack_size++, 0);
+            for (int i = R0; i < ACC + 1; ++i) {
+                CPU_OP(c, stack, OBJ_INT(c->regs[i]), c->stack_size++, IP_INC_FLASE);
             }
 
-            for (size_t i = F0; i <= ACCF; ++i) {
-                CPU_OP(c, stack, OBJ_FLOAT(c->regsf[i]  ), c->stack_size++, 0);
+            for (int i = F0; i < ACCF + 1; ++i) {
+                CPU_OP(c, stack, OBJ_FLOAT(c->regsf[i - CPU_REGS]), c->stack_size++, IP_INC_FLASE);
             }
 
-            CPU_OP(c, stack, OBJ_UINT(c->zero_flag),   c->stack_size++, 0);
-            CPU_OP(c, stack, OBJ_UINT(c->fp),   c->stack_size++, 0);
-            CPU_OP(c, stack, OBJ_UINT(c->sp),   c->stack_size++, 0);
-            CPU_OP(c, stack, OBJ_UINT(c->ip),   c->stack_size++, 0);
+            CPU_OP(c, stack, OBJ_UINT(c->zero_flag),   c->stack_size++, IP_INC_FLASE);
+            CPU_OP(c, stack, OBJ_UINT(c->fp),   c->stack_size++, IP_INC_FLASE);
+            CPU_OP(c, stack, OBJ_UINT(c->sp),   c->stack_size++, IP_INC_FLASE);
+            CPU_OP(c, stack, OBJ_UINT(c->ip),   c->stack_size++, IP_INC_FLASE);
 
             c->sp += STACK_FRAME_SIZE;
             c->fp = c->sp;
             c->ip = operand1.u64;
             break;
 
-        case INST_RET:
-            uint64_t tmp = c->fp; 
-            c->ip = c->stack[c->fp - 1].u64;
-            c->sp = c->stack[c->fp - 2].u64;
-            c->fp = c->stack[c->fp - 3].u64;
-            c->zero_flag = c->stack[c->fp - 4].u64;
-
-            tmp -= 4;
-            
-            for (int i = ACCF; i >= F0; --i) {
-                c->regsf[i] = c->stack[--tmp].f64;
-            }
-
-            for (int i = ACC; i >= R0; --i) {
-                c->regs[i] = c->stack[--tmp].i64;
-            }
-
+        case INST_RET_N:
+            cpu_inst_return(c);
             c->ip += 1;
+            break;
+
+        case INST_RET_RR:
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
+
+            if (reg2 >= F0) operand1.f64 = c->regsf[reg2 - CPU_REGS];
+            else operand1.i64 = c->regs[reg2];
+
+            cpu_inst_return(c);
+
+            if (reg1 >= F0) CPU_OP(c, regsf, operand1.f64, reg1 - CPU_REGS, IP_INC_TRUE);
+            else CPU_OP(c, regs, operand1.i64, reg1, IP_INC_TRUE);
+            break;
+
+        case INST_RET_RV:
+            reg1 = cpu_fetch(c).reg;
+            operand1 = cpu_fetch(c);
+
+            cpu_inst_return(c);
+
+            if (reg1 >= F0) CPU_OP(c, regsf, operand1.f64, reg1 - CPU_REGS, IP_INC_TRUE);
+            else CPU_OP(c, regs, operand1.i64, reg1, IP_INC_TRUE);
             break;
 
         case INST_VLAD:
@@ -314,7 +330,7 @@ void cpu_execute_inst(CPU *const c)
 
         case IC:
         default:
-            fprintf(stderr, "Error: undefine instruction\n");
+            fprintf(stderr, "Error: undefine instruction `%s`\n", inst_as_cstr(inst));
             exit(1);
     }
 }
@@ -333,63 +349,69 @@ void cpu_execute_program(CPU *const c, int debug, int limit, int stk)
 char *inst_as_cstr(Inst inst)
 {
     switch (inst) {
-        case INST_ADDI:     return "addi";
-        case INST_SUBI:     return "subi";
-        case INST_DIVI:     return "divi";
-        case INST_MULI:     return "muli";
+        case INST_ADD:    return "add";
+        case INST_SUB:    return "sub";
+        case INST_DIV:    return "div";
+        case INST_MUL:    return "mul";
 
-        case INST_ADDF:     return "addf";
-        case INST_SUBF:     return "subf";
-        case INST_DIVF:     return "divf";
-        case INST_MULF:     return "mulf";
+        case INST_ADD_RR: return "addr";
+        case INST_SUB_RR: return "subr";
+        case INST_DIV_RR: return "divr";
+        case INST_MUL_RR: return "mulr";
 
-        case INST_ADDV:     return "addv";
-        case INST_SUBV:     return "subv";
-        case INST_DIVV:     return "divv";
-        case INST_MULV:     return "mulv";
+        case INST_ADD_RV: return "addv";
+        case INST_SUB_RV: return "subv";
+        case INST_DIV_RV: return "divv";
+        case INST_MUL_RV: return "mulv";
 
-        case INST_MOV:      return "mov";
-        case INST_MOVI:     return "movi";
-        case INST_MOVF:     return "movf";
-        case INST_MOVS:     return "movs";
+        case INST_MOV:    return "mov";
+        case INST_MOVS:   return "movs";
+        case INST_MOV_RR: return "movr";
+        case INST_MOV_RV: return "movv";
         
-        case INST_HLT:      return "hlt";
-        case INST_DBR:      return "dbr";
-        case INST_CMP:      return "cmp";
-        
-        case INST_JMP:      return "jmp";
-        case INST_JNZ:      return "jnz";
-        case INST_JZ:       return "jz";
-        
-        case INST_PUSH_REG: return "pshr";
-        case INST_PUSH_VAL: return "push";
-        case INST_POP:      return "pop";
-        
-        case INST_CALL:     return "call";
-        case INST_RET:      return "ret";
+        case INST_HLT:    return "hlt";
+        case INST_DBR:    return "dbr";
 
-        case INST_VLAD:     return "vlad";
+        case INST_CMP:    return "cmp";
+        case INST_JMP:    return "jmp";
+        case INST_JNZ:    return "jnz";
+        case INST_JZ:     return "jz";
+        
+        case INST_POP:    return "pop";
+        case INST_POP_R:  return "popr";
+        case INST_POP_N:  return "popn";
+
+        case INST_PUSH:   return "push";
+        case INST_PUSH_R: return "pshr";
+        case INST_PUSH_V: return "pshv";
+        
+        case INST_CALL:   return "call";
+
+        case INST_RET:    return "ret";
+        case INST_RET_N:  return "retn";
+        case INST_RET_RR: return "retrr";
+        case INST_RET_RV: return "retrv";
+
+        case INST_VLAD:   return "vlad";
         case IC:        
-        default:
+        default: {
             fprintf(stderr, "Error: `%u` this is not a inst\n", inst);
             exit(1);
+        }
     }
 }
 
 int inst_has_2_regs(Inst inst)
 {
     switch (inst) {
-        case INST_MOV:  return 1;
-        case INST_CMP:  return 1;
-        case INST_ADDI: return 1;
-        case INST_SUBI: return 1;
-        case INST_DIVI: return 1;
-        case INST_MULI: return 1;
-        case INST_ADDF: return 1;
-        case INST_SUBF: return 1;
-        case INST_DIVF: return 1;
-        case INST_MULF: return 1;
-        default:        return 0;
+        case INST_MOV_RR:   return 1;
+        case INST_CMP:    return 1;
+        case INST_RET_RR: return 1;
+        case INST_ADD_RR: return 1;
+        case INST_SUB_RR: return 1;
+        case INST_DIV_RR: return 1;
+        case INST_MUL_RR: return 1;
+        default:          return 0;
     }
 }
 
@@ -397,7 +419,7 @@ int inst_has_no_ops(Inst inst)
 {
     switch (inst) {
         case INST_HLT:  return 1;
-        case INST_RET:  return 1;
+        case INST_RET_N:  return 1;
         case INST_VLAD: return 1;
         default:        return 0;
     }
@@ -411,8 +433,8 @@ int inst_has_1_op(Inst inst)
         case INST_DBR:      return 1;
         case INST_JZ:       return 1;
         case INST_POP:      return 1;
-        case INST_PUSH_REG: return 1;
-        case INST_PUSH_VAL: return 1;
+        case INST_PUSH_R:   return 1;
+        case INST_PUSH_V:   return 1;
         case INST_CALL:     return 1;
         default:            return 0;
     }
@@ -422,9 +444,9 @@ void debug_regs(CPU *const c)
 {
     printf("ip: %lu\n", c->ip);
     for (size_t i = 0; i < RC; ++i) {
-        printf("%s: %li\n", reg_as_cstr(i), c->regs[i]);
+        if (i >= F0) printf("%s: %lf\n", reg_as_cstr(i), c->regsf[i - CPU_REGS]); 
+        else printf("%s: %li\n", reg_as_cstr(i), c->regs[i]);
     }
-    printf("acc: %li\n", c->regs[ACC]);
     printf("zero flag: %d\n", c->zero_flag);
     printf("halt: %d\n", c->halt);
     printf("\n");
@@ -446,28 +468,6 @@ void load_program_to_cpu(CPU *c, Object *program, size_t program_size)
     memcpy(c->program, program, all_size);
     c->program_size += program_size;
 }   
-
-void load_program_to_file(CPU *c, const char *file_path)
-{
-    FILE *fp = fopen(file_path, "wb");
-    if (!fp) {
-        fprintf(stderr, "Error: cannot open file by `%s` path\n", file_path);
-        exit(1);
-    }
-
-    size_t count = fwrite(c->program, sizeof(c->program[0]), c->program_size, fp);
-    if (count != c->program_size) {
-        fprintf(stderr, "Error: cannot write to file `%s`", file_path);
-        exit(1);
-    }
-
-    if (ferror(fp)) {
-        fprintf(stderr, "Error: cannot read from `%s` file\n", file_path);
-        exit(1);
-    }
-
-    fclose(fp);
-}
 
 void load_program_from_file(CPU *c, const char *file_path)
 {
@@ -496,9 +496,7 @@ void load_program_from_file(CPU *c, const char *file_path)
     size_t object_count = file_size / sizeof(c->program[0]);
 
     if (object_count + 1>= c->program_capacity) {
-        do { 
-            c->program_capacity *= 2; 
-        } while (object_count + 1 >= c->program_capacity);
+        do { c->program_capacity *= 2; } while (object_count + 1 >= c->program_capacity);
         c->program = realloc(c->program, c->program_capacity * sizeof(*c->program));
     }
 

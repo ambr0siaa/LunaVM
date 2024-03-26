@@ -1,12 +1,16 @@
-#include "../kernel/lasm/include/lasm.h"
+#include "../kernel/lasm/include/compiler.h"
+
+// TODO: remake disassembler
 
 #define USAGE(program) \
-    fprintf(stderr, "Usage: %s <input.ven>\n", (program))
+    fprintf(stderr, "Usage: %s <input.ln>\n", (program))
 
 static CPU cpu = {0};
 
 int main(int argc, char **argv)
 {
+    fprintf(stdout, "Note: disassembler don't work normaly on this Luna's version\n\n");
+    
     const char *program = luna_shift_args(&argc, &argv);
 
     if (argc < 1) {

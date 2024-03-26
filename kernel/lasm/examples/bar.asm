@@ -1,5 +1,5 @@
-movi r0, 1          ;; init regs
-movi r1, 1
+mov r0, 1
+mov r1, 1
 
 main:
     cmp r1, r2
@@ -9,17 +9,17 @@ main:
     hlt
 
 loop:
-    addi r0, r1
+    add r0, r1
     dbr r0
 
     mov r0, acc
     dbr r0
 
-    muli r1, acc
+    mul r1, acc
     mov r1, acc
     dbr r1
 
-    subi r0, r1
+    sub r0, r1
     mov r0, acc
     dbr r0
 

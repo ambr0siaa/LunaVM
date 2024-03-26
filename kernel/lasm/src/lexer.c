@@ -15,7 +15,8 @@ Value tokenise_value(String_View sv)
             fprintf(stderr, "Error: cannot parse `%s` to float64\n",float_cstr);
             exit(1);
         }
-
+        
+        free(endptr);
         return VALUE_FLOAT(d);
 
     } else {
@@ -27,12 +28,13 @@ Value tokenise_value(String_View sv)
 void lex_clean(Lexer *lex) { da_clean(lex); }
 void lex_push(Lexer *lex, Token tk) { da_append(lex, tk); }
 
-Lexer lexer(String_View src_sv)
+Lexer lexer(String_View src_sv, int db_txt)
 {
     Lexer lex = {0};
     String_View src = sv_trim(src_sv);
-    const String_View special = sv_from_cstr("+-*/%():&*%$!#,");
-    
+    const String_View special = sv_from_cstr("+-*/():,;$");
+    sv_cut_space_right(&src);
+
     while (src.count != 0) {
         Token tk;
         if (isdigit(src.data[0])) {
@@ -40,35 +42,48 @@ Lexer lexer(String_View src_sv)
             tk.val = tokenise_value(value);
             tk.type = TYPE_VALUE;
             sv_cut_space_left(&src);
+            sv_cut_space_right(&src);
 
         } else if (char_in_sv(special, src.data[0])){
             switch(src.data[0]) {
+                case ',': tk.type = TYPE_COMMA;         break;
+                case ':': tk.type = TYPE_COLON;         break;
+                case '$': tk.type = TYPE_DOLLAR;        break;
+                case '/': tk.type = TYPE_OPERATOR;      break;
+                case '+': tk.type = TYPE_OPERATOR;      break;
+                case '*': tk.type = TYPE_OPERATOR;      break;
+                case '-': tk.type = TYPE_OPERATOR;      break;
+                case ';': tk.type = TYPE_SEMICOLON;     break;
                 case '(': tk.type = TYPE_OPEN_BRACKET;  break;
                 case ')': tk.type = TYPE_CLOSE_BRACKET; break;
-                case ':': tk.type = TYPE_COLON; break;
-                case ',': tk.type = TYPE_COMMA; break;
-
-                case '/': tk.type = TYPE_OPERATOR;   break;
-                case '%': tk.type = TYPE_OPERATOR;   break;
-                case '+': tk.type = TYPE_OPERATOR;  break;
-                case '*': tk.type = TYPE_OPERATOR;  break;
-                case '-': tk.type = TYPE_OPERATOR; break;
-
-
-                default:
+                default: {
                     fprintf(stderr, "Error: unknown operator `%c`\n", src.data[0]);
                     exit(1);
+                }
             }
 
             tk.op = src.data[0];
             sv_cut_left(&src, 1);
             sv_cut_space_left(&src);
+            sv_cut_space_right(&src);
 
         } else if (isalpha(src.data[0])){
-            String_View txt = sv_cut_alpha(&src);
+            String_View txt = sv_cut_txt(&src, special);
+
+            if (src.count <= 0 && txt.data[txt.count] != '\n') 
+                txt.count -= 1;
+
             tk.txt = txt;
+
+            if (db_txt)
+                printf("lex sv: ["SV_Fmt"], lex sv len: [%zu]\n", SV_Args(txt), txt.count);
+
             tk.type = TYPE_TEXT;
             sv_cut_space_left(&src);
+            sv_cut_space_right(&src);
+
+        } else if (src.data[0] == '\0') {
+            break;
 
         } else {
             fprintf(stderr, "Error: cannot tokenize `%c`\n", src.data[0]);
@@ -82,7 +97,7 @@ Lexer lexer(String_View src_sv)
 
 Token token_next(Lexer *lex)
 {
-    if (lex->tp >= lex->count) {
+    if ((size_t)lex->tp >= lex->count) {
         return (Token) { .type = TYPE_NONE };
     } else {
         Token tk = lex->items[lex->tp];
@@ -93,11 +108,32 @@ Token token_next(Lexer *lex)
 
 Token_Type token_peek(Lexer *lex)
 {
-    if (lex->tp >= lex->count) {
+    if ((size_t)lex->tp >= lex->count) {
         return TYPE_NONE;
     } else {
         Token_Type type = lex->items[lex->tp].type;
         return type;
+    }
+}
+
+void token_back(Lexer *lex, int shift)
+{
+    if (lex->tp - shift >= 0) {
+        lex->tp -= shift;
+    } else {
+        fprintf(stderr, "Error: token pointer must be > 0!\n");
+        exit(1);
+    }
+}
+
+Token token_get(Lexer *lex, int shift, int skip)
+{
+    if ((size_t)lex->tp + shift >= lex->count) {
+        return (Token) { .type = TYPE_NONE };
+    } else {
+        Token tk = lex->items[lex->tp + shift];
+        if (skip) lex->tp += shift + 1;
+        return tk;
     }
 }
 
@@ -112,8 +148,14 @@ void print_token(Token tk)
             }
             break;
         }
-        case TYPE_COLON:
-        case TYPE_COMMA:
+        case TYPE_COLON: {
+            printf("colon: %c\n", tk.op);
+            break;
+        }
+        case TYPE_COMMA: {
+            printf("comma: %c\n", tk.op);
+            break;
+        }
         case TYPE_OPERATOR: {
             printf("opr: `%c`\n", tk.op);
             break;
@@ -130,6 +172,14 @@ void print_token(Token tk)
             printf("txt: `"SV_Fmt"`\n", SV_Args(tk.txt));
             break;
         }
+        case TYPE_SEMICOLON: {
+            printf("semicolon: %c\n", tk.op);
+            break;
+        }
+        case TYPE_DOLLAR: {
+            printf("dollar: %c\n", tk.op);
+            break;
+        }
         case TYPE_NONE:
         default: 
             fprintf(stderr, "Error: unknown type `%u`\n", tk.type);
@@ -137,9 +187,13 @@ void print_token(Token tk)
     }
 }
 
-void print_lex(Lexer *lex)
+void print_lex(Lexer *lex, int mode)
 {
-    printf("\n-------------- LEXER --------------\n\n");
+    if (mode == 1) {
+        printf("\n-------------- LEXER --------------\n\n");
+    } else {
+        printf("\n-----------------------------------\n\n");    
+    }
     for (size_t i = 0; i < lex->count; ++i) {
         print_token(lex->items[i]);
     }

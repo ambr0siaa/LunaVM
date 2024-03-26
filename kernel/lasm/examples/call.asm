@@ -1,19 +1,19 @@
 jmp main
 
 minus:
-    movi r0, 1234
-    subi r0, r1
+    mov r0, 1234
+    sub r0, r1
     dbr acc
     ret
 
 plus:
-    movs r0, $0
-    movs r1, $1
+    mov r0, $0
+    mov r1, $1
 
     dbr r0
     dbr r1
 
-    addi r0, r1
+    add r0, r1
     mov r0, acc
     dbr r0
 
@@ -22,8 +22,8 @@ plus:
     ret
 
 main:
-    movi r0, 12
-    movi r1, 435
+    mov r0, 12
+    mov r1, 435
     dbr r0
     dbr r1
 

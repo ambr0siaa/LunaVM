@@ -1,11 +1,11 @@
-movi r0, 1
-movi r1, 2
+mov r0, 1
+mov r1, 2
 
 dbr r0
 dbr r1
 
-pshr r0
-pshr r1
+push r0
+push r1
 
 pop r0
 pop r1
@@ -13,11 +13,11 @@ pop r1
 dbr r0
 dbr r1
 
-movi r2, 3456879
-movf f0, 123.789
+mov r2, 3456879
+mov f0, 123.789
 
-subv r2, 154125
-subv f0, 123.1234
+sub r2, 154125
+sub f0, 123.1234
 mov r2, acc
 mov f0, accf
 

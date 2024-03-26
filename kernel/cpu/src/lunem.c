@@ -1,7 +1,7 @@
 #include "cpu.h"
 
 #define USAGE(program) \
-    fprintf(stderr, "Usage: %s <input.ven> [-l limit] [-db debug registers] [-h help] [-stk debug stack]\n", (program))
+    fprintf(stderr, "Usage: %s -i <input.ln> [-l limit] [-db debug registers] [-h help] [-stk debug stack]\n", (program))
 
 static CPU cpu = {0};
 
@@ -58,13 +58,13 @@ int main(int argc, char **argv)
         } else if (!strcmp(flag, "-h")) {
             USAGE(program);
             printf("\n--------------------------------------------------- Lunem Usage ---------------------------------------------------\n\n");
-            fprintf(stdout, "-i    input file name to execute. Expects files with `.ven` extension\n");
+            fprintf(stdout, "-i    input file name to execute. Expects files with `.ln` extension\n");
             fprintf(stdout, "-l    limit of executing program. Default is -1\n");
             fprintf(stdout, "-db   if flag was provided, emulator will print info about all registers state. Not enabled by default\n");
             fprintf(stdout, "-stk  flag is the same as -db, but debug stack state. Not enabled by default");
             fprintf(stdout, "-h    print this text and exit\n");
             printf("\n----------------------------------------------------------------------------------------------------------------\n");
-            exit(0);
+            return EXIT_SUCCESS;
         } else {
             fprintf(stderr, "Error: unknown flag `%s`\n", flag);
             USAGE(program);

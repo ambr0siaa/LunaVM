@@ -1,50 +1,69 @@
 #ifndef PARSER_H_
 #define PARSER_H_
 
-//TODO: implemenet parser
+#include <assert.h>
 
-#include "./lexer.h"
+#include "../include/eval.h"
+#include "../include/parser.h"
+#include "../include/linizer.h"
+#include "../../cpu/src/cpu.h"
 
-typedef struct ast_node {
-    Token token;
-    struct ast_node *left_operand; 
-    struct ast_node *right_operand; 
-} Ast_Node;
+typedef uint64_t Inst_Addr;
 
 typedef struct {
-    Ast_Node *root;
+    String_View name;
+    Inst_Addr addr;
+} Label;
+
+typedef struct {
+    Label *labels;
     size_t count;
-} Ast;
+    size_t capacity;
+} Label_List;
 
-// This macro make need indent, when printing ast
-#define TAB(iter) ({                    \
-    for (int j = 0; j < (iter); ++j) {  \
-        printf(" ");                    \
-    }                                   \
-    (iter)++;                           \
-})
+typedef struct {
+    Label_List current;
+    Label_List deferred;
+} Program_Jumps;
 
-void print_ast(Ast *ast);
-void print_node(Ast_Node *node);
-void print_ast_root(Ast_Node *node);
+typedef struct {
+    Object *items;
+    size_t count;
+    size_t capacity;
+} Object_Block;
 
-#define BINARY_OP(dst, operator, op1, op2, type)                                        \
-    do {                                                                                \
-        if (type == 'f')                                                                \
-            (dst)->token.val.f64 = (op1)->token.val.f64 operator (op2)->token.val.f64;  \
-        else if (type == 'i')                                                           \
-            (dst)->token.val.i64 = (op1)->token.val.i64 operator (op2)->token.val.i64;  \
-    } while(0)              
+typedef struct {
+    Object_Block *items;
+    size_t count;
+    size_t capacity;
+} Block_Chain;
 
-void eval(Ast *ast);
-void parse_value(Ast *ast, Lexer *lex);
-void ast_clean(Ast_Node *node, size_t *node_count);
-void ast_push_subtree(Ast *ast, Ast_Node *subtree);
-void subtree_node_count(Ast_Node *subtree, size_t *count);
+#define LINE_DEBUG_TRUE 1
+#define LINE_DEBUG_FALSE 0
 
-Ast_Node *ast_node_create(Token tk);
-Ast_Node *resolve_ast(Ast_Node *node);
-Ast_Node *parse_expr(Token tk, Lexer *lex);
-Ast_Node *parse_term(Token tk, Lexer *lex);
+void objb_clean(Object_Block *objb);
+void objb_to_cpu(CPU *c, Object_Block *objb);
+void objb_push(Object_Block *objb, Object obj);
+
+void block_chain_push(Block_Chain *block_chain, Object_Block objb);
+void block_chain_clean(Block_Chain *block_chain);
+
+void parse_kind_reg_reg(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb);
+void parse_kind_reg_val(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb);
+void parse_kind_reg(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb);
+void parse_kind_val(Inst inst, Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb, Program_Jumps *PJ, size_t line_num);
+
+Token parse_val(Lexer *lex);
+Register parse_register(String_View sv);
+Inst parse_inst(Lexer *lex, Hash_Table *ht);
+int translate_inst(String_View inst_sv, Hash_Table *ht);
+Inst convert_to_cpu_inst(Inst inst, Inst_Kind *inst_kind, Lexer *lex);
+
+Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, int line_debug);
+void block_chain_to_cpu(CPU *c, Block_Chain *block_chain);
+
+void ll_append(Label_List *ll, Label label);
+Label ll_search_label(Label_List *ll, String_View name);
+void ll_print(Label_List *ll);
 
 #endif // PARSER_H_

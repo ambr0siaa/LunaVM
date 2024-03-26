@@ -26,6 +26,7 @@
 #define BIL_CMD_INIT_CAPACITY 256
 #define BIL_ASSERT assert
 #define BIL_FREE free
+#define BIL_EXIT exit
 
 #ifdef _WIN32
 typedef HANDLE Bil_Proc;
@@ -52,7 +53,7 @@ typedef enum {
 #       define BIL_REBUILD_COMMAND(source_path, output_path) "clang", "-o", (output_path), (source_path)
 #    endif
 #  else
-#       define BIL_REBUILD_COMMAND(source_path, output_path) "cc", "-o", (output_path), (source_path)
+#       define BIL_REBUILD_COMMAND(source_path, output_path) "gcc", "-o", (output_path), (source_path)
 #  endif
 #endif // BIL_REBUILD_COMMAND
 
@@ -111,8 +112,11 @@ Bil_String_Builder bil_cmd_create(Bil_Cmd *cmd);
 #define SB_JOIN(sb, ...) sb_join_many((sb), __VA_ARGS__, NULL)
 #define sb_clean(sb) { (sb)->count = 0; (sb)->capacity = 0; BIL_FREE((sb)->str); }
 
+#define DELETEME "DELETEME"
+#define BIL_DIR_CURRENT "current"
+
 // After rebuilding old file renames to `DELETME`
-#define BIL_REBUILD(argv)                                                                           \
+#define BIL_REBUILD(argv, deleteme_dir)                                                             \
     do {                                                                                            \
         const char *output_file_path = (argv[0]);                                                   \
         const char *source_file_path = __FILE__;                                                    \
@@ -121,7 +125,20 @@ Bil_String_Builder bil_cmd_create(Bil_Cmd *cmd);
                                                                                                     \
         if (rebuild_is_need) {                                                                      \
             bil_log(BIL_INFO, "start rebuild file `%s`", source_file_path);                         \
-            if (!bil_rename_file(output_file_path, "DELETEME")) exit(1);                            \
+            Bil_String_Builder deleteme_sb_path;                                                    \
+            const char *deleteme_path;                                                              \
+                                                                                                    \
+            int is_current = strcmp(deleteme_dir, BIL_DIR_CURRENT);                                 \
+                                                                                                    \
+            if (is_current) {                                                                       \
+                deleteme_sb_path = PATH(".", deleteme_dir, DELETEME);                               \
+                deleteme_path = deleteme_sb_path.str;                                               \
+            } else {                                                                                \
+                deleteme_path = DELETEME;                                                           \
+            }                                                                                       \
+                                                                                                    \
+            if (!bil_rename_file(output_file_path, deleteme_path)) exit(1);                         \
+            if (is_current) sb_clean(&deleteme_sb_path);                                            \
                                                                                                     \
             Bil_Cmd rebuild_cmd = {0};                                                              \
             bil_cmd_append(&rebuild_cmd, BIL_REBUILD_COMMAND(source_file_path, output_file_path));  \
@@ -351,7 +368,6 @@ Bil_Proc bil_cmd_build_async(Bil_Cmd *cmd)
 
         if (execvp(cmd->items[0], (char * const*) cmd_null.items) < 0) {
             bil_log(BIL_ERROR, "Could not execute child process: %s", strerror(errno));
-            exit(1);
         }
     }
 
@@ -468,14 +484,12 @@ bool bil_check_for_rebuild(const char *output_file_path, const char *source_file
 
     if (stat(source_file_path, &statbuf) < 0) {
         bil_log(BIL_ERROR, "could not get info about file `%s`: %s", source_file_path, strerror(errno));
-        exit(1);
     }
 
     time_t src_file_time = statbuf.st_mtime;
 
     if (stat(output_file_path, &statbuf) < 0) {
         bil_log(BIL_ERROR, "could not get info about file `%s`: %s", output_file_path, strerror(errno));
-        exit(1);
     }
 
     time_t output_file_time = statbuf.st_mtime;
@@ -506,16 +520,20 @@ bool bil_rename_file(const char *file_name, const char *new_name)
 
 void bil_delete_file(const char *file_path)
 {
+    bil_log(BIL_INFO, "Start deleting file `%s`\n", file_path);
 #ifdef _WIN32
     BOOL fSuccess = DeleteFile(file_path);
     if (!fSuccess) {
-        bil_log(BIL_ERROR, "Cannot delete file by path `%s`\n", file_path);
+        bil_log(BIL_ERROR, "Cannot delete file by path `%s`", file_path);
+        BIL_EXIT(BIL_EXIT_FAILURE);
     }
 #else
     if (remove(file_path) != 0) {
-        bil_log(BIL_ERROR, "Cannot delete file by path `%s`\n", file_path);
+        bil_log(BIL_ERROR, "Cannot delete file by path `%s`", file_path);
+        BIL_EXIT(BIL_EXIT_FAILURE);
     }
 #endif
+    bil_log(BIL_INFO, "File `%s` was deleted\n", file_path);
 }
 
 int bil_file_exist(const char *file_path)

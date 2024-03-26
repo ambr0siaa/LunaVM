@@ -14,63 +14,90 @@
 #define STACK_CAPACITY 16384
 
 // RC   - registers count
-// RT   - return register
-// RTF  - return float register
 // ACC  - accumulator for int
 // ACCF - accumulator for float
 typedef enum {
     R0 = 0, R1, R2, R3, R4, R5, R6, R7, R8, ACC,
     F0, F1, F2, F3, F4, F5, F6, F7, F8, ACCF,
-    RT, RTF, RC,
+    RC,
 } Register;
 
-#define MOVS_OPTION '$'
-
 typedef enum {
+    // inst mov header
     INST_MOV = 0,
-    INST_MOVI,      // Move integer to register 
-    INST_MOVF,      // Move float to register
-    INST_MOVS,      // Move value from stack relativly; `$` is option to get args for call from previous stack frame
+
+    // Kinds:
+    INST_MOV_RR,
+    INST_MOV_RV,
+    INST_MOVS, // Move value from stack relativly; `$` is option to get args for call from previous stack frame
 
     INST_HLT,
-    INST_DBR,       // DeBug Register
+    INST_DBR, // DeBug Register
 
-    // Arefmetic insts
-    // For integer registers
-    INST_ADDI,
-    INST_SUBI,
-    INST_DIVI,
-    INST_MULI,
+    // Arefmetic insts headers
+    INST_ADD,
+    INST_SUB,
+    INST_MUL,
+    INST_DIV,
 
-    // For float registers
-    INST_ADDF,
-    INST_SUBF,
-    INST_DIVF,
-    INST_MULF,
+    // Kinds:
+    //  For integer registers
+    INST_ADD_RR,
+    INST_SUB_RR,
+    INST_DIV_RR,
+    INST_MUL_RR,
 
-    // For values with registers
-    INST_ADDV,
-    INST_SUBV,
-    INST_MULV,
-    INST_DIVV,
+    //  For values with registers
+    INST_ADD_RV,
+    INST_SUB_RV,
+    INST_MUL_RV,
+    INST_DIV_RV,
 
-    INST_PUSH_VAL,
-    INST_PUSH_REG,
+    // inst push header
+    INST_PUSH,
+
+    // Kinds:
+    INST_PUSH_V,
+    INST_PUSH_R,
+
+    // inst pop header
     INST_POP,
+    
+    // Kinds:
+    INST_POP_R,
+    INST_POP_N,
+
     INST_CALL,
+
+    // inst ret header
     INST_RET,
 
-    // TODO: INST_INC, INST_DEC
-    // INST_AND, INST_OR, INST_NOT, INST_XOR, INST_RSR, INST_RSL
+    // Kinds:
+    INST_RET_N,
+    INST_RET_RR,
+    INST_RET_RV,
+
+    // TODO: INST_INC, INST_DEC,
+    //       INST_AND, INST_OR, INST_NOT, INST_XOR, INST_RSR, INST_RSL
+    //       INST_GR, INST_GE, INST_LS, INST_LE
 
     INST_JMP,
     INST_JNZ,
     INST_JZ,
+
     INST_CMP,
 
     INST_VLAD,
     IC          // IC -> inst count
 } Inst;
+
+typedef enum {
+    KIND_REG_REG =0,
+    KIND_REG_VAL,
+    KIND_REG,
+    KIND_VAL,
+    KIND_NONE
+} Inst_Kind;
 
 // Abstract representation of all types that can use vm
 typedef union {
@@ -84,10 +111,13 @@ typedef union {
 // Register from enum (without RT and RTF) + registers from CPU (ip, sp, fp, zero_flag)
 #define STACK_FRAME_SIZE 24
 
+// Count of regs in array on cpu
+#define CPU_REGS 10
+
 // kernel of virtual machine
 typedef struct {
-    int64_t regs[RC];
-    double regsf[RC];
+    int64_t regs[CPU_REGS];
+    double regsf[CPU_REGS];
 
     Object *program;
     uint64_t program_capacity;
@@ -106,17 +136,33 @@ typedef struct {
 #define OBJ_INST(type)   (Object) { .inst = (type) }
 #define OBJ_FLOAT(val)   (Object) { .f64 = (val) }
 #define OBJ_UINT(val)    (Object) { .u64 = (val) }
-#define OBJ_REG(r)       (Object) { .reg = (r) }
 #define OBJ_INT(val)     (Object) { .i64 = (val) }
+#define OBJ_REG(r)       (Object) { .reg = (r) }
+
+#define AREFMETIC_OP(c, type, op1, op2, operator, acc) \
+    do {                                               \
+        (c)->regs##type [acc] = (op1) operator (op2);  \
+        (c)->ip += 1;                                  \
+    } while (0)
+
+#define IP_INC_TRUE 1
+#define IP_INC_FLASE 0
+
+#define CPU_OP(c, place, op, index, on) \
+    do {                                \
+        (c)->place [(index)] = op;      \
+        if (on) (c)->ip += 1;           \
+    } while(0)
 
 extern void debug_regs(CPU *const c);
 extern void debug_stack(CPU *const c);
 
 extern Object cpu_fetch(CPU *const c);
+
+extern void cpu_inst_return(CPU *c);
 extern void cpu_execute_inst(CPU *const c);
 extern void cpu_execute_program(CPU *const c, int debug, int limit, int stk);
 
-extern void load_program_to_file(CPU *c, const char *file_path);
 extern void load_program_from_file(CPU *c, const char *file_path);
 extern void load_program_to_cpu(CPU *c, Object *program, size_t program_size);
 extern char *luna_shift_args(int *argc, char ***argv);

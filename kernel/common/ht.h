@@ -1,8 +1,6 @@
 #ifndef HT_H_
 #define HT_H_
 
-#define ui unsigned int
-
 #ifndef ASM_H_
 #   include <stdio.h>
 #   include <stdlib.h>
@@ -12,38 +10,44 @@
 
 #include <stdint.h>
 
+typedef long long hshv_t;           // hash table value
+typedef unsigned long long hshi_t;  // hash table index
+
 typedef struct {
-    ui val;
+    hshv_t hash;
+    hshi_t index;
     const char *key;
+    unsigned int inst;
 } hash_item;
 
-#define HT_INIT_CAPACITY 512
+typedef struct bucket {
+    hash_item hi;
+    struct bucket *next;
+} Bucket;
 
 typedef struct {
-    hash_item *hs;
-    size_t capacity;
+    Bucket *head;
+    Bucket *tail;
     size_t count;
-} hash_table;
+} Bucket_List;
+
+#define HT_CAPACITY 55
+#define HT_DEBUG_TRUE 1
+#define HT_DEBUG_FALSE 0
 
 typedef struct {
-    uint64_t c0 : 7;
-    uint64_t c1 : 7;
-    uint64_t c2 : 7;
-    uint64_t c3 : 7;
-} str_hash;
+    Bucket_List bl[HT_CAPACITY];
+    size_t capacity;
+} Hash_Table;
 
-extern void print_ht(hash_table *ht);
-extern void ht_init(hash_table *ht);
+Bucket *new_bucket(hash_item hi);
+hshv_t hash_function(const char *s);
+int ht_get_inst(Hash_Table *ht, const char *s);
 
-extern uint64_t hash_function(const char *str);
-extern uint64_t make_index(hash_table *ht, uint64_t hash, const char *key, int insert);
-extern hash_item create_hash_item(const char *key, ui val);
-
-extern void ht_push(hash_table *ht, const char* key, ui val);
-extern void ht_insert(hash_table *ht, ui val, const char *key, uint64_t index, uint64_t hash);
-extern void inst_table_init(hash_table *ht, size_t inst_count);
-
-extern ui ht_get(hash_table *ht, const char *key);
-extern int ht_colisions_handle(hash_table *ht, uint64_t index);
+void ht_free(Hash_Table *ht);
+void ht_push(Hash_Table *ht, hash_item hi);
+void inst_ht_init(Hash_Table *ht, int debug);
+void make_index(Hash_Table *ht, hash_item *hi);
+void buket_push(Bucket_List *bl, Bucket *bucket);
 
 #endif // HT_H_
