@@ -4,6 +4,7 @@
     fprintf(stderr, "Usage: %s -i <input.asm> -o <output.ln> [-h help] [-db... debugs, to get all usages run with -h]\n", (program))
 
 static Hash_Table inst_table = {0};
+static Variable_Table vt = { .capacity = VT_CAPACITY };
 static Program_Jumps PJ = {0};
 static CPU cpu = {0};
 
@@ -16,6 +17,7 @@ int main(int argc, char **argv)
     int db_lnz = LNZ_DEBUG_FALSE;
     int db_line = LINE_DEBUG_FALSE;
     int db_lex_txts = LEX_DEBUG_TXTS_FALSE;
+    int db_output_program = BLOCK_CHAIN_DEBUG_FALSE;
     const char *output_file_path = NULL;
     const char *input_file_path = NULL;
 
@@ -65,6 +67,9 @@ int main(int argc, char **argv)
         } else if (!strcmp("-dbLine", flag)) {
             db_line = LINE_DEBUG_TRUE;
 
+        } else if (!strcmp("-dbPrg", flag)) {
+            db_output_program = BLOCK_CHAIN_DEBUG_TRUE;
+
         } else if (!strcmp("-h", flag)) {
             USAGE(program);
             fprintf(stdout, "\n-------------------------------------------- Lasm Usage --------------------------------------------\n\n");
@@ -86,7 +91,7 @@ int main(int argc, char **argv)
     }
 
     String_View src = lasm_load_file(input_file_path);
-    lasm_translate_source(src, &cpu, &PJ, &inst_table, db_lex, db_lnz, db_ht, db_line, db_lex_txts);
+    lasm_translate_source(src, &cpu, &PJ, &inst_table, &vt, db_lex, db_lnz, db_ht, db_line, db_lex_txts, db_output_program);
     lasm_save_program_to_file(&cpu, output_file_path);
     
     free(src.data);
@@ -95,7 +100,7 @@ int main(int argc, char **argv)
     free(PJ.current.labels);
     free(PJ.deferred.labels);
 
-    fprintf(stdout, "\nlasm: file `%s` was translated to `%s`\n", input_file_path, output_file_path);
+    fprintf(stdout, "lasm: file `%s` was translated to `%s`\n", input_file_path, output_file_path);
     fprintf(stdout, "lasm: translation has done.\n");
     
     return EXIT_SUCCESS;

@@ -157,6 +157,7 @@ typedef struct {
 extern void debug_regs(CPU *const c);
 extern void debug_stack(CPU *const c);
 
+extern void cpu_set_entry_ip(CPU *c);
 extern Object cpu_fetch(CPU *const c);
 
 extern void cpu_inst_return(CPU *c);

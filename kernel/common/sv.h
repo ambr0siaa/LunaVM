@@ -7,6 +7,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef SV_H_
+#   include "ht.h"
+#endif
+
 typedef struct {
     char *data;
     size_t count;

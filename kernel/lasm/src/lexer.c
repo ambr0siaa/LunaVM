@@ -32,8 +32,7 @@ Lexer lexer(String_View src_sv, int db_txt)
 {
     Lexer lex = {0};
     String_View src = sv_trim(src_sv);
-    const String_View special = sv_from_cstr("+-*/():,;$");
-    sv_cut_space_right(&src);
+    const String_View special = sv_from_cstr("+-*/():,.;${}[]");
 
     while (src.count != 0) {
         Token tk;
@@ -42,20 +41,24 @@ Lexer lexer(String_View src_sv, int db_txt)
             tk.val = tokenise_value(value);
             tk.type = TYPE_VALUE;
             sv_cut_space_left(&src);
-            sv_cut_space_right(&src);
 
         } else if (char_in_sv(special, src.data[0])){
             switch(src.data[0]) {
-                case ',': tk.type = TYPE_COMMA;         break;
-                case ':': tk.type = TYPE_COLON;         break;
-                case '$': tk.type = TYPE_DOLLAR;        break;
-                case '/': tk.type = TYPE_OPERATOR;      break;
-                case '+': tk.type = TYPE_OPERATOR;      break;
-                case '*': tk.type = TYPE_OPERATOR;      break;
-                case '-': tk.type = TYPE_OPERATOR;      break;
-                case ';': tk.type = TYPE_SEMICOLON;     break;
-                case '(': tk.type = TYPE_OPEN_BRACKET;  break;
-                case ')': tk.type = TYPE_CLOSE_BRACKET; break;
+                case '.': tk.type = TYPE_DOT;             break;
+                case ',': tk.type = TYPE_COMMA;           break;
+                case ':': tk.type = TYPE_COLON;           break;
+                case '$': tk.type = TYPE_DOLLAR;          break;
+                case '/': tk.type = TYPE_OPERATOR;        break;
+                case '+': tk.type = TYPE_OPERATOR;        break;
+                case '*': tk.type = TYPE_OPERATOR;        break;
+                case '-': tk.type = TYPE_OPERATOR;        break;
+                case ';': tk.type = TYPE_SEMICOLON;       break;
+                case '{': tk.type = TYPE_OPEN_CURLY;      break;
+                case '}': tk.type = TYPE_CLOSE_CURLY;     break;
+                case '(': tk.type = TYPE_OPEN_BRACKET;    break;
+                case ')': tk.type = TYPE_CLOSE_BRACKET;   break;
+                case '[': tk.type = TYPE_OPEN_S_BRACKET;  break;
+                case ']': tk.type = TYPE_CLOSE_S_BRACKET; break;
                 default: {
                     fprintf(stderr, "Error: unknown operator `%c`\n", src.data[0]);
                     exit(1);
@@ -65,14 +68,9 @@ Lexer lexer(String_View src_sv, int db_txt)
             tk.op = src.data[0];
             sv_cut_left(&src, 1);
             sv_cut_space_left(&src);
-            sv_cut_space_right(&src);
 
         } else if (isalpha(src.data[0])){
             String_View txt = sv_cut_txt(&src, special);
-
-            if (src.count <= 0 && txt.data[txt.count] != '\n') 
-                txt.count -= 1;
-
             tk.txt = txt;
 
             if (db_txt)
@@ -80,9 +78,8 @@ Lexer lexer(String_View src_sv, int db_txt)
 
             tk.type = TYPE_TEXT;
             sv_cut_space_left(&src);
-            sv_cut_space_right(&src);
-
-        } else if (src.data[0] == '\0') {
+        
+        } else if (src.data[0] == '\0' || src.count == 0) {
             break;
 
         } else {
@@ -148,12 +145,16 @@ void print_token(Token tk)
             }
             break;
         }
+        case TYPE_DOT: {
+            printf("dot: `%c`\n", tk.op);
+            break;
+        }
         case TYPE_COLON: {
-            printf("colon: %c\n", tk.op);
+            printf("colon: `%c`\n", tk.op);
             break;
         }
         case TYPE_COMMA: {
-            printf("comma: %c\n", tk.op);
+            printf("comma: `%c`\n", tk.op);
             break;
         }
         case TYPE_OPERATOR: {
@@ -168,16 +169,32 @@ void print_token(Token tk)
             printf("close bracket: `%c`\n", tk.op);
             break;
         }
+        case TYPE_OPEN_S_BRACKET: {
+            printf("open s-bracket: `%c`\n", tk.op);
+            break;
+        }
+        case TYPE_CLOSE_S_BRACKET: {
+            printf("close s-bracket: `%c`\n", tk.op);
+            break;
+        }
+        case TYPE_OPEN_CURLY: {
+            printf("open curly: `%c`\n", tk.op);
+            break;
+        }
+        case TYPE_CLOSE_CURLY: {
+            printf("close curly: `%c`\n", tk.op);
+            break;
+        }
         case TYPE_TEXT: {
             printf("txt: `"SV_Fmt"`\n", SV_Args(tk.txt));
             break;
         }
         case TYPE_SEMICOLON: {
-            printf("semicolon: %c\n", tk.op);
+            printf("semicolon: `%c`\n", tk.op);
             break;
         }
         case TYPE_DOLLAR: {
-            printf("dollar: %c\n", tk.op);
+            printf("dollar: `%c`\n", tk.op);
             break;
         }
         case TYPE_NONE:

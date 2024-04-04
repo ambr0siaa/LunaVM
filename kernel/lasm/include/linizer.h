@@ -7,6 +7,8 @@
 typedef enum {
     LINE_INST,
     LINE_LABEL,
+    LINE_ENTRY_LABLE,
+    LINE_VAR,
 } Line_Type;
 
 typedef struct line {

@@ -36,8 +36,14 @@ void print_lnz(Linizer *lnz)
             case LINE_LABEL:
                 printf("LABEL");
                 break;
+            case LINE_VAR:
+                printf("VARIABLE");
+                break;
+            case LINE_ENTRY_LABLE:
+                printf("ENTRY POINT");
+                break;
             default:
-                fprintf(stderr, "Error: unknown type int linizer: `%u`", lnz->items[i].type);
+                fprintf(stderr, "Error: unknown type int linizer: `%u`\n", lnz->items[i].type);
                 exit(1);
         }
         printf(" : line [%zu]", i);
@@ -68,23 +74,32 @@ Linizer linizer(Lexer *lex, Hash_Table *ht, int ht_debug, int lnz_debug)
                 lex_push(&sub_lex, tk);
                 tk = token_next(lex);
                 if (tk.type == TYPE_NONE) break;
+                if (tk.type == TYPE_DOT) break;
             } while (!try_inst(ht, tk));
 
             if (tk.type != TYPE_NONE) {
                 token_back(lex, 1);
             }
 
-            line.item = sub_lex;
             line.type = LINE_INST;
 
         } else {
+            if (tk.type == TYPE_DOT) {
+                tk = token_next(lex);
+                if (tk.type == TYPE_TEXT) {
+                    if (sv_cmp(tk.txt, sv_from_cstr("entry"))) {
+                        line.type = LINE_ENTRY_LABLE;
+                        tk = token_next(lex);
+                    }
+                }
+            } else {
+                line.type = LINE_LABEL;
+            }
+
             Token t = token_next(lex);
             if (t.type == TYPE_COLON) {
                 lex_push(&sub_lex, tk);
                 lex_push(&sub_lex, t);
-
-                line.item = sub_lex;
-                line.type = LINE_LABEL;
 
             } else if (t.type == TYPE_NONE) {
                 break;
@@ -93,6 +108,8 @@ Linizer linizer(Lexer *lex, Hash_Table *ht, int ht_debug, int lnz_debug)
                 exit(1);
             }
         }
+
+        line.item = sub_lex;
         line_push(&lnz, line);
     }
 

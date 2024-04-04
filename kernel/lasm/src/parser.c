@@ -69,7 +69,33 @@ void parse_kind_reg_reg(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb)
     *inst_pointer += 3;
 }
 
-void parse_kind_reg_val(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb)
+Object parse_variable(Variable_Table *vt, String_View name)
+{
+    Variable_Statement var = vt_get(vt, name);
+    if (var.type == VAR_TYPE_ERR) {
+        fprintf(stderr, "Error: unknown variable `"SV_Fmt"`\n", SV_Args(name));
+        exit(1);
+    }
+    // var_print(&var);
+    Object val;
+    switch (var.type) {
+        case VAR_TYPE_INT:
+            val = OBJ_INT(var.as_i64);
+            break;   
+        case VAR_TYPE_UINT:
+            val = OBJ_UINT(var.as_u64);
+            break;
+        case VAR_TYPE_FLOAT:
+            val = OBJ_FLOAT(var.as_f64);
+            break;
+        default:
+            fprintf(stderr, "Error: unknown type `%u` in `parse_kind_reg_val`\n", var.type);
+            exit(1);
+    }
+    return val;
+}
+
+void parse_kind_reg_val(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb, Variable_Table *vt)
 {
     for (Token tk = lex->items[lex->tp + 1]; 
         tk.type != TYPE_NONE;
@@ -77,8 +103,13 @@ void parse_kind_reg_val(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb)
 
         if (tk.type == TYPE_COMMA) continue;
         else if (tk.type == TYPE_TEXT) {
-            Register reg = parse_register(tk.txt);
-            objb_push(objb, OBJ_REG(reg));
+            int reg = parse_register(tk.txt);
+            if (reg != -1) {
+                objb_push(objb, OBJ_REG(reg));
+            } else {
+                Object val = parse_variable(vt, tk.txt);
+                objb_push(objb, val);
+            }
 
         } else if (tk.type == TYPE_VALUE || tk.type == TYPE_OPEN_BRACKET) {
             Object val_obj;
@@ -137,19 +168,26 @@ void parse_kind_val(Inst inst,
                     Lexer *lex, 
                     Object_Block *objb, 
                     Program_Jumps *PJ,
+                    Variable_Table *vt,
                     size_t line_num)
 {
     switch (inst) {
         case INST_PUSH_V: {
             Object val_obj;
-            Token val_tk = parse_val(lex);
-            token_next(lex);
-            if (val_tk.val.type == VAL_FLOAT) {
-                val_obj = OBJ_FLOAT(val_tk.val.f64);
+            Token tk = token_get(lex, 0, SKIP_FALSE);
+            if (tk.type == TYPE_OPEN_BRACKET || tk.type == TYPE_VALUE) {
+                Token val_tk = parse_val(lex);
+                token_next(lex);
+                if (val_tk.val.type == VAL_FLOAT) {
+                    val_obj = OBJ_FLOAT(val_tk.val.f64);
+                } else {
+                    val_obj = OBJ_INT(val_tk.val.i64);
+                }
+                objb_push(objb, val_obj);
             } else {
-                val_obj = OBJ_INT(val_tk.val.i64);
+                Object val = parse_variable(vt, tk.txt);
+                objb_push(objb, val);
             }
-            objb_push(objb, val_obj);
         }
         break;
 
@@ -209,6 +247,24 @@ Inst parse_inst(Lexer *lex, Hash_Table *ht)
     }
 }
 
+int try_register(String_View sv)
+{
+    if (sv.data[0] == 'r' || sv.data[0] == 'f') {
+        if (isdigit(sv.data[1])) {
+            return 1;
+        } else {
+            return 0;
+        }
+    } else if (sv_cmp(sv, sv_from_cstr("acc"))) {
+        return 1;
+    } else if (sv_cmp(sv, sv_from_cstr("accf"))) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+// TODO: when error occur show line with uncorrect syntax
 Inst convert_to_cpu_inst(Inst inst, Inst_Kind *inst_kind, Lexer *lex)
 {
     Inst new_inst;
@@ -218,24 +274,26 @@ Inst convert_to_cpu_inst(Inst inst, Inst_Kind *inst_kind, Lexer *lex)
     if (tk.type == TYPE_NONE) {
         kind = KIND_NONE;
     } else {
-        Token copy = tk;
         tk = token_get(lex, 1, SKIP_FALSE);
         if (tk.type == TYPE_COMMA) {
             tk = token_get(lex, 2, SKIP_FALSE);
             if (tk.type == TYPE_VALUE || tk.type == TYPE_OPEN_BRACKET || tk.type == TYPE_DOLLAR) {
                 kind = KIND_REG_VAL;
             } else {
-                kind = KIND_REG_REG;
+                if (try_register(tk.txt))
+                    kind = KIND_REG_REG;
+                else
+                    kind = KIND_REG_VAL;
             }
         } else {
-            if ((copy.type == TYPE_OPEN_BRACKET || copy.type == TYPE_VALUE) ||
-                inst == INST_JMP ||
-                inst == INST_JNZ ||
-                inst == INST_JZ ||
-                inst == INST_CALL) {
+            tk = token_get(lex, 0, SKIP_FALSE);
+            if ((tk.type == TYPE_OPEN_BRACKET || tk.type == TYPE_VALUE)) {
                 kind = KIND_VAL;
             } else {
-                kind = KIND_REG;
+                if (try_register(tk.txt)) 
+                    kind = KIND_REG;
+                else 
+                    kind = KIND_VAL;
             }
         }
     }
@@ -393,36 +451,185 @@ Inst convert_to_cpu_inst(Inst inst, Inst_Kind *inst_kind, Lexer *lex)
     return new_inst;
 }
 
-Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, int line_debug)
+// TODO: remake
+void parse_variable_expr(Lexer *lex, Variable_Table *vt)
+{   
+    size_t start_tp = lex->tp;
+    for (Token tk = token_next(lex); tk.type != TYPE_NONE; tk = token_next(lex)) {
+        if (tk.type == TYPE_TEXT) {
+            Variable_Statement var = vt_get(vt, tk.txt);
+            if (var.type == VAR_TYPE_ERR) {
+                fprintf(stderr, "Error: cannot find variable by name `"SV_Fmt"`\n", SV_Args(tk.txt));
+                exit(1);
+            }
+            Token new_tk = {0};
+            new_tk.type = TYPE_VALUE;
+            switch (var.type) {
+                case VAR_TYPE_INT:
+                    new_tk.val.type = VAL_INT;
+                    new_tk.val.i64 = var.as_i64;
+                    break;
+                case VAR_TYPE_FLOAT:
+                    new_tk.val.type = VAL_FLOAT;
+                    new_tk.val.f64 = var.as_f64;
+                    break;
+                default:
+                    fprintf(stderr, "Error: unknown type `%u`\n", var.type);
+                    exit(1);
+            }
+            lex->items[lex->tp - 1] = new_tk;
+        }
+    }
+    lex->tp = start_tp; 
+}
+
+// TODO: remake this
+// TODO: better errors
+Variable_Statement parse_line_variable(Lexer *lex)
 {
-    Block_Chain block_chain = {0};
-    Inst_Addr inst_pointer = 0;
+    Variable_Statement var = {0};
+    token_next(lex); // skip key word
+    
+    Token var_name = token_next(lex);
+    if (var_name.type != TYPE_TEXT) {
+        fprintf(stderr, "Error: uncorrect name for variable\n");
+        exit(1);
+    }
+    var.name = var_name.txt;
+
+    Token open_curly = token_next(lex);
+    if (open_curly.type != TYPE_OPEN_CURLY) {
+        fprintf(stderr, "Error: after name expectes `{`\n");
+        exit(1);
+    }
+
+    Token var_type = token_next(lex);
+    if (var_type.type != TYPE_TEXT) {
+        fprintf(stderr, "Error: expectes text for defining type\n");
+        exit(1);
+    }
+
+    if (sv_cmp(var_type.txt, sv_from_cstr("i64"))) {
+        var.type = VAR_TYPE_INT;
+
+    } else if (sv_cmp(var_type.txt, sv_from_cstr("u64"))) {
+        var.type = VAR_TYPE_UINT;
+
+    } else if (sv_cmp(var_type.txt, sv_from_cstr("f64"))) {
+        var.type = VAR_TYPE_FLOAT;
+
+    } else {
+        fprintf(stderr, "Error: unknown type `"SV_Fmt"` for variable\n", SV_Args(var_type.txt));
+        exit(1);
+    }
+
+    Token semicolon = token_next(lex);
+    if (semicolon.type != TYPE_SEMICOLON) {
+        fprintf(stderr, "Error: expected `;` after type\n");
+        exit(1);
+    }
+
+    Token var_value = token_next(lex);
+    switch (var.type) {
+        case VAR_TYPE_INT:
+            if (var_value.val.type != VAL_INT) {
+                fprintf(stderr, "Error: after type `i64` expectes integer\n");
+                exit(1);
+            }
+            var.as_i64 = var_value.val.i64;
+            break;
+
+        case VAR_TYPE_UINT:
+            if (var_value.val.type != VAL_INT) {
+                fprintf(stderr, "Error: after type `u64` expectes unsigned integer\n");
+                exit(1);
+            }
+            if (var_value.val.i64 < 0 ) {
+                fprintf(stderr, "Error: unsigned value cannot be less than 0\n");
+                exit(1);    
+            }
+            var.as_u64 = var_value.val.i64;
+            break;
+
+        case VAR_TYPE_FLOAT:
+            if (var_value.val.type != VAL_FLOAT) {
+                fprintf(stderr, "Error: after type `f64` expectes float\n");
+                exit(1);
+            }
+            var.as_f64 = var_value.val.f64;
+            break;
+
+        default:
+            fprintf(stderr, "Error: unknown type in `parse_variable`\n");
+            exit(1);
+    }
+
+    return var;
+}
+
+Object_Block parse_line_inst(Line line, Hash_Table *ht, Program_Jumps *PJ, Variable_Table *vt,
+                             size_t inst_counter, size_t *inst_pointer, 
+                             int db_line, size_t line_num)
+{
+    Inst_Kind kind;
+    Object_Block objb = {0};
+    Lexer sublex = line.item;
+    Inst src_inst = parse_inst(&sublex, ht);
+    Inst cpu_inst = convert_to_cpu_inst(src_inst, &kind, &sublex);
+    objb_push(&objb, OBJ_INST(cpu_inst));
+    
+    if (db_line) {
+        printf("line: %zu; ", line_num + 1);
+        printf("inst: %s; kind: %u\n", inst_as_cstr(cpu_inst), kind);
+    }
+
+    switch (kind) {
+        case KIND_REG:     parse_kind_reg(inst_pointer, &sublex, &objb);                                 break;
+        case KIND_VAL:     parse_kind_val(cpu_inst, inst_pointer, &sublex, &objb, PJ, vt, inst_counter); break;
+        case KIND_NONE:    *inst_pointer += 1;                                                           break;
+        case KIND_REG_REG: parse_kind_reg_reg(inst_pointer, &sublex, &objb);                             break;
+        case KIND_REG_VAL: parse_kind_reg_val(inst_pointer, &sublex, &objb, vt);                         break;
+        default: {
+            fprintf(stderr, "Error: unknown kind `%u`\n", kind);
+            exit(1);
+        }
+    }
+
+    return objb;
+}
+
+void parse_line_label(String_View name, Program_Jumps *PJ, size_t inst_pointer)
+{
+    Label label = { .name = name, .addr = inst_pointer};
+    ll_append(&PJ->current, label);
+}
+
+void block_chain_debug(Block_Chain *bc)
+{
+    printf("\n---------------------------------------------\n\n");
+    for (size_t i = 0; i < bc->count; ++i) {
+        Object_Block objb = bc->items[i];
+        printf("object block: %zu\n", i);
+        for (size_t j = 0; j < objb.count; ++j) {
+            Object o = objb.items[j];
+            printf("inst: %u, reg: %u, i64: %li, u64: %lu, f64: %lf\n",
+                    o.inst, o.reg, o.i64, o.u64, o.f64);
+        }
+        printf("\n");
+    }
+    printf("\n---------------------------------------------\n\n");
+}
+
+Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, Variable_Table *vt, int line_debug, int bc_debug)
+{
+    size_t entry_ip = 0;
     size_t inst_counter = 0;
+    Inst_Addr inst_pointer = 0;
+    Block_Chain block_chain = {0};
     for (size_t i = 0; i < lnz->count; ++i) {
-        Object_Block objb = {0};
         Line line = lnz->items[i];
         if (line.type == LINE_INST) {
-            Inst_Kind kind;
-            Lexer sublex = line.item;
-            Inst src_inst = parse_inst(&sublex, ht);
-            Inst cpu_inst = convert_to_cpu_inst(src_inst, &kind, &sublex);
-            objb_push(&objb, OBJ_INST(cpu_inst));
-            if (line_debug) {
-                printf("line: %zu; ", i + 1);
-                printf("inst: %s; kind: %u\n", inst_as_cstr(cpu_inst), kind);
-            }
-
-            switch (kind) {
-                case KIND_REG:     parse_kind_reg(&inst_pointer, &sublex, &objb);                               break;
-                case KIND_VAL:     parse_kind_val(cpu_inst, &inst_pointer, &sublex, &objb, PJ, inst_counter);   break;
-                case KIND_NONE:    inst_pointer += 1;                                                           break;
-                case KIND_REG_REG: parse_kind_reg_reg(&inst_pointer, &sublex, &objb);                           break;
-                case KIND_REG_VAL: parse_kind_reg_val(&inst_pointer, &sublex, &objb);                           break;
-                default: {
-                    fprintf(stderr, "Error: unknown kind `%u`\n", kind);
-                    exit(1);
-                }
-            }
+            Object_Block objb = parse_line_inst(line, ht, PJ, vt, inst_counter, &inst_pointer, line_debug, i);
             block_chain_push(&block_chain, objb);
             inst_counter += 1;
 
@@ -432,9 +639,21 @@ Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, int l
                 fprintf(stderr, "Error: in line [%zu] expected label\n", i + 1);
                 exit(1);
             }
-            String_View label_name = tk.txt;
-            Label label = { .name = label_name, .addr = inst_pointer};
-            ll_append(&PJ->current, label);
+            parse_line_label(tk.txt, PJ, inst_pointer);
+
+        } else if (line.type == LINE_ENTRY_LABLE) {
+            entry_ip = inst_pointer;
+            Token tk = line.item.items[0];
+            if (tk.type != TYPE_TEXT) {
+                fprintf(stderr, "Error: in line [%zu] expected label\n", i + 1);
+                exit(1);
+            }
+
+            parse_line_label(tk.txt, PJ, inst_pointer);
+
+        } else if (line.type == LINE_VAR) {
+            Variable_Statement var = parse_line_variable(&line.item);
+            vt_insert(vt, var);
 
         } else {
             fprintf(stderr, "Error: in `parse_linizer` unknown line [%lu] type\n", i + 1);
@@ -442,6 +661,7 @@ Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, int l
         }
     }
 
+    // TODO: erros for unused deffred labels
     for (size_t i = 0; i < PJ->deferred.count; ++i) {
         Label dlabel = PJ->deferred.labels[i];
         Label label = ll_search_label(&PJ->current, dlabel.name);
@@ -450,6 +670,13 @@ Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, int l
         }
     }
 
+    Object_Block entry_obj = {0};
+    objb_push(&entry_obj, OBJ_UINT(entry_ip));
+    block_chain_push(&block_chain, entry_obj);
+
+    if (bc_debug == BLOCK_CHAIN_DEBUG_TRUE) 
+        block_chain_debug(&block_chain);
+    
     return block_chain;
 }
 
@@ -492,7 +719,7 @@ int translate_inst(String_View inst_sv, Hash_Table *ht)
     return inst;
 }
 
-Register parse_register(String_View sv)
+int parse_register(String_View sv)
 {   
     char *acc = reg_as_cstr(ACC);
     if (sv_cmp(sv, sv_from_cstr(acc)))
@@ -504,17 +731,14 @@ Register parse_register(String_View sv)
 
     int n = sv.data[1] - '0';
 
-    if (sv.data[0] == 'r') {
+    if (sv.data[0] == 'r' && isdigit(sv.data[1])) {
         return n;
-    }
 
-    else if (sv.data[0] == 'f') {
+    } else if (sv.data[0] == 'f' && isdigit(sv.data[1])) {
         n = n + ACC + 1;
         return n;
-    }
 
-    else {
-        fprintf(stderr, "Error: cannot find register by `%d`\n", n);
-        exit(1);
+    } else {
+        return -1;
     }
 }

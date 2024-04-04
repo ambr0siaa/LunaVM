@@ -1,11 +1,9 @@
 # Cpu instructions usage
----
 
 ## Note:
 All intruction use intel notation - ```Destination before source```.
 
 ## Inst Table
----
 
 |Inst|What do|Option1|Option2|Option3|
 |-   |-      |-      |-      |-      |

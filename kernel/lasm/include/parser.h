@@ -3,9 +3,10 @@
 
 #include <assert.h>
 
-#include "../include/eval.h"
-#include "../include/parser.h"
-#include "../include/linizer.h"
+#include "eval.h"
+#include "var.h"
+#include "linizer.h"
+
 #include "../../cpu/src/cpu.h"
 
 typedef uint64_t Inst_Addr;
@@ -38,6 +39,9 @@ typedef struct {
     size_t capacity;
 } Block_Chain;
 
+#define BLOCK_CHAIN_DEBUG_TRUE 1
+#define BLOCK_CHAIN_DEBUG_FALSE 0
+
 #define LINE_DEBUG_TRUE 1
 #define LINE_DEBUG_FALSE 0
 
@@ -45,25 +49,32 @@ void objb_clean(Object_Block *objb);
 void objb_to_cpu(CPU *c, Object_Block *objb);
 void objb_push(Object_Block *objb, Object obj);
 
-void block_chain_push(Block_Chain *block_chain, Object_Block objb);
+void block_chain_debug(Block_Chain *bc);
 void block_chain_clean(Block_Chain *block_chain);
+void block_chain_to_cpu(CPU *c, Block_Chain *block_chain);
+void block_chain_push(Block_Chain *block_chain, Object_Block objb);
 
-void parse_kind_reg_reg(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb);
-void parse_kind_reg_val(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb);
 void parse_kind_reg(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb);
-void parse_kind_val(Inst inst, Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb, Program_Jumps *PJ, size_t line_num);
+void parse_kind_reg_reg(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb);
+void parse_kind_reg_val(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb, Variable_Table *vt);
+void parse_kind_val(Inst inst, Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb, Program_Jumps *PJ, Variable_Table *vt, size_t line_num);
 
 Token parse_val(Lexer *lex);
-Register parse_register(String_View sv);
+int parse_register(String_View sv);
 Inst parse_inst(Lexer *lex, Hash_Table *ht);
+void parse_variable_expr(Lexer *lex, Variable_Table *vt);
+
+Variable_Statement parse_line_variable(Lexer *lex);
+void parse_line_label(String_View name, Program_Jumps *PJ, size_t inst_pointer);
+Object_Block parse_line_inst(Line line, Hash_Table *ht, Program_Jumps *PJ, Variable_Table *vt, size_t inst_counter, size_t *inst_pointer, int db_line, size_t line_num);
+
+Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, Variable_Table *vt, int line_debug, int bc_debug);
+
 int translate_inst(String_View inst_sv, Hash_Table *ht);
 Inst convert_to_cpu_inst(Inst inst, Inst_Kind *inst_kind, Lexer *lex);
 
-Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, int line_debug);
-void block_chain_to_cpu(CPU *c, Block_Chain *block_chain);
-
+void ll_print(Label_List *ll);
 void ll_append(Label_List *ll, Label label);
 Label ll_search_label(Label_List *ll, String_View name);
-void ll_print(Label_List *ll);
 
 #endif // PARSER_H_

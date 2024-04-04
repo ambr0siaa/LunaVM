@@ -62,13 +62,19 @@ String_View sv_div_by_delim(String_View *sv, char delim)
     return result;
 }
 
+hshv_t sv_get_hash(String_View sv)
+{
+    char *s = sv_to_cstr(sv);
+    hshv_t hash = hash_function(s);
+    free(s);
+    return hash;  
+}
+
 int sv_cmp(String_View sv1, String_View sv2)
 {
-    if (sv1.count != sv2.count) {
-        return 0;
-    } else {
-        return memcmp(sv1.data, sv2.data, sv1.count) == 0;
-    }
+    hshv_t h1 = sv_get_hash(sv1);
+    hshv_t h2 = sv_get_hash(sv2);
+    return h1 == h2; 
 }
 
 int sv_to_int(String_View sv)
@@ -216,15 +222,17 @@ void sv_append_nul(String_View *sv)
     sv->data[sv->count] = '\0';
 }
 
+#include <stdio.h>
+
 String_View sv_cut_txt(String_View *sv, String_View special)
 {
     String_View result;
     size_t i = 0;
     while (i < sv->count) {
-        if (char_in_sv(special, sv->data[i]) || isspace(sv->data[i])) {
+        if (char_in_sv(special, sv->data[i]) || isspace(sv->data[i]) || sv->data[i] == '\0') {
             break;
         } else {
-            i++; 
+            i++;
         }
     }
 
@@ -240,10 +248,10 @@ String_View sv_cut_txt(String_View *sv, String_View special)
 // return null terminated c-string
 char *sv_to_cstr(String_View sv)
 {
-    size_t sv_size = sizeof(*sv.data) * sv.count;
+    size_t sv_size = sizeof(sv.data[0]) * sv.count;
     char *cstr = malloc(sv_size + 1);
-    memcpy(cstr, sv.data, sv_size);
-    memset(cstr + sv.count, '\0', 1);
+    memcpy(cstr, sv.data, sv.count);
+    cstr[sv.count] = '\0';
     return cstr;
 }
 

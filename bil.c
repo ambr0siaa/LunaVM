@@ -36,9 +36,10 @@
     "./kernel/lasm/src/parser.c",   \
     "./kernel/lasm/src/lexer.c",    \
     "./kernel/lasm/src/linizer.c",  \
+    "./kernel/lasm/src/var.c",      \
     "./kernel/lasm/src/eval.c"
 
-char *binary_dir_path = "bin";
+char *binary_dir_path = "build";
 
 #ifdef _Win32
 #   define CFLAGS " "

@@ -1,5 +1,4 @@
 # Luna Virtual Machine
----
 
 Simple register-based virtual machine with own assembler.
 
@@ -8,7 +7,7 @@ Simple register-based virtual machine with own assembler.
 * [dis](./disasm/disasm.c) - disassembler for Luna's bytecode.
 
 ## Quick Start
----
+
 To build all project at start use ```bilSetup.sh``` then run ```bil```:
 ```
 $ ./bilSetup.sh

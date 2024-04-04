@@ -1,5 +1,7 @@
 #include "../include/eval.h"
 
+// TODO global: remake all eval
+
 void print_node(Eval_Node *node)
 {
     print_token(node->token);

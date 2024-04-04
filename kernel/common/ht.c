@@ -14,12 +14,12 @@ hshv_t hash_function(const char *s)
     return hash;
 }
 
-void make_index(Hash_Table *ht, hash_item *hi) 
+hshi_t make_index(size_t capacity, hshv_t hash) 
 {
-    hshi_t index = ((hi->hash ^ 7) % (IC)) ^ 11;
-    index += ((hi->hash << 8) & hi->index) ^ 7;
-    while (index >= ht->capacity) { index >>= 2; }    
-    hi->index = index;
+    hshi_t index = ((hash ^ 7) % (34)) ^ 11;
+    index += (((hash << 8) & 0) ^ 7);
+    while (index > capacity) { index >>= 2; }    
+    return index;
 }
 
 Bucket *new_bucket(hash_item hi)
@@ -52,18 +52,31 @@ void ht_push(Hash_Table *ht, hash_item hi)
 
 int ht_get_inst(Hash_Table *ht, const char *s)
 {
-    hshv_t hash = hash_function(s);
+    hash_item hi = {0};
+    ht_get(ht, s, &hi);
+    if (hi.hash == -1) {
+        return hi.hash;
+    } else {
+        return hi.inst;
+    }
+}
+
+void ht_get(Hash_Table *ht, const char *key, hash_item *dst)
+{
+    hshv_t hash = hash_function(key);
     hash_item hi = { .hash = hash };
-    make_index(ht, &hi);
+    hi.index = make_index(ht->capacity, hi.hash);
     if (hi.index <= HT_CAPACITY) {
         Bucket *cur = ht->bl[hi.index].head;
         while (cur != NULL) {
-            if (cur->hi.hash == hi.hash)
-                return cur->hi.inst;
+            if (cur->hi.hash == hi.hash) {
+                *dst = cur->hi;
+                return;
+            }
             cur = cur->next;
         }
     }
-    return -1;
+    dst->hash = -1;
 }
 
 void inst_ht_init(Hash_Table *ht, int debug)
@@ -74,7 +87,7 @@ void inst_ht_init(Hash_Table *ht, int debug)
         const char *inst = inst_as_cstr(i);
         hshv_t hash = hash_function(inst);
         hash_item hi = { .key = inst, .inst = i , .hash = hash };
-        make_index(ht, &hi);
+        hi.index = make_index(ht->capacity, hi.hash);
         ht_push(ht, hi);
         if (debug == HT_DEBUG_TRUE) {
             printf("inst: [%s]; hash: [%lli], index: [%llu]\n", inst, hash, hi.index);
@@ -98,4 +111,25 @@ void ht_free(Hash_Table *ht)
             } 
         }
     }
+}
+
+void bucket_list_print(Bucket_List *bl)
+{
+    Bucket *cur = bl->head;
+    while (cur != NULL) {
+        printf("hash: [%lli], index: [%llu], key: [%s], inst: [%u]\n", 
+               cur->hi.hash, cur->hi.index, cur->hi.key, cur->hi.inst);
+        cur = cur->next;
+    }
+}
+
+void ht_print(Hash_Table *ht)
+{
+    for (size_t i = 0; i < ht->capacity; ++i) {
+        if (ht->bl[i].count != 0) {
+            printf("Item index: %zu\n", i);
+            bucket_list_print(&ht->bl[i]);
+        }
+    }
+    printf("\n");
 }
