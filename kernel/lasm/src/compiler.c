@@ -98,7 +98,7 @@ void lasm_translate_source(String_View src,
                            CPU *c, 
                            Program_Jumps *PJ, 
                            Hash_Table *ht,
-                           Variable_Table *vt,
+                           Const_Table *ct,
                            int db_lex, int db_lnz, int db_ht, int db_line, int db_lex_txt, int db_bc)
 {
     src = lasm_cut_comments_from_src(&src);
@@ -107,7 +107,7 @@ void lasm_translate_source(String_View src,
     if (db_lex) print_lex(&lex, LEX_PRINT_MODE_TRUE);
 
     Linizer lnz = linizer(&lex, ht, db_ht, db_lnz);
-    Block_Chain block_chain = parse_linizer(&lnz, PJ, ht, vt, db_line, db_bc);
+    Block_Chain block_chain = parse_linizer(&lnz, PJ, ht, ct, db_line, db_bc);
     if (block_chain.items == NULL) {
         fprintf(stderr, "Error: cannot make block chain\n");
         exit(1);

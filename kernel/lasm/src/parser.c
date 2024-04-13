@@ -69,23 +69,23 @@ void parse_kind_reg_reg(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb)
     *inst_pointer += 3;
 }
 
-Object parse_variable(Variable_Table *vt, String_View name)
+Object parse_variable(Const_Table *ct, String_View name)
 {
-    Variable_Statement var = vt_get(vt, name);
-    if (var.type == VAR_TYPE_ERR) {
+    Const_Statement var = ct_get(ct, name);
+    if (var.type == CONST_TYPE_ERR) {
         fprintf(stderr, "Error: unknown variable `"SV_Fmt"`\n", SV_Args(name));
         exit(1);
     }
     // var_print(&var);
     Object val;
     switch (var.type) {
-        case VAR_TYPE_INT:
+        case CONST_TYPE_INT:
             val = OBJ_INT(var.as_i64);
             break;   
-        case VAR_TYPE_UINT:
+        case CONST_TYPE_UINT:
             val = OBJ_UINT(var.as_u64);
             break;
-        case VAR_TYPE_FLOAT:
+        case CONST_TYPE_FLOAT:
             val = OBJ_FLOAT(var.as_f64);
             break;
         default:
@@ -95,7 +95,7 @@ Object parse_variable(Variable_Table *vt, String_View name)
     return val;
 }
 
-void parse_kind_reg_val(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb, Variable_Table *vt)
+void parse_kind_reg_val(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb, Const_Table *ct)
 {
     for (Token tk = lex->items[lex->tp + 1]; 
         tk.type != TYPE_NONE;
@@ -104,27 +104,29 @@ void parse_kind_reg_val(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb,
         if (tk.type == TYPE_COMMA) continue;
         else if (tk.type == TYPE_TEXT) {
             int reg = parse_register(tk.txt);
-            if (reg != -1) {
-                objb_push(objb, OBJ_REG(reg));
+            objb_push(objb, OBJ_REG(reg));
+
+        } else if (tk.type == TYPE_VALUE || 
+                   tk.type == TYPE_AMPERSAND ||
+                   tk.type == TYPE_OPEN_BRACKET) {
+            if (tk.type == TYPE_AMPERSAND) {
+                Token tk = token_next(lex);
+                lex->tp -= 1;
+                lex->items[lex->tp] = parse_constant_expr(tk, ct);
             } else {
-                Object val = parse_variable(vt, tk.txt);
-                objb_push(objb, val);
+                Object val_obj;
+                token_back(lex, 1);
+                Token val_tk = parse_val(lex);
+                token_next(lex);
+
+                if (val_tk.val.type == VAL_FLOAT) {
+                    val_obj = OBJ_FLOAT(val_tk.val.f64);
+                } else {
+                    val_obj = OBJ_INT(val_tk.val.i64);
+                }
+
+                objb_push(objb, val_obj);
             }
-
-        } else if (tk.type == TYPE_VALUE || tk.type == TYPE_OPEN_BRACKET) {
-            Object val_obj;
-            token_back(lex, 1);
-            Token val_tk = parse_val(lex);
-            token_next(lex);
-
-            if (val_tk.val.type == VAL_FLOAT) {
-                val_obj = OBJ_FLOAT(val_tk.val.f64);
-            } else {
-                val_obj = OBJ_INT(val_tk.val.i64);
-            }
-
-            objb_push(objb, val_obj);
-
         } else if (tk.type == TYPE_DOLLAR) {
             tk = token_next(lex);
             int64_t frame_shift = tk.val.i64 + STACK_FRAME_SIZE;
@@ -168,7 +170,7 @@ void parse_kind_val(Inst inst,
                     Lexer *lex, 
                     Object_Block *objb, 
                     Program_Jumps *PJ,
-                    Variable_Table *vt,
+                    Const_Table *ct,
                     size_t line_num)
 {
     switch (inst) {
@@ -185,7 +187,7 @@ void parse_kind_val(Inst inst,
                 }
                 objb_push(objb, val_obj);
             } else {
-                Object val = parse_variable(vt, tk.txt);
+                Object val = parse_variable(ct, tk.txt);
                 objb_push(objb, val);
             }
         }
@@ -451,51 +453,18 @@ Inst convert_to_cpu_inst(Inst inst, Inst_Kind *inst_kind, Lexer *lex)
     return new_inst;
 }
 
-// TODO: remake
-void parse_variable_expr(Lexer *lex, Variable_Table *vt)
-{   
-    size_t start_tp = lex->tp;
-    for (Token tk = token_next(lex); tk.type != TYPE_NONE; tk = token_next(lex)) {
-        if (tk.type == TYPE_TEXT) {
-            Variable_Statement var = vt_get(vt, tk.txt);
-            if (var.type == VAR_TYPE_ERR) {
-                fprintf(stderr, "Error: cannot find variable by name `"SV_Fmt"`\n", SV_Args(tk.txt));
-                exit(1);
-            }
-            Token new_tk = {0};
-            new_tk.type = TYPE_VALUE;
-            switch (var.type) {
-                case VAR_TYPE_INT:
-                    new_tk.val.type = VAL_INT;
-                    new_tk.val.i64 = var.as_i64;
-                    break;
-                case VAR_TYPE_FLOAT:
-                    new_tk.val.type = VAL_FLOAT;
-                    new_tk.val.f64 = var.as_f64;
-                    break;
-                default:
-                    fprintf(stderr, "Error: unknown type `%u`\n", var.type);
-                    exit(1);
-            }
-            lex->items[lex->tp - 1] = new_tk;
-        }
-    }
-    lex->tp = start_tp; 
-}
-
-// TODO: remake this
 // TODO: better errors
-Variable_Statement parse_line_variable(Lexer *lex)
+Const_Statement parse_line_constant(Lexer *lex)
 {
-    Variable_Statement var = {0};
-    token_next(lex); // skip key word
+    Const_Statement cnst = {0};
     
-    Token var_name = token_next(lex);
-    if (var_name.type != TYPE_TEXT) {
-        fprintf(stderr, "Error: uncorrect name for variable\n");
+    Token cnst_name = token_next(lex);
+    if (cnst_name.type != TYPE_TEXT) {
+        fprintf(stderr, "Error: uncorrect name for constant. type: `%u`\n", cnst_name.type);
         exit(1);
     }
-    var.name = var_name.txt;
+
+    cnst.name = cnst_name.txt;
 
     Token open_curly = token_next(lex);
     if (open_curly.type != TYPE_OPEN_CURLY) {
@@ -503,23 +472,23 @@ Variable_Statement parse_line_variable(Lexer *lex)
         exit(1);
     }
 
-    Token var_type = token_next(lex);
-    if (var_type.type != TYPE_TEXT) {
+    Token cnst_type = token_next(lex);
+    if (cnst_type.type != TYPE_TEXT) {
         fprintf(stderr, "Error: expectes text for defining type\n");
         exit(1);
     }
 
-    if (sv_cmp(var_type.txt, sv_from_cstr("i64"))) {
-        var.type = VAR_TYPE_INT;
+    if (sv_cmp(cnst_type.txt, sv_from_cstr("i64"))) {
+        cnst.type = CONST_TYPE_INT;
 
-    } else if (sv_cmp(var_type.txt, sv_from_cstr("u64"))) {
-        var.type = VAR_TYPE_UINT;
+    } else if (sv_cmp(cnst_type.txt, sv_from_cstr("u64"))) {
+        cnst.type = CONST_TYPE_UINT;
 
-    } else if (sv_cmp(var_type.txt, sv_from_cstr("f64"))) {
-        var.type = VAR_TYPE_FLOAT;
+    } else if (sv_cmp(cnst_type.txt, sv_from_cstr("f64"))) {
+        cnst.type = CONST_TYPE_FLOAT;
 
     } else {
-        fprintf(stderr, "Error: unknown type `"SV_Fmt"` for variable\n", SV_Args(var_type.txt));
+        fprintf(stderr, "Error: unknown type `"SV_Fmt"` for constant\n", SV_Args(cnst_type.txt));
         exit(1);
     }
 
@@ -529,45 +498,45 @@ Variable_Statement parse_line_variable(Lexer *lex)
         exit(1);
     }
 
-    Token var_value = token_next(lex);
-    switch (var.type) {
-        case VAR_TYPE_INT:
-            if (var_value.val.type != VAL_INT) {
+    Token cnst_value = token_next(lex);
+    switch (cnst.type) {
+        case CONST_TYPE_INT:
+            if (cnst_value.val.type != VAL_INT) {
                 fprintf(stderr, "Error: after type `i64` expectes integer\n");
                 exit(1);
             }
-            var.as_i64 = var_value.val.i64;
+            cnst.as_i64 = cnst_value.val.i64;
             break;
 
-        case VAR_TYPE_UINT:
-            if (var_value.val.type != VAL_INT) {
+        case CONST_TYPE_UINT:
+            if (cnst_value.val.type != VAL_INT) {
                 fprintf(stderr, "Error: after type `u64` expectes unsigned integer\n");
                 exit(1);
             }
-            if (var_value.val.i64 < 0 ) {
+            if (cnst_value.val.i64 < 0 ) {
                 fprintf(stderr, "Error: unsigned value cannot be less than 0\n");
                 exit(1);    
             }
-            var.as_u64 = var_value.val.i64;
+            cnst.as_u64 = cnst_value.val.i64;
             break;
 
-        case VAR_TYPE_FLOAT:
-            if (var_value.val.type != VAL_FLOAT) {
+        case CONST_TYPE_FLOAT:
+            if (cnst_value.val.type != VAL_FLOAT) {
                 fprintf(stderr, "Error: after type `f64` expectes float\n");
                 exit(1);
             }
-            var.as_f64 = var_value.val.f64;
+            cnst.as_f64 = cnst_value.val.f64;
             break;
 
         default:
-            fprintf(stderr, "Error: unknown type in `parse_variable`\n");
+            fprintf(stderr, "Error: unknown type in `parse_line_constant`\n");
             exit(1);
     }
 
-    return var;
+    return cnst;
 }
 
-Object_Block parse_line_inst(Line line, Hash_Table *ht, Program_Jumps *PJ, Variable_Table *vt,
+Object_Block parse_line_inst(Line line, Hash_Table *ht, Program_Jumps *PJ, Const_Table *ct,
                              size_t inst_counter, size_t *inst_pointer, 
                              int db_line, size_t line_num)
 {
@@ -585,10 +554,10 @@ Object_Block parse_line_inst(Line line, Hash_Table *ht, Program_Jumps *PJ, Varia
 
     switch (kind) {
         case KIND_REG:     parse_kind_reg(inst_pointer, &sublex, &objb);                                 break;
-        case KIND_VAL:     parse_kind_val(cpu_inst, inst_pointer, &sublex, &objb, PJ, vt, inst_counter); break;
+        case KIND_VAL:     parse_kind_val(cpu_inst, inst_pointer, &sublex, &objb, PJ, ct, inst_counter); break;
         case KIND_NONE:    *inst_pointer += 1;                                                           break;
         case KIND_REG_REG: parse_kind_reg_reg(inst_pointer, &sublex, &objb);                             break;
-        case KIND_REG_VAL: parse_kind_reg_val(inst_pointer, &sublex, &objb, vt);                         break;
+        case KIND_REG_VAL: parse_kind_reg_val(inst_pointer, &sublex, &objb, ct);                         break;
         default: {
             fprintf(stderr, "Error: unknown kind `%u`\n", kind);
             exit(1);
@@ -620,7 +589,7 @@ void block_chain_debug(Block_Chain *bc)
     printf("\n---------------------------------------------\n\n");
 }
 
-Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, Variable_Table *vt, int line_debug, int bc_debug)
+Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, Const_Table *ct, int line_debug, int bc_debug)
 {
     size_t entry_ip = 0;
     size_t inst_counter = 0;
@@ -629,7 +598,7 @@ Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, Varia
     for (size_t i = 0; i < lnz->count; ++i) {
         Line line = lnz->items[i];
         if (line.type == LINE_INST) {
-            Object_Block objb = parse_line_inst(line, ht, PJ, vt, inst_counter, &inst_pointer, line_debug, i);
+            Object_Block objb = parse_line_inst(line, ht, PJ, ct, inst_counter, &inst_pointer, line_debug, i);
             block_chain_push(&block_chain, objb);
             inst_counter += 1;
 
@@ -651,9 +620,9 @@ Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, Varia
 
             parse_line_label(tk.txt, PJ, inst_pointer);
 
-        } else if (line.type == LINE_VAR) {
-            Variable_Statement var = parse_line_variable(&line.item);
-            vt_insert(vt, var);
+        } else if (line.type == LINE_CONSTANT) {
+            Const_Statement cnst = parse_line_constant(&line.item);
+            ct_insert(ct, cnst);
 
         } else {
             fprintf(stderr, "Error: in `parse_linizer` unknown line [%lu] type\n", i + 1);

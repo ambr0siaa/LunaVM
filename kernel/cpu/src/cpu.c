@@ -443,6 +443,8 @@ int inst_has_1_op(Inst inst)
 void debug_regs(CPU *const c)
 {
     printf("ip: %lu\n", c->ip);
+    printf("sp: %lu\n", c->sp);
+    printf("fp: %lu\n", c->fp);
     for (size_t i = 0; i < RC; ++i) {
         if (i >= F0) printf("%s: %lf\n", reg_as_cstr(i), c->regsf[i - CPU_REGS]); 
         else printf("%s: %li\n", reg_as_cstr(i), c->regs[i]);

@@ -32,7 +32,7 @@ Lexer lexer(String_View src_sv, int db_txt)
 {
     Lexer lex = {0};
     String_View src = sv_trim(src_sv);
-    const String_View special = sv_from_cstr("+-*/():,.;${}[]");
+    const String_View special = sv_from_cstr("+-*/():,.;$&{}[]");
 
     while (src.count != 0) {
         Token tk;
@@ -53,6 +53,7 @@ Lexer lexer(String_View src_sv, int db_txt)
                 case '*': tk.type = TYPE_OPERATOR;        break;
                 case '-': tk.type = TYPE_OPERATOR;        break;
                 case ';': tk.type = TYPE_SEMICOLON;       break;
+                case '&': tk.type = TYPE_AMPERSAND;       break;
                 case '{': tk.type = TYPE_OPEN_CURLY;      break;
                 case '}': tk.type = TYPE_CLOSE_CURLY;     break;
                 case '(': tk.type = TYPE_OPEN_BRACKET;    break;
@@ -147,6 +148,10 @@ void print_token(Token tk)
         }
         case TYPE_DOT: {
             printf("dot: `%c`\n", tk.op);
+            break;
+        }
+        case TYPE_AMPERSAND: {
+            printf("ampersand: `%c`\n", tk.op);
             break;
         }
         case TYPE_COLON: {

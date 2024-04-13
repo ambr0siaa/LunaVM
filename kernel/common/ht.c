@@ -1,15 +1,17 @@
 #include "ht.h"
 
-hshv_t hash_function(const char *s) 
+hshv_t hash_function(const char *s)
 {
-    const int n = strlen(s);
-    const int p = 31;
-    const int m = 1e9 + 7;
     hshv_t hash = 0;
-    hshv_t p_pow = 1;
-    for (int i = 0; i < n; ++i) {
-        hash = (hash + (s[i] - 'a' + 1) * p_pow) % m;
-        p_pow = (p_pow * p) % m;
+    size_t len = strlen(s);
+    if (len > 1) {
+        hash |= (hshv_t)(s[0]) + (hshv_t)(s[1]);
+        hash <<= 15;
+        hash |= (hshv_t)(s[len - 1]) + (hshv_t)(s[len - 2]);
+        hash <<= 1;
+        hash |= (hshv_t)(s[(size_t)(len/2) - 1]);
+    } else {
+        hash = (hshv_t)(s[0]);
     }
     return hash;
 }
@@ -57,6 +59,8 @@ int ht_get_inst(Hash_Table *ht, const char *s)
     if (hi.hash == -1) {
         return hi.hash;
     } else {
+        // 14418152
+        // printf("ahs: %lli\n", hi.hash);
         return hi.inst;
     }
 }
@@ -70,6 +74,8 @@ void ht_get(Hash_Table *ht, const char *key, hash_item *dst)
         Bucket *cur = ht->bl[hi.index].head;
         while (cur != NULL) {
             if (cur->hi.hash == hi.hash) {
+                // printf("hash: %lli\n", hi.hash);
+                // printf("cur hash: %lli\n", cur->hi.hash);
                 *dst = cur->hi;
                 return;
             }

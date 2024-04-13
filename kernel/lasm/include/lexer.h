@@ -32,6 +32,7 @@ typedef enum {
     TYPE_OPEN_CURLY,
     TYPE_CLOSE_CURLY,
     TYPE_SEMICOLON,
+    TYPE_AMPERSAND,
     TYPE_DOLLAR,
     TYPE_COLON,
     TYPE_DOT,

@@ -2,6 +2,7 @@
 #define EVAL_H_
 
 #include "lexer.h"
+#include "consts.h"
 
 typedef struct eval_node {
     Token token;
@@ -36,6 +37,7 @@ void print_eval_root(Eval_Node *node);
 
 void eval_tree(Eval *eval);
 void parse_arefmetic_expr(Eval *eval, Lexer *lex);
+Token parse_constant_expr(Token tk, Const_Table *ct);
 void eval_clean(Eval_Node *node, size_t *node_count);
 void eval_push_subtree(Eval *eval, Eval_Node *subtree);
 void subtree_node_count(Eval_Node *subtree, size_t *count);

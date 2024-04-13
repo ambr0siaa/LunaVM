@@ -5,10 +5,10 @@
 #include "../../common/ht.h"
 
 typedef enum {
-    LINE_INST,
+    LINE_INST = 0,
     LINE_LABEL,
-    LINE_ENTRY_LABLE,
-    LINE_VAR,
+    LINE_CONSTANT,
+    LINE_ENTRY_LABLE
 } Line_Type;
 
 typedef struct line {

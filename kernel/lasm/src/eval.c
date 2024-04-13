@@ -38,6 +38,36 @@ void print_eval(Eval *eval)
     printf("\n------------------------------------------------------------\n\n");
 }
 
+Token parse_constant_expr(Token tk, Const_Table *ct)
+{   
+    if (tk.type == TYPE_TEXT) {
+        Const_Statement cnst = ct_get(ct, tk.txt);
+        if (cnst.type == CONST_TYPE_ERR) {
+            fprintf(stderr, "Error: cannot find variable by name `"SV_Fmt"`\n", SV_Args(tk.txt));
+            exit(1);
+        }
+        Token new_tk = {0};
+        new_tk.type = TYPE_VALUE;
+        switch (cnst.type) {
+            case CONST_TYPE_INT:
+                new_tk.val.type = VAL_INT;
+                new_tk.val.i64 = cnst.as_i64;
+                break;
+            case CONST_TYPE_FLOAT:
+                new_tk.val.type = VAL_FLOAT;
+                new_tk.val.f64 = cnst.as_f64;
+                break;
+            default:
+                fprintf(stderr, "Error: unknown type `%u`\n", cnst.type);
+                exit(1);
+        }
+        return new_tk;
+    } else {
+        fprintf(stderr, "Error: uknown type `%u` for constant", tk.type);
+        exit(1);
+    }
+}
+
 Eval_Node *resolve_eval(Eval_Node *node)
 {   
     if (node->left_operand != NULL && node->right_operand != NULL) {

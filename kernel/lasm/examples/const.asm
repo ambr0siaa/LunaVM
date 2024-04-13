@@ -1,3 +1,6 @@
+.constant a {i64; 12}
+.constant b {i64; 45}
+
 summ:
     add r0, r1
     mov r0, acc
@@ -5,13 +8,8 @@ summ:
     ret
 
 .entry main:
-    mov r0, 12
-    mov r1, 34
-    push 123.56
-
-    dbr f0
-    dbr r0
-    dbr r1
+    mov r0, &a
+    mov r1, &b
 
     call summ
 

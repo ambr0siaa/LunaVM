@@ -4,7 +4,7 @@
     fprintf(stderr, "Usage: %s -i <input.asm> -o <output.ln> [-h help] [-db... debugs, to get all usages run with -h]\n", (program))
 
 static Hash_Table inst_table = {0};
-static Variable_Table vt = { .capacity = VT_CAPACITY };
+static Const_Table ct = { .capacity = CT_CAPACITY };
 static Program_Jumps PJ = {0};
 static CPU cpu = {0};
 
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
     }
 
     String_View src = lasm_load_file(input_file_path);
-    lasm_translate_source(src, &cpu, &PJ, &inst_table, &vt, db_lex, db_lnz, db_ht, db_line, db_lex_txts, db_output_program);
+    lasm_translate_source(src, &cpu, &PJ, &inst_table, &ct, db_lex, db_lnz, db_ht, db_line, db_lex_txts, db_output_program);
     lasm_save_program_to_file(&cpu, output_file_path);
     
     free(src.data);
