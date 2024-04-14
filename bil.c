@@ -1,6 +1,6 @@
 /*
 * This `bil` file builds:
-*   in ./disasm `disasm.c`        - disassembly bytecode and print it in console
+*   in ./dilasm `dilasm.c`        - disassembly bytecode and print it in console
 *   in ./kernel/lasm/src `lasm.c` - translate assembly code to Luna's bytecode
 *   in ./kernel/cpu/src `lunem.c` - emulate program the Luna's bytecode
 *
@@ -39,7 +39,7 @@
     "./kernel/lasm/src/consts.c",   \
     "./kernel/lasm/src/eval.c"
 
-char *binary_dir_path = "build";
+char *binary_dir_path = "bin";
 
 #ifdef _Win32
 #   define CFLAGS " "
@@ -50,17 +50,17 @@ char *binary_dir_path = "build";
 const char *targets[] = {
     "./kernel/lasm/src/lasm.c",
     "./kernel/cpu/src/lunem.c",
-    "./disasm/disasm.c"
+    "./dilasm/dilasm.c"
 };
 
 #define TARGET_LASM 0 
 #define TARGET_LUNEM 1
-#define TARGET_DIS 2
+#define TARGET_DILASM 2
 
 const char *outputs[] = {
     "./kernel/lasm/src/lasm",
     "./kernel/cpu/src/lunem",
-    "./disasm/dis"
+    "./dilasm/dilasm"
 };
 
 #define PREF_DOT "."
@@ -172,8 +172,8 @@ int main(int argc, char **argv)
             if (!bil_cmd_build_sync(&handler)) return BIL_ERROR;
             sb_clean(&lunem_tar_path);
 
-        } else if (!strcmp("dis", target)) {
-            target_path = PATH(PREF_DOT, "disasm", target);
+        } else if (!strcmp("dilasm", target)) {
+            target_path = PATH(PREF_DOT, "dilasm", target);
             sb_join_nul(&target_path);
             bil_cmd_append(&handler, target_path.str);
 
@@ -188,11 +188,11 @@ int main(int argc, char **argv)
         bil_cmd_clean(&handler);
 
     } else {
-        Bil_Cmd dis = {0};
+        Bil_Cmd dilasm = {0};
         Bil_Cmd lasm = {0};
         Bil_Cmd lunem = {0};
 
-        Bil_Cmd commands[] = { lasm, lunem, dis };
+        Bil_Cmd commands[] = { lasm, lunem, dilasm };
         size_t builds_count = 0;
         size_t target = 0;
 
@@ -204,8 +204,8 @@ int main(int argc, char **argv)
             } else if (!strcmp("lunem", build_file)) {
                 target = TARGET_LUNEM;
 
-            } else if (!strcmp("dis", build_file)) {
-                target = TARGET_DIS;
+            } else if (!strcmp("dilasm", build_file)) {
+                target = TARGET_DILASM;
 
             } else {
                 bil_log(BIL_ERROR, "unknown target `%s`", build_file);
@@ -221,7 +221,7 @@ int main(int argc, char **argv)
             
             if (target == TARGET_LASM) {
                 bil_cmd_append(&commands[target], SRC_LASM, SRC_CPU, SRC_COMMON);
-            } else if (target == TARGET_LUNEM || target == TARGET_DIS) {
+            } else if (target == TARGET_LUNEM || target == TARGET_DILASM) {
                 bil_cmd_append(&commands[target], SRC_CPU);
             }
 
@@ -236,7 +236,7 @@ int main(int argc, char **argv)
 
         bil_cmd_clean(&lasm);
         bil_cmd_clean(&lunem);
-        bil_cmd_clean(&dis);
+        bil_cmd_clean(&dilasm);
     }
 
     bil_log(BIL_INFO, "Building has done. exit with code 1");
