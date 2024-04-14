@@ -431,6 +431,41 @@ void parse_arefmetic_expr(Eval *eval, Lexer *lex)
                 Token t = token_next(lex);
                 val = parse_expr(t, lex);    
                 if (val == NULL) exit(1);
+                Token t1 = token_next(lex);
+                if (t1.type == TYPE_OPERATOR) {
+                    if (t1.op == '*' || t1.op == '/') {
+                        do {
+                            Eval_Node *subopr = eval_node_create(t1);
+                            subopr->left_operand = val;
+                            t1 = token_next(lex);
+                            Eval_Node *subval;
+                            if (t1.type == TYPE_VALUE) {
+                                subval = eval_node_create(t1);
+
+                            } else if (t1.type == TYPE_OPEN_BRACKET) {
+                                t1 = token_next(lex);
+                                subval = parse_expr(t1, lex);
+                            }
+                            subopr->right_operand = subval;
+                            val = subopr;
+                            t1 = token_next(lex);
+
+                            if (t1.type == TYPE_OPERATOR) {
+                                if (t1.op == '+' || t1.op == '-') {
+                                    token_back(lex, 1);
+                                    break;
+                                }
+                            } else if (t1.type == TYPE_NONE) {
+                                break;
+                            }
+
+                        } while (1);
+                    } else {
+                        token_back(lex, 1);
+                    }
+                } else {
+                    token_back(lex, 1);
+                }
 
             } else {
                 fprintf(stderr, "Error: in function `parser` unknown condition\n");

@@ -493,8 +493,8 @@ Const_Statement parse_line_constant(Lexer *lex)
     }
 
     Token semicolon = token_next(lex);
-    if (semicolon.type != TYPE_SEMICOLON) {
-        fprintf(stderr, "Error: expected `;` after type\n");
+    if (semicolon.type != TYPE_COLON) {
+        fprintf(stderr, "Error: expected `:` after type\n");
         exit(1);
     }
 

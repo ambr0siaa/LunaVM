@@ -108,11 +108,11 @@ typedef union {
     Register reg;
 } Object;
 
-// Register from enum (without RT and RTF) + registers from CPU (ip, sp, fp, zero_flag)
-#define STACK_FRAME_SIZE 24
-
 // Count of regs in array on cpu
 #define CPU_REGS 10
+
+// Register from enum (without RT and RTF) + registers from CPU (ip, sp, fp, zero_flag)
+#define STACK_FRAME_SIZE 24
 
 // kernel of virtual machine
 typedef struct {
@@ -154,27 +154,26 @@ typedef struct {
         if (on) (c)->ip += 1;           \
     } while(0)
 
-extern void debug_regs(CPU *const c);
-extern void debug_stack(CPU *const c);
+int inst_has_1_op(Inst inst);
+int inst_has_2_regs(Inst inst);
+int inst_has_no_ops(Inst inst);
 
-extern void cpu_set_entry_ip(CPU *c);
-extern Object cpu_fetch(CPU *const c);
+char *inst_as_cstr(Inst inst);
+char *reg_as_cstr(uint64_t operand);
+char *luna_shift_args(int *argc, char ***argv);
 
-extern void cpu_inst_return(CPU *c);
-extern void cpu_execute_inst(CPU *const c);
-extern void cpu_execute_program(CPU *const c, int debug, int limit, int stk);
+void cpu_inst_return(CPU *c);
+void cpu_set_entry_ip(CPU *c);
+Object cpu_fetch(CPU *const c);
 
-extern void load_program_from_file(CPU *c, const char *file_path);
-extern void load_program_to_cpu(CPU *c, Object *program, size_t program_size);
-extern char *luna_shift_args(int *argc, char ***argv);
+void debug_regs(CPU *const c);
+void debug_stack(CPU *const c);
 
-extern char *reg_as_cstr(uint64_t operand);
-extern char *inst_as_cstr(Inst inst);
+void cpu_execute_inst(CPU *const c);
+void cpu_clean_program(CPU *const c);
+void cpu_execute_program(CPU *const c, int debug, int limit, int stk);
 
-extern int inst_has_2_regs(Inst inst);
-extern int inst_has_no_ops(Inst inst);
-extern int inst_has_1_op(Inst inst);
-
-extern void cpu_clean_program(CPU *const c);
+void load_program_from_file(CPU *c, const char *file_path);
+void load_program_to_cpu(CPU *c, Object *program, size_t program_size);
 
 #endif // CPU_H_
