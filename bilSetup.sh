@@ -1,5 +1,5 @@
 #!/bin/sh
-dir=./build
+dir=./bin
 
 if [ ! -d "$dir" ]; then
     echo "[Info] Start making dirictory $dir"
@@ -7,5 +7,5 @@ if [ ! -d "$dir" ]; then
     echo "[Info] $dir has made"
 fi
 
-gcc bil.c -flto -O3 -fno-ident -pipe -fno-ident -z noexecstack -DNDEBUG -o ./build/bil
-strip -s -R .comment -R .note ./build/bil
+gcc bil.c -flto -O3 -fno-ident -pipe -fno-ident -z noexecstack -DNDEBUG -o $dir/bil
+strip -s -R .comment -R .note $dir/bil
