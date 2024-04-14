@@ -7,7 +7,6 @@
 
 #define ARENA_DEFAULT_CAPACITY (8 * 1024)
 #define ARENA_CMP(size) ((size) < ARENA_DEFAULT_CAPACITY ? ARENA_DEFAULT_CAPACITY : (size))
-#define ARENA_ALIGN(size, alignment) ((((size) - 1) / (alignment) + 1) * (alignment))
 
 typedef struct Region Region;
 
