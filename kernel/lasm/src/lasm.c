@@ -3,10 +3,13 @@
 #define USAGE(program) \
     fprintf(stderr, "Usage: %s -i <input.asm> -o <output.ln> [-h help] [-db... debugs, to get all usages run with -h]\n", (program))
 
-static Hash_Table inst_table = {0};
 static Const_Table ct = { .capacity = CT_CAPACITY };
+static Hash_Table inst_table = {0};
 static Program_Jumps PJ = {0};
+static Arena arena = {0};
 static CPU cpu = {0};
+
+void lasm_help();
 
 int main(int argc, char **argv)
 {
@@ -18,6 +21,7 @@ int main(int argc, char **argv)
     int db_line = LINE_DEBUG_FALSE;
     int db_lex_txts = LEX_DEBUG_TXTS_FALSE;
     int db_output_program = BLOCK_CHAIN_DEBUG_FALSE;
+
     const char *output_file_path = NULL;
     const char *input_file_path = NULL;
 
@@ -72,16 +76,7 @@ int main(int argc, char **argv)
 
         } else if (!strcmp("-h", flag)) {
             USAGE(program);
-            fprintf(stdout, "\n-------------------------------------------- Lasm Usage --------------------------------------------\n\n");
-            fprintf(stdout, "-o          mandatory flag. Input file for output (output is luna's byte code) with extention `.ln`\n");
-            fprintf(stdout, "-i          mandatory flag. Input source code with extention `.asm`\n");
-            fprintf(stdout, "-dbHt       print a hash table state\n");
-            fprintf(stdout, "-dbLnz      print a linizer that was formed by lexer\n");
-            fprintf(stdout, "-dbLex      print a lexer that was formed by source code\n");
-            fprintf(stdout, "-dbLine     print lines with instruction and them kind\n");
-            fprintf(stdout, "-dbLexTxts  print lexer's tokens with type `TYPE_TXT` while working function `lexer`\n");
-            fprintf(stdout, "-dbFull     print all debug info into console\n");
-            fprintf(stdout, "\n---------------------------------------------------------------------------------------------------\n");
+            lasm_help();
             return EXIT_SUCCESS;
 
         } else {
@@ -90,18 +85,28 @@ int main(int argc, char **argv)
         }
     }
 
-    String_View src = lasm_load_file(input_file_path);
-    lasm_translate_source(src, &cpu, &PJ, &inst_table, &ct, db_lex, db_lnz, db_ht, db_line, db_lex_txts, db_output_program);
+    String_View src = lasm_load_file(&arena, input_file_path);
+    lasm_translate_source(&arena, src, &cpu, &PJ, &inst_table, &ct, db_lex, db_lnz, db_ht, db_line, db_lex_txts, db_output_program);
     lasm_save_program_to_file(&cpu, output_file_path);
-    
-    free(src.data);
-    ht_free(&inst_table);
-    cpu_clean_program(&cpu);
-    free(PJ.current.labels);
-    free(PJ.deferred.labels);
+
+    arena_free(&arena);
 
     fprintf(stdout, "lasm: file `%s` was translated to `%s`\n", input_file_path, output_file_path);
     fprintf(stdout, "lasm: translation has done.\n");
     
     return EXIT_SUCCESS;
+}
+
+void lasm_help()
+{
+    fprintf(stdout, "\n-------------------------------------------- Lasm Usage --------------------------------------------\n\n");
+    fprintf(stdout, "-o          mandatory flag. Input file for output (output is luna's byte code) with extention `.ln`\n");
+    fprintf(stdout, "-i          mandatory flag. Input source code with extention `.asm`\n");
+    fprintf(stdout, "-dbHt       print a hash table state\n");
+    fprintf(stdout, "-dbLnz      print a linizer that was formed by lexer\n");
+    fprintf(stdout, "-dbLex      print a lexer that was formed by source code\n");
+    fprintf(stdout, "-dbLine     print lines with instruction and them kind\n");
+    fprintf(stdout, "-dbLexTxts  print lexer's tokens with type `TYPE_TXT` while working function `lexer`\n");
+    fprintf(stdout, "-dbFull     print all debug info into console\n");
+    fprintf(stdout, "\n---------------------------------------------------------------------------------------------------\n");
 }

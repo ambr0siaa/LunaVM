@@ -3,6 +3,7 @@
 #define USAGE(program) \
     fprintf(stderr, "Usage: %s -i <input.ln> [-l limit] [-db debug registers] [-h help] [-stk debug stack]\n", (program))
 
+static Arena arena = {0};
 static CPU cpu = {0};
 
 int main(int argc, char **argv)
@@ -72,10 +73,11 @@ int main(int argc, char **argv)
         }
     }
 
-    load_program_from_file(&cpu, input_file_path);
+    load_program_from_file(&arena, &cpu, input_file_path);
     cpu_set_entry_ip(&cpu);
     cpu_execute_program(&cpu, db, limit, stk);
 
-    cpu_clean_program(&cpu);
+    arena_free(&arena);
+    
     return EXIT_SUCCESS;
 }

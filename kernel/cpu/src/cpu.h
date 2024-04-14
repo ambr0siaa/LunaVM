@@ -8,6 +8,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "../../common/arena.h"
+
 #define ARRAY_SIZE(arr) sizeof((arr)) / sizeof((arr)[0])
 
 #define PROGRAM_INIT_CAPACITY 1024
@@ -173,7 +175,7 @@ void cpu_execute_inst(CPU *const c);
 void cpu_clean_program(CPU *const c);
 void cpu_execute_program(CPU *const c, int debug, int limit, int stk);
 
-void load_program_from_file(CPU *c, const char *file_path);
+void load_program_from_file(Arena *arena, CPU *c, const char *file_path);
 void load_program_to_cpu(CPU *c, Object *program, size_t program_size);
 
 #endif // CPU_H_

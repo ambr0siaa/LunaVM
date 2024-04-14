@@ -40,15 +40,15 @@ typedef struct {
     size_t capacity;
 } Hash_Table;
 
-Bucket *new_bucket(hash_item hi);
+Bucket *new_bucket(Arena *arena, hash_item hi);
 hshv_t hash_function(const char *s);
 int ht_get_inst(Hash_Table *ht, const char *s);
 
 void ht_free(Hash_Table *ht);
 void ht_print(Hash_Table *ht);
 void bucket_list_print(Bucket_List *bl);
-void ht_push(Hash_Table *ht, hash_item hi);
-void inst_ht_init(Hash_Table *ht, int debug);
+void ht_push(Arena *arena, Hash_Table *ht, hash_item hi);
+void inst_ht_init(Arena *arena, Hash_Table *ht, int debug);
 hshi_t make_index(size_t capacity, hshv_t hash);
 void buket_push(Bucket_List *bl, Bucket *bucket);
 void ht_get(Hash_Table *ht, const char *key, hash_item *dst);

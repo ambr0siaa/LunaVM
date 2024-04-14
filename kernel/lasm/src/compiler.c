@@ -26,7 +26,7 @@ String_View lasm_cut_comments_from_src(String_View *sv)
     return new_sv;
 }
 
-String_View lasm_load_file(const char *file_path)
+String_View lasm_load_file(Arena *arena, const char *file_path)
 {
     FILE *fp = fopen(file_path, "r");
     if (!fp) {
@@ -50,7 +50,7 @@ String_View lasm_load_file(const char *file_path)
         exit(1);
     }
 
-    char *buf = malloc(file_size * sizeof(char) + 2);
+    char *buf = arena_alloc(arena, file_size * sizeof(char) + 2);
 
     if (!buf) {
         fprintf(stderr, "cannot allocate memory for file: %s\n", 
@@ -94,28 +94,26 @@ void lasm_save_program_to_file(CPU *c, const char *file_path)
     fclose(fp);
 }
 
-void lasm_translate_source(String_View src, 
+void lasm_translate_source(Arena *arena,
+                           String_View src_sv, 
                            CPU *c, 
                            Program_Jumps *PJ, 
                            Hash_Table *ht,
                            Const_Table *ct,
                            int db_lex, int db_lnz, int db_ht, int db_line, int db_lex_txt, int db_bc)
 {
-    src = lasm_cut_comments_from_src(&src);
-    Lexer lex = lexer(src, db_lex_txt);
+    String_View src = lasm_cut_comments_from_src(&src_sv);
+    Lexer lex = lexer(arena, src, db_lex_txt);
 
     if (db_lex) print_lex(&lex, LEX_PRINT_MODE_TRUE);
 
-    Linizer lnz = linizer(&lex, ht, db_ht, db_lnz);
-    Block_Chain block_chain = parse_linizer(&lnz, PJ, ht, ct, db_line, db_bc);
+    Linizer lnz = linizer(arena, &lex, ht, db_ht, db_lnz);
+    Block_Chain block_chain = parse_linizer(arena, &lnz, PJ, ht, ct, db_line, db_bc);
     if (block_chain.items == NULL) {
         fprintf(stderr, "Error: cannot make block chain\n");
         exit(1);
     }
-
-    block_chain_to_cpu(c, &block_chain);
-
-    lex_clean(&lex);
-    line_clean(&lnz);
-    block_chain_clean(&block_chain);
+    
+    free(src.data);
+    block_chain_to_cpu(arena, c, &block_chain);
 }

@@ -22,9 +22,9 @@ hshi_t make_index(size_t capacity, hshv_t hash)
     return index;
 }
 
-Bucket *new_bucket(hash_item hi)
+Bucket *new_bucket(Arena *arena, hash_item hi)
 {
-    Bucket *bucket = malloc(sizeof(Bucket));
+    Bucket *bucket = arena_alloc(arena, sizeof(Bucket));
     bucket->hi = hi;
     bucket->next = NULL;
     return bucket;
@@ -44,9 +44,9 @@ void buket_push(Bucket_List *bl, Bucket *bucket)
     }
 }
 
-void ht_push(Hash_Table *ht, hash_item hi)
+void ht_push(Arena *arena, Hash_Table *ht, hash_item hi)
 {
-    Bucket *bucket = new_bucket(hi);
+    Bucket *bucket = new_bucket(arena, hi);
     buket_push(&ht->bl[hi.index], bucket);
 }
 
@@ -79,7 +79,7 @@ void ht_get(Hash_Table *ht, const char *key, hash_item *dst)
     dst->hash = -1;
 }
 
-void inst_ht_init(Hash_Table *ht, int debug)
+void inst_ht_init(Arena *arena, Hash_Table *ht, int debug)
 {
     ht->capacity = HT_CAPACITY;
 
@@ -88,7 +88,7 @@ void inst_ht_init(Hash_Table *ht, int debug)
         hshv_t hash = hash_function(inst);
         hash_item hi = { .key = inst, .inst = i , .hash = hash };
         hi.index = make_index(ht->capacity, hi.hash);
-        ht_push(ht, hi);
+        ht_push(arena, ht, hi);
         if (debug == HT_DEBUG_TRUE) {
             printf("inst: [%s]; hash: [%lli], index: [%llu]\n", inst, hash, hi.index);
         }

@@ -1,10 +1,11 @@
-#include "../kernel/lasm/include/compiler.h"
+#include "../kernel/cpu/src/cpu.h"
 
 // TODO: remake disassembler
 
 #define USAGE(program) \
     fprintf(stderr, "Usage: %s <input.ln>\n", (program))
 
+static Arena arena = {0};
 static CPU cpu = {0};
 
 int main(int argc, char **argv)
@@ -20,7 +21,7 @@ int main(int argc, char **argv)
     }
 
     const char *input_file_path = luna_shift_args(&argc, &argv);
-    load_program_from_file(&cpu, input_file_path);
+    load_program_from_file(&arena, &cpu, input_file_path);
 
     for (size_t i = 0; i < cpu.program_size; ) {
         Inst inst = cpu.program[i].inst;
@@ -45,4 +46,7 @@ int main(int argc, char **argv)
             i += 3;
         }
     }
+
+    arena_free(&arena);
+    return EXIT_SUCCESS;
 }

@@ -6,6 +6,10 @@
 #include <stdio.h>
 #include "../../common/sv.h"
 
+#ifndef ARENA_H_
+#include "../../common/arena.h"
+#endif // ARENA_H_
+
 typedef enum {
     VAL_FLOAT = 0,
     VAL_INT
@@ -64,14 +68,21 @@ typedef struct {
 #define LEX_DEBUG_TXTS_FALSE 0
 
 // macro for append item to dynamic array
-#define da_append(da, new_item)                                                         \
-    do {                                                                                \
-        if ((da)->count + 1 >= (da)->capacity) {                                        \
-            (da)->capacity = (da)->capacity > 0 ? (da)->capacity * 2 : INIT_CAPACITY;   \
-            (da)->items = realloc((da)->items, (da)->capacity * sizeof(*(da)->items));  \
-            assert((da)->items != NULL);                                                \
-        }                                                                               \
-        (da)->items[(da)->count++] = (new_item);                                        \
+#define da_append(arena, da, new_item)                                                                         \
+    do {                                                                                                       \
+        if ((da)->capacity == 0) {                                                                             \
+            (da)->count = 0;                                                                                   \
+            (da)->capacity = INIT_CAPACITY;                                                                    \
+            (da)->items = arena_alloc(arena, sizeof(*(da)->items) * (da)->capacity);                           \
+        }                                                                                                      \
+                                                                                                               \
+        if ((da)->count + 1 >= (da)->capacity) {                                                               \
+            size_t old_size = (da)->capacity * sizeof(*(da)->items);                                           \
+            (da)->capacity *= 2;                                                                               \
+            (da)->items = arena_realloc(arena, (da)->items, old_size, (da)->capacity * sizeof(*(da)->items));  \
+            assert((da)->items != NULL);                                                                       \
+        }                                                                                                      \
+        (da)->items[(da)->count++] = (new_item);                                                               \
     } while(0)
 
 #define da_clean(da)        \
@@ -90,7 +101,7 @@ void print_token(Token tk);
 
 void print_lex(Lexer *lex, int mode);
 void lex_clean(Lexer *lex);
-void lex_push(Lexer *lex, Token tk);
+void lex_push(Arena *arena, Lexer *lex, Token tk);
 
 Token token_next(Lexer *lex);
 Token_Type token_peek(Lexer *lex);
@@ -101,6 +112,6 @@ void token_back(Lexer *lex, int shift);
 Token token_get(Lexer *lex, int shift, int skip);
 
 Value tokenise_value(String_View sv);
-Lexer lexer(String_View src_sv, int db_txt);
+Lexer lexer(Arena *arena, String_View src_sv, int db_txt);
 
 #endif // LEXER_H_

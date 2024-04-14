@@ -1,15 +1,16 @@
 #include "../include/parser.h"
 
-void ll_append(Label_List *ll, Label label)
+void ll_append(Arena *arena, Label_List *ll, Label label)
 {
     if (ll->capacity == 0) {
         ll->capacity = INIT_CAPACITY;
-        ll->labels = malloc(sizeof(ll->labels[0]) * ll->capacity);
+        ll->labels = arena_alloc(arena, sizeof(ll->labels[0]) * ll->capacity);
     }
 
     if (ll->count + 1 > ll->capacity) {
+        size_t old_size = ll->capacity * sizeof(*ll->labels);
         ll->capacity *= 2;
-        ll->labels = realloc(ll->labels, ll->capacity);
+        ll->labels = arena_realloc(arena, ll->labels, old_size, ll->capacity * sizeof(*ll->labels));
     }
 
     ll->labels[ll->count++] = label;
@@ -38,9 +39,9 @@ Token parse_val(Lexer *lex)
     return tk;
 }
 
-void objb_push(Object_Block *objb, Object obj) { da_append(objb, obj); }
+void objb_push(Arena *arena, Object_Block *objb, Object obj) { da_append(arena, objb, obj); }
 void objb_clean(Object_Block *objb) { da_clean(objb); }
-void block_chain_push(Block_Chain *block_chain, Object_Block objb) { da_append(block_chain, objb); }
+void block_chain_push(Arena *arena, Block_Chain *block_chain, Object_Block objb) { da_append(arena, block_chain, objb); }
 
 void block_chain_clean(Block_Chain *block_chain)
 {
@@ -50,7 +51,7 @@ void block_chain_clean(Block_Chain *block_chain)
     da_clean(block_chain);
 }
 
-void parse_kind_reg_reg(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb)
+void parse_kind_reg_reg(Arena *arena, Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb)
 {
     for (Token tk = lex->items[lex->tp + 1]; 
         tk.type != TYPE_NONE;
@@ -59,7 +60,7 @@ void parse_kind_reg_reg(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb)
         if (tk.type == TYPE_COMMA) continue;
         else if (tk.type == TYPE_TEXT) {
             Register reg = parse_register(tk.txt);
-            objb_push(objb, OBJ_REG(reg));
+            objb_push(arena, objb, OBJ_REG(reg));
         } else {
             // TODO: better errors
             fprintf(stderr, "Error: in `parse_kind_reg_reg` cannot parse register\n");
@@ -69,6 +70,7 @@ void parse_kind_reg_reg(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb)
     *inst_pointer += 3;
 }
 
+// TODO: rework
 Object parse_variable(Const_Table *ct, String_View name)
 {
     Const_Statement var = ct_get(ct, name);
@@ -95,7 +97,7 @@ Object parse_variable(Const_Table *ct, String_View name)
     return val;
 }
 
-void parse_kind_reg_val(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb, Const_Table *ct)
+void parse_kind_reg_val(Arena *arena, Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb, Const_Table *ct)
 {
     for (Token tk = lex->items[lex->tp + 1]; 
         tk.type != TYPE_NONE;
@@ -104,7 +106,7 @@ void parse_kind_reg_val(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb,
         if (tk.type == TYPE_COMMA) continue;
         else if (tk.type == TYPE_TEXT) {
             int reg = parse_register(tk.txt);
-            objb_push(objb, OBJ_REG(reg));
+            objb_push(arena, objb, OBJ_REG(reg));
 
         } else if (tk.type == TYPE_VALUE || 
                    tk.type == TYPE_AMPERSAND ||
@@ -125,12 +127,12 @@ void parse_kind_reg_val(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb,
                     val_obj = OBJ_INT(val_tk.val.i64);
                 }
 
-                objb_push(objb, val_obj);
+                objb_push(arena, objb, val_obj);
             }
         } else if (tk.type == TYPE_DOLLAR) {
             tk = token_next(lex);
             int64_t frame_shift = tk.val.i64 + STACK_FRAME_SIZE;
-            objb_push(objb, OBJ_INT(frame_shift));
+            objb_push(arena, objb, OBJ_INT(frame_shift));
 
         } else {
             // TODO: better erros
@@ -140,12 +142,12 @@ void parse_kind_reg_val(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb,
     *inst_pointer += 3;
 }
 
-void parse_kind_reg(Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb)
+void parse_kind_reg(Arena *arena, Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb)
 {
     Token tk = token_next(lex);
     if (tk.type == TYPE_TEXT) {
         Register reg = parse_register(tk.txt);
-        objb_push(objb, OBJ_REG(reg));
+        objb_push(arena, objb, OBJ_REG(reg));
 
     } else {
         // TODO: better errors
@@ -165,7 +167,8 @@ void ll_print(Label_List *ll)
     printf("\n--------------------------------\n\n");
 }
 
-void parse_kind_val(Inst inst, 
+void parse_kind_val(Arena *arena,
+                    Inst inst, 
                     Inst_Addr *inst_pointer,
                     Lexer *lex, 
                     Object_Block *objb, 
@@ -185,10 +188,10 @@ void parse_kind_val(Inst inst,
                 } else {
                     val_obj = OBJ_INT(val_tk.val.i64);
                 }
-                objb_push(objb, val_obj);
+                objb_push(arena, objb, val_obj);
             } else {
                 Object val = parse_variable(ct, tk.txt);
-                objb_push(objb, val);
+                objb_push(arena, objb, val);
             }
         }
         break;
@@ -202,7 +205,7 @@ void parse_kind_val(Inst inst,
             if (tk.type == TYPE_VALUE) {
                 if (tk.val.type == VAL_INT && tk.val.i64 >= 0) {
                     addr_obj = OBJ_UINT(tk.val.i64);
-                    objb_push(objb, addr_obj);
+                    objb_push(arena, objb, addr_obj);
                 } else {
                     fprintf(stderr, "Error: program jumps have to be integer and > 0\n");
                     exit(1);
@@ -214,13 +217,13 @@ void parse_kind_val(Inst inst,
                         .name = tk.txt,
                         .addr = line_num
                     };
-                    ll_append(&PJ->deferred, dlabel);
+                    ll_append(arena, &PJ->deferred, dlabel);
                     addr_obj = OBJ_UINT(dlabel.addr);
-                    objb_push(objb, addr_obj);
+                    objb_push(arena, objb, addr_obj);
 
                 } else {
                     addr_obj = OBJ_UINT(label.addr);
-                    objb_push(objb, addr_obj);
+                    objb_push(arena, objb, addr_obj);
                 }
 
             } else {
@@ -536,7 +539,7 @@ Const_Statement parse_line_constant(Lexer *lex)
     return cnst;
 }
 
-Object_Block parse_line_inst(Line line, Hash_Table *ht, Program_Jumps *PJ, Const_Table *ct,
+Object_Block parse_line_inst(Arena *arena, Line line, Hash_Table *ht, Program_Jumps *PJ, Const_Table *ct,
                              size_t inst_counter, size_t *inst_pointer, 
                              int db_line, size_t line_num)
 {
@@ -545,7 +548,7 @@ Object_Block parse_line_inst(Line line, Hash_Table *ht, Program_Jumps *PJ, Const
     Lexer sublex = line.item;
     Inst src_inst = parse_inst(&sublex, ht);
     Inst cpu_inst = convert_to_cpu_inst(src_inst, &kind, &sublex);
-    objb_push(&objb, OBJ_INST(cpu_inst));
+    objb_push(arena, &objb, OBJ_INST(cpu_inst));
     
     if (db_line) {
         printf("line: %zu; ", line_num + 1);
@@ -553,11 +556,11 @@ Object_Block parse_line_inst(Line line, Hash_Table *ht, Program_Jumps *PJ, Const
     }
 
     switch (kind) {
-        case KIND_REG:     parse_kind_reg(inst_pointer, &sublex, &objb);                                 break;
-        case KIND_VAL:     parse_kind_val(cpu_inst, inst_pointer, &sublex, &objb, PJ, ct, inst_counter); break;
-        case KIND_NONE:    *inst_pointer += 1;                                                           break;
-        case KIND_REG_REG: parse_kind_reg_reg(inst_pointer, &sublex, &objb);                             break;
-        case KIND_REG_VAL: parse_kind_reg_val(inst_pointer, &sublex, &objb, ct);                         break;
+        case KIND_REG:     parse_kind_reg(arena, inst_pointer, &sublex, &objb);                                 break;
+        case KIND_VAL:     parse_kind_val(arena, cpu_inst, inst_pointer, &sublex, &objb, PJ, ct, inst_counter); break;
+        case KIND_NONE:    *inst_pointer += 1;                                                                  break;
+        case KIND_REG_REG: parse_kind_reg_reg(arena, inst_pointer, &sublex, &objb);                             break;
+        case KIND_REG_VAL: parse_kind_reg_val(arena, inst_pointer, &sublex, &objb, ct);                         break;
         default: {
             fprintf(stderr, "Error: unknown kind `%u`\n", kind);
             exit(1);
@@ -567,10 +570,15 @@ Object_Block parse_line_inst(Line line, Hash_Table *ht, Program_Jumps *PJ, Const
     return objb;
 }
 
-void parse_line_label(String_View name, Program_Jumps *PJ, size_t inst_pointer)
+// TODO: rework line debug
+void parse_line_label(Arena *arena, Token tk, Program_Jumps *PJ, size_t inst_pointer, size_t line_num)
 {
-    Label label = { .name = name, .addr = inst_pointer};
-    ll_append(&PJ->current, label);
+    if (tk.type != TYPE_TEXT) {
+        fprintf(stderr, "Error: in line [%zu] expected label\n", line_num + 1);
+        exit(1);
+    }
+    Label label = { .name = tk.txt, .addr = inst_pointer};
+    ll_append(arena, &PJ->current, label);
 }
 
 void block_chain_debug(Block_Chain *bc)
@@ -589,7 +597,7 @@ void block_chain_debug(Block_Chain *bc)
     printf("\n---------------------------------------------\n\n");
 }
 
-Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, Const_Table *ct, int line_debug, int bc_debug)
+Block_Chain parse_linizer(Arena *arena, Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, Const_Table *ct, int line_debug, int bc_debug)
 {
     size_t entry_ip = 0;
     size_t inst_counter = 0;
@@ -598,27 +606,19 @@ Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, Const
     for (size_t i = 0; i < lnz->count; ++i) {
         Line line = lnz->items[i];
         if (line.type == LINE_INST) {
-            Object_Block objb = parse_line_inst(line, ht, PJ, ct, inst_counter, &inst_pointer, line_debug, i);
-            block_chain_push(&block_chain, objb);
+            Object_Block objb = parse_line_inst(arena, line, ht, PJ, ct,
+                                                inst_counter, &inst_pointer, line_debug, i);
+            block_chain_push(arena, &block_chain, objb);
             inst_counter += 1;
 
         } else if (line.type == LINE_LABEL) {
             Token tk = line.item.items[0];
-            if (tk.type != TYPE_TEXT) {
-                fprintf(stderr, "Error: in line [%zu] expected label\n", i + 1);
-                exit(1);
-            }
-            parse_line_label(tk.txt, PJ, inst_pointer);
+            parse_line_label(arena, tk, PJ, inst_pointer, i);
 
         } else if (line.type == LINE_ENTRY_LABLE) {
             entry_ip = inst_pointer;
             Token tk = line.item.items[0];
-            if (tk.type != TYPE_TEXT) {
-                fprintf(stderr, "Error: in line [%zu] expected label\n", i + 1);
-                exit(1);
-            }
-
-            parse_line_label(tk.txt, PJ, inst_pointer);
+            parse_line_label(arena, tk, PJ, inst_pointer, i);
 
         } else if (line.type == LINE_CONSTANT) {
             Const_Statement cnst = parse_line_constant(&line.item);
@@ -640,8 +640,8 @@ Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, Const
     }
 
     Object_Block entry_obj = {0};
-    objb_push(&entry_obj, OBJ_UINT(entry_ip));
-    block_chain_push(&block_chain, entry_obj);
+    objb_push(arena, &entry_obj, OBJ_UINT(entry_ip));
+    block_chain_push(arena, &block_chain, entry_obj);
 
     if (bc_debug == BLOCK_CHAIN_DEBUG_TRUE) 
         block_chain_debug(&block_chain);
@@ -649,38 +649,40 @@ Block_Chain parse_linizer(Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, Const
     return block_chain;
 }
 
-void objb_to_cpu(CPU *c, Object_Block *objb)
+void objb_to_cpu(Arena *arena, CPU *c, Object_Block *objb)
 {
     for (size_t i = 0; i < objb->count; ++i) {
         Object obj = objb->items[i];
         if (c->program_size + 1 >= c->program_capacity) {
+            size_t old_size = c->program_capacity * sizeof(*c->program);
             c->program_capacity *= 2;
-            c->program = realloc(c->program, c->program_capacity * sizeof(*c->program));
+            c->program = arena_realloc(arena, c->program, old_size,
+                                       c->program_capacity * sizeof(*c->program));
         }
         c->program[c->program_size++] = obj;
     }
 }
 
-void block_chain_to_cpu(CPU *c, Block_Chain *block_chain)
+void block_chain_to_cpu(Arena *arena, CPU *c, Block_Chain *block_chain)
 {
     if (c->program_capacity == 0) {
         c->program_capacity = PROGRAM_INIT_CAPACITY;
-        c->program = malloc(c->program_capacity * sizeof(*c->program));
+        c->program = arena_alloc(arena, c->program_capacity * sizeof(*c->program));
         c->program_size = 0;
     }
 
     for (size_t i = 0; i < block_chain->count; ++i) {
         Object_Block objb = block_chain->items[i];
-        objb_to_cpu(c, &objb);
+        objb_to_cpu(arena, c, &objb);
     }
 }
 
 int translate_inst(String_View inst_sv, Hash_Table *ht)
 {
     if (ht->capacity == 0) {
-        inst_ht_init(ht, HT_DEBUG_FALSE);
+        fprintf(stderr, "Error: in `translate_inst` ht is not init\n");
+        exit(1);
     }
-    
     char *inst_cstr = sv_to_cstr(inst_sv);
     int inst = ht_get_inst(ht, inst_cstr);
     free(inst_cstr);

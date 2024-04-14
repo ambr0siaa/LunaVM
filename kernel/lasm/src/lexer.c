@@ -26,9 +26,9 @@ Value tokenise_value(String_View sv)
 }
 
 void lex_clean(Lexer *lex) { da_clean(lex); }
-void lex_push(Lexer *lex, Token tk) { da_append(lex, tk); }
+void lex_push(Arena *arena, Lexer *lex, Token tk) { da_append(arena, lex, tk); }
 
-Lexer lexer(String_View src_sv, int db_txt)
+Lexer lexer(Arena *arena, String_View src_sv, int db_txt)
 {
     Lexer lex = {0};
     String_View src = sv_trim(src_sv);
@@ -87,7 +87,7 @@ Lexer lexer(String_View src_sv, int db_txt)
             fprintf(stderr, "Error: cannot tokenize `%c`\n", src.data[0]);
             exit(1);
         }
-        lex_push(&lex, tk);
+        lex_push(arena, &lex, tk);
     }
 
     return lex;

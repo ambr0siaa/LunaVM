@@ -471,11 +471,11 @@ void load_program_to_cpu(CPU *c, Object *program, size_t program_size)
     c->program_size += program_size;
 }   
 
-void load_program_from_file(CPU *c, const char *file_path)
+void load_program_from_file(Arena *arena, CPU *c, const char *file_path)
 {
     if (c->program_capacity == 0) {
         c->program_capacity = PROGRAM_INIT_CAPACITY;
-        c->program = malloc(c->program_capacity * sizeof(*c->program));
+        c->program = arena_alloc(arena, c->program_capacity * sizeof(*c->program));
     }
 
     FILE *fp = fopen(file_path, "rb");
@@ -497,9 +497,10 @@ void load_program_from_file(CPU *c, const char *file_path)
 
     size_t object_count = file_size / sizeof(c->program[0]);
 
-    if (object_count + 1>= c->program_capacity) {
+    if (object_count + 1 >= c->program_capacity) {
+        size_t old_size = c->program_capacity * sizeof(*c->program);
         do { c->program_capacity *= 2; } while (object_count + 1 >= c->program_capacity);
-        c->program = realloc(c->program, c->program_capacity * sizeof(*c->program));
+        c->program = arena_realloc(arena, c->program, old_size, c->program_capacity * sizeof(*c->program));
     }
 
     if (fseek(fp, 0, SEEK_SET) < 0) {

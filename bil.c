@@ -25,11 +25,13 @@
 #define CC "gcc"
 #define DEBUG_MODE "-g", "-ggdb"
 
-#define SRC_CPU "./kernel/cpu/src/cpu.c"
+#define SRC_CPU               \
+    "./kernel/cpu/src/cpu.c", \
+    "./kernel/common/arena.c"
 
 #define SRC_COMMON          \
     "./kernel/common/sv.c", \
-    "./kernel/common/ht.c"
+    "./kernel/common/ht.c"  \
 
 #define SRC_LASM                    \
     "./kernel/lasm/src/compiler.c", \

@@ -27,9 +27,12 @@ typedef struct {
 
 void print_lnz(Linizer *lnz);
 void line_clean(Linizer *lnz);
-void line_push(Linizer *lnz, Line line);
+void line_push(Arena *arena, Linizer *lnz, Line line);
 
 int try_inst(Hash_Table *ht, Token tk);
-Linizer linizer(Lexer *lex, Hash_Table *ht, int ht_debug, int lnz_debug);
+void linize_line_lable(Arena *arena, Lexer *dst, Lexer *src);
+void linize_line_constant(Arena *arena, Lexer *dst, Lexer *src);
+void linize_line_inst(Arena *arena, Lexer *dst, Lexer *src, Hash_Table *ht, Token tk);
+Linizer linizer(Arena *arena, Lexer *lex, Hash_Table *ht, int ht_debug, int lnz_debug);
 
 #endif // LINIZER_H_
