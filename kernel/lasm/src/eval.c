@@ -43,7 +43,7 @@ Token parse_constant_expr(Token tk, Const_Table *ct)
     if (tk.type == TYPE_TEXT) {
         Const_Statement cnst = ct_get(ct, tk.txt);
         if (cnst.type == CONST_TYPE_ERR) {
-            fprintf(stderr, "Error: cannot find variable by name `"SV_Fmt"`\n", SV_Args(tk.txt));
+            fprintf(stderr, "Error: cannot find constant by name `"SV_Fmt"`\n", SV_Args(tk.txt));
             exit(1);
         }
         Token new_tk = {0};
@@ -63,7 +63,8 @@ Token parse_constant_expr(Token tk, Const_Table *ct)
         }
         return new_tk;
     } else {
-        fprintf(stderr, "Error: uknown type `%u` for constant", tk.type);
+        fprintf(stderr, "Error: uknown type `%u` for constant\n", tk.type);
+        print_token(tk);
         exit(1);
     }
 }
@@ -81,12 +82,45 @@ Eval_Node *resolve_eval(Eval_Node *node)
             char type;
             Eval_Node *new_node = eval_node_create((Token) {.type = TYPE_VALUE });
             if (node->left_operand->token.val.type == VAL_FLOAT) {
-                type = 'f'; 
+                type = 'f';
                 new_node->token.val.type = VAL_FLOAT;
             } else {
-                type = 'i'; 
+                type = 'i';
                 new_node->token.val.type = VAL_INT;
-            } 
+            }
+
+            if (node->left_operand->token.val.type != node->right_operand->token.val.type) {
+                fprintf(stderr, "Error: values must be with the same type\n");
+                printf("Error: first ");
+                switch(node->left_operand->token.val.type) {
+                    case VAL_FLOAT:
+                        printf("f64: `%lf`\n", node->left_operand->token.val.f64);
+                        break;
+                    case VAL_INT:
+                        printf("i64: `%li`\n", node->left_operand->token.val.i64);
+                        break;
+                    default:
+                        fprintf(stderr, "Error: unknown type `%u` in `resolve_eval`\n",
+                                node->left_operand->token.val.type);
+                        exit(1);
+                }
+
+                printf("Error: second");
+                switch(node->right_operand->token.val.type) {
+                    case VAL_FLOAT:
+                        printf(" f64: `%lf`\n", node->right_operand->token.val.f64);
+                        break;
+                    case VAL_INT:
+                        printf(" i64: `%li`\n", node->right_operand->token.val.i64);
+                        break;
+                    default:
+                        fprintf(stderr, "Error: unknown type `%u` in `resolve_eval`\n",
+                                node->right_operand->token.val.type);
+                        exit(1);
+                }
+
+                exit(1);
+            }
 
             switch (node->token.op) {
                 case '+': BINARY_OP(new_node, +, node->left_operand, node->right_operand, type); break;
@@ -109,7 +143,7 @@ Eval_Node *resolve_eval(Eval_Node *node)
 }
 
 // Get Eval and calculate final number
-void eval_tree(Eval *eval)
+void evaluate(Eval *eval)
 {
     eval->root = resolve_eval(eval->root);
     eval->count = 1; 
@@ -167,6 +201,14 @@ void subtree_node_count(Eval_Node *subtree, size_t *count)
     subtree_node_count(subtree->right_operand, count);
 }
 
+void replace_lex_val_to_cnst(Lexer *lex, Const_Table *ct, Token tk)
+{
+    tk = token_next(lex);
+    Token val = parse_constant_expr(tk, ct);
+    token_back(lex, 1);
+    lex->items[lex->tp] = val;
+}
+
 /*
 *  Grammar:
 *
@@ -181,14 +223,14 @@ void subtree_node_count(Eval_Node *subtree, size_t *count)
 *   V: INT | FLOAT
 */
 
-Eval_Node *parse_expr(Token tk, Lexer *lex)
+Eval_Node *parse_expr(Token tk, Lexer *lex, Const_Table *ct)
 {
     if (tk.type == TYPE_VALUE) {
         Eval_Node *val1;
         Eval_Node *opr;
         Eval_Node *val2;
 
-        val1 = parse_term(tk, lex);
+        val1 = parse_term(tk, lex, ct);
         Token_Type type;
 
         do {
@@ -202,7 +244,7 @@ Eval_Node *parse_expr(Token tk, Lexer *lex)
                     
                     if (v2.type == TYPE_OPEN_BRACKET) {
                         Token t1 = token_next(lex);
-                        val2 = parse_expr(t1, lex);
+                        val2 = parse_expr(t1, lex, ct);
 
                         do {
                             Token opr_tk = token_next(lex);
@@ -212,12 +254,13 @@ Eval_Node *parse_expr(Token tk, Lexer *lex)
                                     Eval_Node *subval;
 
                                     Token tok = token_next(lex);
-                                    if (tok.type == TYPE_VALUE) {
-                                        subval = parse_term(tok, lex);
+                                    if (tok.type == TYPE_VALUE || 
+                                        tok.type == TYPE_AMPERSAND) {
+                                        subval = parse_term(tok, lex, ct);
 
                                     } else if (tok.type == TYPE_OPEN_BRACKET) {
                                         tok = token_next(lex);
-                                        subval = parse_expr(tok, lex);
+                                        subval = parse_expr(tok, lex, ct);
                                     }
 
                                     opr_node->left_operand = val2;
@@ -234,8 +277,9 @@ Eval_Node *parse_expr(Token tk, Lexer *lex)
                             }
                         } while(1);
 
-                    } else if (v2.type == TYPE_VALUE) {
-                        val2 = parse_term(v2, lex);
+                    } else if (v2.type == TYPE_VALUE || 
+                                v2.type == TYPE_AMPERSAND) {
+                        val2 = parse_term(v2, lex, ct);
 
                     } else {
                         fprintf(stderr, "Error: in function `parse_expr` unknown condition\n");
@@ -250,7 +294,7 @@ Eval_Node *parse_expr(Token tk, Lexer *lex)
                 }
             } else if (type == TYPE_OPEN_BRACKET) {
                 Token t1 = token_next(lex);
-                Eval_Node *subtree = parse_expr(t1, lex);
+                Eval_Node *subtree = parse_expr(t1, lex, ct);
                 
                 if (subtree == NULL) exit(1);
                 return subtree;
@@ -276,7 +320,7 @@ Eval_Node *parse_expr(Token tk, Lexer *lex)
     } else if (tk.type == TYPE_OPEN_BRACKET) {
         Token_Type type;
         Token t1 = token_next(lex);
-        Eval_Node *subtree = parse_expr(t1, lex);
+        Eval_Node *subtree = parse_expr(t1, lex, ct);
 
         do {
             type = token_peek(lex);
@@ -288,7 +332,7 @@ Eval_Node *parse_expr(Token tk, Lexer *lex)
                 Token tk2 = token_next(lex);
                 if (tk2.type == TYPE_OPEN_BRACKET) {
                     Token tk3 = token_next(lex);
-                    val = parse_expr(tk3, lex);
+                    val = parse_expr(tk3, lex, ct);
                     
                     if (val == NULL) exit(1);
 
@@ -300,12 +344,13 @@ Eval_Node *parse_expr(Token tk, Lexer *lex)
                         Token t3 = token_next(lex);
                         if (t3.type == TYPE_OPEN_BRACKET) {
                             Token t4 = token_next(lex);
-                            subval = parse_expr(t4, lex);
+                            subval = parse_expr(t4, lex, ct);
 
                             if (subval == NULL) exit(1);
 
-                        } else if (t3.type == TYPE_VALUE) {
-                            subval = parse_term(t3, lex);
+                        } else if (t3.type == TYPE_VALUE ||
+                                    t3.type == TYPE_AMPERSAND) {
+                            subval = parse_term(t3, lex, ct);
                         }
 
                         op_node->left_operand = val;
@@ -316,8 +361,9 @@ Eval_Node *parse_expr(Token tk, Lexer *lex)
                         token_back(lex, 1);
                     }
 
-                } else if (tk2.type == TYPE_VALUE) {
-                    val = parse_term(tk2, lex);
+                } else if (tk2.type == TYPE_VALUE ||
+                            tk2.type == TYPE_AMPERSAND) {
+                    val = parse_term(tk2, lex, ct);
                 }
 
                 opr_node->left_operand = subtree;
@@ -333,14 +379,24 @@ Eval_Node *parse_expr(Token tk, Lexer *lex)
 
         return subtree;
         
+    } else if (tk.type == TYPE_AMPERSAND) {
+        replace_lex_val_to_cnst(lex, ct, tk);
+        Token tok = token_next(lex);
+        return parse_expr(tok, lex, ct);
+
     } else {
         fprintf(stderr, "Error: unknown type in function `parse_expr` in 1st condition\n");
         return NULL;
     }
 }
 
-Eval_Node *parse_term(Token tk, Lexer *lex)
-{   
+Eval_Node *parse_term(Token tk, Lexer *lex, Const_Table *ct)
+{
+    if (tk.type == TYPE_AMPERSAND) {
+        replace_lex_val_to_cnst(lex, ct, tk);
+        tk = token_next(lex);
+    }
+
     Eval_Node *val1 = eval_node_create(tk);  
 
     do {
@@ -360,8 +416,13 @@ Eval_Node *parse_term(Token tk, Lexer *lex)
 
                 } else if (t1.type == TYPE_OPEN_BRACKET) {
                     Token tok = token_next(lex); 
-                    val2 = parse_expr(tok, lex);
+                    val2 = parse_expr(tok, lex, ct);
             
+                } else if (t1.type == TYPE_AMPERSAND) {
+                    replace_lex_val_to_cnst(lex, ct, t1);
+                    t1 = token_next(lex);
+                    val2 = eval_node_create(t1);
+
                 } else if (t1.type == TYPE_NONE) {
                     fprintf(stderr, "Error: expected second operand\n");
                     exit(1);
@@ -385,7 +446,7 @@ Eval_Node *parse_term(Token tk, Lexer *lex)
     return val1;
 }
 
-void parse_arefmetic_expr(Eval *eval, Lexer *lex)
+void parse_arefmetic_expr(Eval *eval, Lexer *lex, Const_Table *ct)
 {
     if ((size_t)lex->tp + 1 == lex->count) {
         eval->root = eval_node_create(lex->items[lex->tp]);
@@ -404,7 +465,7 @@ void parse_arefmetic_expr(Eval *eval, Lexer *lex)
                 if (t1.op == '+' || t1.op == '-') {
                     token_back(lex, 1);
 
-                    Eval_Node *subtree = parse_expr(tk, lex);
+                    Eval_Node *subtree = parse_expr(tk, lex, ct);
                     if (subtree == NULL) exit(1);
 
                     subtree_node_count(subtree, &count);
@@ -412,7 +473,7 @@ void parse_arefmetic_expr(Eval *eval, Lexer *lex)
 
                 } else if (t1.op == '*' || t1.op == '/') {
                     token_back(lex, 1);
-                    Eval_Node *val = parse_term(tk, lex);
+                    Eval_Node *val = parse_term(tk, lex, ct);
 
                     subtree_node_count(val, &count);
                     eval_push_subtree(eval, val);
@@ -424,12 +485,13 @@ void parse_arefmetic_expr(Eval *eval, Lexer *lex)
             Eval_Node *opr = eval_node_create(tk);
             Token tok = token_next(lex);
 
-            if (tok.type == TYPE_VALUE) {
-                val = parse_term(tok, lex);
+            if (tok.type == TYPE_VALUE ||
+                tok.type == TYPE_AMPERSAND) {
+                val = parse_term(tok, lex, ct);
             
             } else if (tok.type == TYPE_OPEN_BRACKET) {
                 Token t = token_next(lex);
-                val = parse_expr(t, lex);    
+                val = parse_expr(t, lex, ct);
                 if (val == NULL) exit(1);
                 Token t1 = token_next(lex);
                 if (t1.type == TYPE_OPERATOR) {
@@ -444,8 +506,14 @@ void parse_arefmetic_expr(Eval *eval, Lexer *lex)
 
                             } else if (t1.type == TYPE_OPEN_BRACKET) {
                                 t1 = token_next(lex);
-                                subval = parse_expr(t1, lex);
+                                subval = parse_expr(t1, lex, ct);
+
+                            } else if (t1.type == TYPE_AMPERSAND) {
+                                replace_lex_val_to_cnst(lex, ct, t1);
+                                t1 = token_next(lex);
+                                subval = eval_node_create(t1);
                             }
+
                             subopr->right_operand = subval;
                             val = subopr;
                             t1 = token_next(lex);
@@ -468,7 +536,7 @@ void parse_arefmetic_expr(Eval *eval, Lexer *lex)
                 }
 
             } else {
-                fprintf(stderr, "Error: in function `parser` unknown condition\n");
+                fprintf(stderr, "Error: in function `parse_arefmetic_expr` unknown condition\n");
                 exit(1);
             }
 
@@ -480,14 +548,17 @@ void parse_arefmetic_expr(Eval *eval, Lexer *lex)
 
         } else if (tk.type == TYPE_OPEN_BRACKET) {
             Token tok = token_next(lex);
-            Eval_Node *subtree = parse_expr(tok, lex);
+            Eval_Node *subtree = parse_expr(tok, lex, ct);
             if (subtree == NULL) exit(1);
 
             subtree_node_count(subtree, &count);
             eval_push_subtree(eval, subtree);
 
         } else if (tk.type == TYPE_CLOSE_BRACKET) {
-            token_next(lex);
+            token_next(lex); // skip close bracket
+
+        } else if (tk.type == TYPE_AMPERSAND) {
+            replace_lex_val_to_cnst(lex, ct, tk);
         }
         eval->count += count;
     }

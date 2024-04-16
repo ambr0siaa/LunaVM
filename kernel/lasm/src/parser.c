@@ -29,11 +29,11 @@ Label ll_search_label(Label_List *ll, String_View name)
     };
 }
 
-Token parse_val(Lexer *lex)
+Token parse_val(Lexer *lex, Const_Table *ct)
 {
     Eval eval = {0};
-    parse_arefmetic_expr(&eval, lex);
-    eval_tree(&eval);
+    parse_arefmetic_expr(&eval, lex, ct);
+    evaluate(&eval);
     Token tk = eval.root->token; 
     eval_clean(eval.root, &eval.count);
     return tk;
@@ -70,33 +70,6 @@ void parse_kind_reg_reg(Arena *arena, Inst_Addr *inst_pointer, Lexer *lex, Objec
     *inst_pointer += 3;
 }
 
-// TODO: rework
-Object parse_variable(Const_Table *ct, String_View name)
-{
-    Const_Statement var = ct_get(ct, name);
-    if (var.type == CONST_TYPE_ERR) {
-        fprintf(stderr, "Error: unknown variable `"SV_Fmt"`\n", SV_Args(name));
-        exit(1);
-    }
-    // var_print(&var);
-    Object val;
-    switch (var.type) {
-        case CONST_TYPE_INT:
-            val = OBJ_INT(var.as_i64);
-            break;   
-        case CONST_TYPE_UINT:
-            val = OBJ_UINT(var.as_u64);
-            break;
-        case CONST_TYPE_FLOAT:
-            val = OBJ_FLOAT(var.as_f64);
-            break;
-        default:
-            fprintf(stderr, "Error: unknown type `%u` in `parse_kind_reg_val`\n", var.type);
-            exit(1);
-    }
-    return val;
-}
-
 void parse_kind_reg_val(Arena *arena, Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb, Const_Table *ct)
 {
     for (Token tk = lex->items[lex->tp + 1]; 
@@ -118,7 +91,7 @@ void parse_kind_reg_val(Arena *arena, Inst_Addr *inst_pointer, Lexer *lex, Objec
             } else {
                 Object val_obj;
                 token_back(lex, 1);
-                Token val_tk = parse_val(lex);
+                Token val_tk = parse_val(lex, ct);
                 token_next(lex);
 
                 if (val_tk.val.type == VAL_FLOAT) {
@@ -180,18 +153,19 @@ void parse_kind_val(Arena *arena,
         case INST_PUSH_V: {
             Object val_obj;
             Token tk = token_get(lex, 0, SKIP_FALSE);
-            if (tk.type == TYPE_OPEN_BRACKET || tk.type == TYPE_VALUE) {
-                Token val_tk = parse_val(lex);
+            if (tk.type == TYPE_OPEN_BRACKET ||
+                tk.type == TYPE_AMPERSAND||
+                tk.type == TYPE_VALUE) {
+                Token val_tk = parse_val(lex, ct);
                 token_next(lex);
-                if (val_tk.val.type == VAL_FLOAT) {
+                if (val_tk.val.type == VAL_FLOAT)
                     val_obj = OBJ_FLOAT(val_tk.val.f64);
-                } else {
+                else 
                     val_obj = OBJ_INT(val_tk.val.i64);
-                }
                 objb_push(arena, objb, val_obj);
             } else {
-                Object val = parse_variable(ct, tk.txt);
-                objb_push(arena, objb, val);
+                fprintf(stderr, "Error: unknown type `%u` in `parse_kind_val`\n", tk.type);
+                exit(1);
             }
         }
         break;

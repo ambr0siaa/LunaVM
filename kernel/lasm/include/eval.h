@@ -35,16 +35,17 @@ void print_eval_root(Eval_Node *node);
             (dst)->token.val.i64 = (op1)->token.val.i64 operator (op2)->token.val.i64;  \
     } while(0)              
 
-void eval_tree(Eval *eval);
-void parse_arefmetic_expr(Eval *eval, Lexer *lex);
+void evaluate(Eval *eval);
+void parse_arefmetic_expr(Eval *eval, Lexer *lex, Const_Table *ct);
 Token parse_constant_expr(Token tk, Const_Table *ct);
 void eval_clean(Eval_Node *node, size_t *node_count);
 void eval_push_subtree(Eval *eval, Eval_Node *subtree);
 void subtree_node_count(Eval_Node *subtree, size_t *count);
+void replace_lex_val_to_cnst(Lexer *lex, Const_Table *ct, Token tk);
 
 Eval_Node *eval_node_create(Token tk);
 Eval_Node *resolve_eval(Eval_Node *node);
-Eval_Node *parse_expr(Token tk, Lexer *lex);
-Eval_Node *parse_term(Token tk, Lexer *lex);
+Eval_Node *parse_expr(Token tk, Lexer *lex, Const_Table *ct);
+Eval_Node *parse_term(Token tk, Lexer *lex, Const_Table *ct);
 
 #endif // EVAL_H_

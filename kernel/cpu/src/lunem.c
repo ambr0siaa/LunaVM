@@ -6,6 +6,8 @@
 static Arena arena = {0};
 static CPU cpu = {0};
 
+void lunem_help();
+
 int main(int argc, char **argv)
 {
     const char *flag = NULL;
@@ -58,13 +60,7 @@ int main(int argc, char **argv)
 
         } else if (!strcmp(flag, "-h")) {
             USAGE(program);
-            printf("\n--------------------------------------------------- Lunem Usage ---------------------------------------------------\n\n");
-            fprintf(stdout, "-i    input file name to execute. Expects files with `.ln` extension\n");
-            fprintf(stdout, "-l    limit of executing program. Default is -1\n");
-            fprintf(stdout, "-db   if flag was provided, emulator will print info about all registers state. Not enabled by default\n");
-            fprintf(stdout, "-stk  flag is the same as -db, but debug stack state. Not enabled by default");
-            fprintf(stdout, "-h    print this text and exit\n");
-            printf("\n----------------------------------------------------------------------------------------------------------------\n");
+            lunem_help();
             return EXIT_SUCCESS;
         } else {
             fprintf(stderr, "Error: unknown flag `%s`\n", flag);
@@ -80,4 +76,15 @@ int main(int argc, char **argv)
     arena_free(&arena);
     
     return EXIT_SUCCESS;
+}
+
+void lunem_help()
+{
+    printf("\n--------------------------------------------------- Lunem Usage ---------------------------------------------------\n\n");
+    fprintf(stdout, "-i    input file name to execute. Expects files with `.ln` extension\n");
+    fprintf(stdout, "-l    limit of executing program. Default is -1\n");
+    fprintf(stdout, "-db   if flag was provided, emulator will print info about all registers state. Not enabled by default\n");
+    fprintf(stdout, "-stk  flag is the same as -db, but debug stack state. Not enabled by default");
+    fprintf(stdout, "-h    print this text and exit\n");
+    printf("\n----------------------------------------------------------------------------------------------------------------\n");
 }

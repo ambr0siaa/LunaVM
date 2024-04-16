@@ -58,7 +58,7 @@ void parse_kind_reg_reg(Arena *arena, Inst_Addr *inst_pointer, Lexer *lex, Objec
 void parse_kind_reg_val(Arena *arena, Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb, Const_Table *vt);
 void parse_kind_val(Arena *arena, Inst inst, Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb, Program_Jumps *PJ, Const_Table *vt, size_t line_num);
 
-Token parse_val(Lexer *lex);
+Token parse_val(Lexer *lex, Const_Table *ct);
 int parse_register(String_View sv);
 Inst parse_inst(Lexer *lex, Hash_Table *ht);
 Token parse_constant_expr(Token tk, Const_Table *ct);
