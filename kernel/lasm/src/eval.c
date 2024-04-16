@@ -1,7 +1,5 @@
 #include "../include/eval.h"
 
-// TODO global: remake all eval
-
 void print_node(Eval_Node *node)
 {
     print_token(node->token);
@@ -450,6 +448,7 @@ void parse_arefmetic_expr(Eval *eval, Lexer *lex, Const_Table *ct)
 {
     if ((size_t)lex->tp + 1 == lex->count) {
         eval->root = eval_node_create(lex->items[lex->tp]);
+        token_next(lex);
         return;
     }
 

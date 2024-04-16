@@ -1,5 +1,3 @@
-jmp main
-
 minus:
     mov r0, 1234
     sub r0, r1
@@ -21,7 +19,7 @@ plus:
     dbr r1
     ret
 
-main:
+.entry main:
     mov r0, 12
     mov r1, 435
     dbr r0

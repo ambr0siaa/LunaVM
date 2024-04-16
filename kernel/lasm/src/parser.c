@@ -29,6 +29,16 @@ Label ll_search_label(Label_List *ll, String_View name)
     };
 }
 
+void ll_print(Label_List *ll)
+{
+    printf("\n--------- Label List -----------\n\n");
+    for (size_t i = 0; i < ll->count; ++i) {
+        Label label = ll->labels[i];
+        printf("name: {"SV_Fmt"}; addr: {%lu}\n", SV_Args(label.name), label.addr);
+    }
+    printf("\n--------------------------------\n\n");
+}
+
 Token parse_val(Lexer *lex, Const_Table *ct)
 {
     Eval eval = {0};
@@ -39,16 +49,46 @@ Token parse_val(Lexer *lex, Const_Table *ct)
     return tk;
 }
 
-void objb_push(Arena *arena, Object_Block *objb, Object obj) { da_append(arena, objb, obj); }
-void objb_clean(Object_Block *objb) { da_clean(objb); }
-void block_chain_push(Arena *arena, Block_Chain *block_chain, Object_Block objb) { da_append(arena, block_chain, objb); }
-
-void block_chain_clean(Block_Chain *block_chain)
+void objb_push(Arena *arena, Object_Block *objb, Object obj)
 {
-    for (size_t i = 0; i < block_chain->count; ++i) {
-        objb_clean(&block_chain->items[i]);
+    da_append(arena, objb, obj);
+}
+
+void block_chain_push(Arena *arena, Block_Chain *block_chain, Object_Block objb)
+{
+    da_append(arena, block_chain, objb);
+}
+
+Object translate_val_expr_to_obj(Lexer *lex, Const_Table *ct)
+{
+    Token tk = parse_val(lex, ct);
+    if (tk.type == TYPE_VALUE) {
+        switch (tk.val.type) {
+            case VAL_INT:   return OBJ_INT(tk.val.i64); 
+            case VAL_FLOAT: return OBJ_FLOAT(tk.val.f64);
+            default:
+                fprintf(stderr, "Error: unknown type `%u` in translation", tk.val.type);
+                exit(1);
+        }
+    } else {
+        fprintf(stderr, "Error: token not a value; type `%u`\n", tk.type);
+        exit(1);
     }
-    da_clean(block_chain);
+}
+
+Object translate_reg_to_obj(Token tk)
+{
+    if (tk.type == TYPE_TEXT) {
+        int reg = parse_register(tk.txt);
+        if (reg == -1) {
+            fprintf(stderr, "Error: `%d` not a register", reg);
+            exit(1);
+        }
+        return OBJ_REG(reg);
+    } else {
+        fprintf(stderr, "Error: for translating register needs `TYPE_TEXT`\n");
+        exit(1);
+    }
 }
 
 void parse_kind_reg_reg(Arena *arena, Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb)
@@ -59,8 +99,8 @@ void parse_kind_reg_reg(Arena *arena, Inst_Addr *inst_pointer, Lexer *lex, Objec
 
         if (tk.type == TYPE_COMMA) continue;
         else if (tk.type == TYPE_TEXT) {
-            Register reg = parse_register(tk.txt);
-            objb_push(arena, objb, OBJ_REG(reg));
+            Object obj = translate_reg_to_obj(tk);
+            objb_push(arena, objb, obj);
         } else {
             // TODO: better errors
             fprintf(stderr, "Error: in `parse_kind_reg_reg` cannot parse register\n");
@@ -75,42 +115,33 @@ void parse_kind_reg_val(Arena *arena, Inst_Addr *inst_pointer, Lexer *lex, Objec
     for (Token tk = lex->items[lex->tp + 1]; 
         tk.type != TYPE_NONE;
         tk = token_next(lex)) {
+        
+        Object obj = {0};
+        if (tk.type == TYPE_VALUE ||
+            tk.type == TYPE_AMPERSAND ||
+            tk.type == TYPE_OPEN_BRACKET) {
 
-        if (tk.type == TYPE_COMMA) continue;
-        else if (tk.type == TYPE_TEXT) {
-            int reg = parse_register(tk.txt);
-            objb_push(arena, objb, OBJ_REG(reg));
+            token_back(lex, 1);
+            obj = translate_val_expr_to_obj(lex, ct);
 
-        } else if (tk.type == TYPE_VALUE || 
-                   tk.type == TYPE_AMPERSAND ||
-                   tk.type == TYPE_OPEN_BRACKET) {
-            if (tk.type == TYPE_AMPERSAND) {
-                Token tk = token_next(lex);
-                lex->tp -= 1;
-                lex->items[lex->tp] = parse_constant_expr(tk, ct);
-            } else {
-                Object val_obj;
-                token_back(lex, 1);
-                Token val_tk = parse_val(lex, ct);
-                token_next(lex);
+        } else if (tk.type == TYPE_TEXT) {
+            obj = translate_reg_to_obj(tk);
 
-                if (val_tk.val.type == VAL_FLOAT) {
-                    val_obj = OBJ_FLOAT(val_tk.val.f64);
-                } else {
-                    val_obj = OBJ_INT(val_tk.val.i64);
-                }
+        } else if (tk.type == TYPE_COMMA) {
+            continue;
 
-                objb_push(arena, objb, val_obj);
-            }
         } else if (tk.type == TYPE_DOLLAR) {
             tk = token_next(lex);
+            if (tk.type != TYPE_VALUE)
+                fprintf(stderr, "Error: after `$` in `mov` not a value, type `%u`", tk.type);
             int64_t frame_shift = tk.val.i64 + STACK_FRAME_SIZE;
-            objb_push(arena, objb, OBJ_INT(frame_shift));
+            obj = OBJ_INT(frame_shift);
 
         } else {
             // TODO: better erros
             assert(0 && "TODO: in `parse_kind_reg_val` implement condition");
         }
+        objb_push(arena, objb, obj);
     }
     *inst_pointer += 3;
 }
@@ -118,26 +149,9 @@ void parse_kind_reg_val(Arena *arena, Inst_Addr *inst_pointer, Lexer *lex, Objec
 void parse_kind_reg(Arena *arena, Inst_Addr *inst_pointer, Lexer *lex, Object_Block *objb)
 {
     Token tk = token_next(lex);
-    if (tk.type == TYPE_TEXT) {
-        Register reg = parse_register(tk.txt);
-        objb_push(arena, objb, OBJ_REG(reg));
-
-    } else {
-        // TODO: better errors
-        fprintf(stderr, "Error: in `parse_kind_reg`\n");
-        exit(1);
-    }
+    Object obj = translate_reg_to_obj(tk);
+    objb_push(arena, objb, obj);
     *inst_pointer += 2;
-}
-
-void ll_print(Label_List *ll)
-{
-    printf("\n--------- Label List -----------\n\n");
-    for (size_t i = 0; i < ll->count; ++i) {
-        Label label = ll->labels[i];
-        printf("name: {"SV_Fmt"}; addr: {%lu}\n", SV_Args(label.name), label.addr);
-    }
-    printf("\n--------------------------------\n\n");
 }
 
 void parse_kind_val(Arena *arena,
@@ -151,18 +165,14 @@ void parse_kind_val(Arena *arena,
 {
     switch (inst) {
         case INST_PUSH_V: {
-            Object val_obj;
             Token tk = token_get(lex, 0, SKIP_FALSE);
             if (tk.type == TYPE_OPEN_BRACKET ||
                 tk.type == TYPE_AMPERSAND||
                 tk.type == TYPE_VALUE) {
-                Token val_tk = parse_val(lex, ct);
-                token_next(lex);
-                if (val_tk.val.type == VAL_FLOAT)
-                    val_obj = OBJ_FLOAT(val_tk.val.f64);
-                else 
-                    val_obj = OBJ_INT(val_tk.val.i64);
-                objb_push(arena, objb, val_obj);
+
+                Object obj = translate_val_expr_to_obj(lex, ct);
+                objb_push(arena, objb, obj);
+
             } else {
                 fprintf(stderr, "Error: unknown type `%u` in `parse_kind_val`\n", tk.type);
                 exit(1);

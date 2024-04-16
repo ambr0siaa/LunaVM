@@ -69,7 +69,9 @@ Object_Block parse_line_inst(Arena *arena, Line line, Hash_Table *ht, Program_Ju
 
 Block_Chain parse_linizer(Arena *arena, Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, Const_Table *vt, int line_debug, int bc_debug);
 
+Object translate_reg_to_obj(Token tk);
 int translate_inst(String_View inst_sv, Hash_Table *ht);
+Object translate_val_expr_to_obj(Lexer *lex, Const_Table *ct);
 Inst convert_to_cpu_inst(Inst inst, Inst_Kind *inst_kind, Lexer *lex);
 
 void ll_print(Label_List *ll);
