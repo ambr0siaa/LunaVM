@@ -46,7 +46,7 @@ char *binary_dir_path = "bin";
 #ifdef _Win32
 #   define CFLAGS " "
 #else
-#   define CFLAGS "-Wall", "-Wextra"
+#   define CFLAGS "-Wall", "-Wextra", "-flto"
 #endif
 
 const char *targets[] = {
@@ -241,6 +241,5 @@ int main(int argc, char **argv)
         bil_cmd_clean(&dilasm);
     }
 
-    bil_log(BIL_INFO, "Building has done. exit with code 1");
     return BIL_EXIT_SUCCESS;
 }

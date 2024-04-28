@@ -87,6 +87,7 @@ typedef enum {
     INST_JNZ,
     INST_JZ,
 
+    // TODO: INST_CMP_REG_REG, INST_CMP_REG_VAL
     INST_CMP,
 
     INST_VLAD,
@@ -131,8 +132,8 @@ typedef struct {
     uint64_t sp;
     uint64_t fp;
 
-    int zero_flag : 1;
-    int halt : 1;
+    uint8_t zero_flag;
+    uint8_t halt;
 } CPU;
 
 #define OBJ_INST(type)   (Object) { .inst = (type) }

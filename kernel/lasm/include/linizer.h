@@ -26,7 +26,6 @@ typedef struct {
 #define LNZ_DEBUG_FALSE 0
 
 void print_lnz(Linizer *lnz);
-void line_clean(Linizer *lnz);
 void line_push(Arena *arena, Linizer *lnz, Line line);
 
 int try_inst(Hash_Table *ht, Token tk);

@@ -85,14 +85,6 @@ typedef struct {
         (da)->items[(da)->count++] = (new_item);                                                               \
     } while(0)
 
-#define da_clean(da)        \
-    do {                    \
-        free((da)->items);  \
-        (da)->items = NULL; \
-        (da)->count = 0;    \
-        (da)->capacity = 0; \
-    } while(0)
-
 void print_token(Token tk);
 
 // prints at header of lexer `LEXER` if true
@@ -100,7 +92,6 @@ void print_token(Token tk);
 #define LEX_PRINT_MODE_FALSE 0
 
 void print_lex(Lexer *lex, int mode);
-void lex_clean(Lexer *lex);
 void lex_push(Arena *arena, Lexer *lex, Token tk);
 
 Token token_next(Lexer *lex);

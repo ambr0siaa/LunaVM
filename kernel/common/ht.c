@@ -66,7 +66,7 @@ void ht_get(Hash_Table *ht, const char *key, hash_item *dst)
     hshv_t hash = hash_function(key);
     hash_item hi = { .hash = hash };
     hi.index = make_index(ht->capacity, hi.hash);
-    if (hi.index <= HT_CAPACITY) {
+    if (hi.index <= ht->capacity) {
         Bucket *cur = ht->bl[hi.index].head;
         while (cur != NULL) {
             if (cur->hi.hash == hi.hash) {

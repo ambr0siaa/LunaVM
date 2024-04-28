@@ -15,8 +15,12 @@ summ:
 
     call summ
     
+    mov r5, &a
+    dbr r5
+
     push &c * 2.0 - 1.0
-    pop f0
-    dbr f0
+    push &b
+    pop  r5
+    dbr  r5
 
     hlt

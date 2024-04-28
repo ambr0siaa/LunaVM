@@ -17,14 +17,6 @@ int try_inst(Hash_Table *ht, Token tk)
     return result;
 }
 
-void line_clean(Linizer *lnz)
-{
-    for (size_t i = 0; i < lnz->count; ++i) {
-        lex_clean(&lnz->items[i].item);
-    }
-    da_clean(lnz);
-}
-
 void print_lnz(Linizer *lnz)
 {
     printf("\n");

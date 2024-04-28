@@ -25,7 +25,6 @@ Value tokenise_value(String_View sv)
     }
 }
 
-void lex_clean(Lexer *lex) { da_clean(lex); }
 void lex_push(Arena *arena, Lexer *lex, Token tk) { da_append(arena, lex, tk); }
 
 Lexer lexer(Arena *arena, String_View src_sv, int db_txt)

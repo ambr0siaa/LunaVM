@@ -180,9 +180,7 @@ void cpu_execute_inst(CPU *const c)
 
         case INST_JNZ:
             operand1 = cpu_fetch(c);
-            if (c->zero_flag) {
-                c->ip = operand1.u64;
-            }
+            if (c->zero_flag == 1) c->ip = operand1.u64;
             else c->ip += 1;
             break;
 
@@ -191,9 +189,9 @@ void cpu_execute_inst(CPU *const c)
             reg2 = cpu_fetch(c).reg;
             
             if (reg1 >= F0 && reg2 >= F0) {
-                c->zero_flag = c->regs[reg1 - CPU_REGS] == c->regs[reg2 - CPU_REGS];
+                c->zero_flag = c->regsf[reg1 - CPU_REGS] == c->regsf[reg2 - CPU_REGS];
             } else if (reg1 < F0 && reg1 < F0) {
-                c->zero_flag = c->regsf[reg1] == c->regs[reg2];
+                c->zero_flag = c->regs[reg1] == c->regs[reg2];
             } else {
                 fprintf(stderr, "Error: in inst `cmp` registers must be with equal types\n");
                 exit(1);
@@ -219,7 +217,7 @@ void cpu_execute_inst(CPU *const c)
         case INST_JZ:
             operand1 = cpu_fetch(c);
 
-            if (!c->zero_flag) c->ip = operand1.u64;
+            if (c->zero_flag == 0) c->ip = operand1.u64;
             else c->ip += 1;
             break;
 

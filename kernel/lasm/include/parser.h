@@ -44,12 +44,10 @@ typedef struct {
 #define LINE_DEBUG_TRUE 1
 #define LINE_DEBUG_FALSE 0
 
-void objb_clean(Object_Block *objb);
 void objb_to_cpu(Arena *arena, CPU *c, Object_Block *objb);
 void objb_push(Arena *arena, Object_Block *objb, Object obj);
 
 void block_chain_debug(Block_Chain *bc);
-void block_chain_clean(Block_Chain *block_chain);
 void block_chain_to_cpu(Arena *arena, CPU *c, Block_Chain *block_chain);
 void block_chain_push(Arena *arena, Block_Chain *block_chain, Object_Block objb);
 

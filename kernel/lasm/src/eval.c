@@ -444,6 +444,7 @@ Eval_Node *parse_term(Token tk, Lexer *lex, Const_Table *ct)
     return val1;
 }
 
+// TODO: if first token is `&` and after this only name -> parse as variable and return value
 void parse_arefmetic_expr(Eval *eval, Lexer *lex, Const_Table *ct)
 {
     if ((size_t)lex->tp + 1 == lex->count) {

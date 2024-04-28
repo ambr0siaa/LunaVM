@@ -42,6 +42,16 @@ void ll_print(Label_List *ll)
 Token parse_val(Lexer *lex, Const_Table *ct)
 {
     Eval eval = {0};
+    if (token_get(lex, 0, SKIP_FALSE).type == TYPE_AMPERSAND &&
+        (size_t)lex->tp + 2 >= lex->count) {
+        token_next(lex); // skip &
+        Token tk = token_next(lex);
+        if (tk.type != TYPE_TEXT) {
+            fprintf(stderr, "Error: expected token with type `text` after `&`\n");
+            exit(1);
+        }
+        return parse_constant_expr(tk, ct);
+    }
     parse_arefmetic_expr(&eval, lex, ct);
     evaluate(&eval);
     Token tk = eval.root->token; 
@@ -266,17 +276,15 @@ Inst convert_to_cpu_inst(Inst inst, Inst_Kind *inst_kind, Lexer *lex)
         tk = token_get(lex, 1, SKIP_FALSE);
         if (tk.type == TYPE_COMMA) {
             tk = token_get(lex, 2, SKIP_FALSE);
-            if (tk.type == TYPE_VALUE || tk.type == TYPE_OPEN_BRACKET || tk.type == TYPE_DOLLAR) {
+            if (tk.type == TYPE_VALUE || tk.type == TYPE_OPEN_BRACKET || tk.type == TYPE_DOLLAR || tk.type == TYPE_AMPERSAND) {
                 kind = KIND_REG_VAL;
             } else {
-                if (try_register(tk.txt))
-                    kind = KIND_REG_REG;
-                else
-                    kind = KIND_REG_VAL;
+                if (try_register(tk.txt)) kind = KIND_REG_REG;
+                else kind = KIND_REG_VAL;
             }
         } else {
             tk = token_get(lex, 0, SKIP_FALSE);
-            if ((tk.type == TYPE_OPEN_BRACKET || tk.type == TYPE_VALUE)) {
+            if ((tk.type == TYPE_OPEN_BRACKET || tk.type == TYPE_VALUE || tk.type == TYPE_AMPERSAND)) {
                 kind = KIND_VAL;
             } else {
                 if (try_register(tk.txt)) 
@@ -485,6 +493,7 @@ Const_Statement parse_line_constant(Lexer *lex)
         exit(1);
     }
 
+    // TODO: check that value and type are the same
     Token cnst_value = token_next(lex);
     switch (cnst.type) {
         case CONST_TYPE_INT:
