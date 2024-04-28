@@ -1,5 +1,8 @@
 ;; Calculate e^x
 
+.constant limit   {f64: 100.0}
+.constant default {f64: 1.0}
+
 ;; Args:         in regsiter f0 put number of power
 ;; Return value: returns in register accf end value
 exp:
@@ -10,10 +13,10 @@ exp:
     ;; x - power
     ;; n - number of series element
 
-    mov f1, 1.0    ;; result
-    mov f2, 1.0    ;; a0
-    mov f3, 1.0    ;; n
-    mov f4, 100.0  ;; limit of iterations
+    mov f1, &default  ;; result
+    mov f2, &default  ;; a0
+    mov f3, &default  ;; n
+    mov f4, &limit    ;; limit of iterations
 
     loop:
         ;; calculate next element
@@ -32,7 +35,7 @@ exp:
         cmp f4, f3
 
         ;; increment n
-        add f3, 1.0
+        add f3, &default
         mov f3, accf
 
         jz loop
@@ -40,7 +43,7 @@ exp:
     ret accf, f1
 
 .entry main:
-    mov  f0, 2.0   ;; argument for exp
+    mov  f0, 1.0
     call exp
     dbr  accf
     hlt
