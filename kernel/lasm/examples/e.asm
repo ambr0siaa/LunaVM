@@ -3,8 +3,8 @@
 ;; Args:         in regsiter f0 put number of power
 ;; Return value: returns in register accf end value
 exp:
-    ;; The main idea of calculating is Teilor's series for e^x
-    ;; For optimize Teilor's series find connection of the n-th element with the previous one:
+    ;; The main idea of calculating is Taylor series for e^x
+    ;; For optimize Taylor series find connection of the n-th element with the previous one:
     ;;                       a[n] = a[n-1] * x / n
 
     ;; x - power
