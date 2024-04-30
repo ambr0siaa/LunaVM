@@ -1,8 +1,8 @@
 /*
 * This `bil` file builds:
-*   in ./dilasm `dilasm.c`        - disassembly bytecode and print it in console
-*   in ./kernel/lasm/src `lasm.c` - translate assembly code to Luna's bytecode
-*   in ./kernel/cpu/src `lunem.c` - emulate program the Luna's bytecode
+*   in dilasm `dilasm.c`        - disassembly bytecode and print it in console
+*   in lasm/src `lasm.c` - translate assembly code to Luna's bytecode
+*   in cpu/src `lunem.c` - emulate program the Luna's bytecode
 *
 * All usages in `.c` files and in README
 *
@@ -25,21 +25,21 @@
 #define CC "gcc"
 #define DEBUG_MODE "-g", "-ggdb"
 
-#define SRC_CPU               \
-    "./kernel/cpu/src/cpu.c", \
-    "./kernel/common/arena.c"
+#define SRC_CPU      \
+    "cpu/src/cpu.c", \
+    "common/arena.c"
 
 #define SRC_COMMON          \
-    "./kernel/common/sv.c", \
-    "./kernel/common/ht.c"  \
+    "common/sv.c", \
+    "common/ht.c"  \
 
 #define SRC_LASM                    \
-    "./kernel/lasm/src/compiler.c", \
-    "./kernel/lasm/src/parser.c",   \
-    "./kernel/lasm/src/lexer.c",    \
-    "./kernel/lasm/src/linizer.c",  \
-    "./kernel/lasm/src/consts.c",   \
-    "./kernel/lasm/src/eval.c"
+    "lasm/src/compiler.c", \
+    "lasm/src/parser.c",   \
+    "lasm/src/lexer.c",    \
+    "lasm/src/linizer.c",  \
+    "lasm/src/consts.c",   \
+    "lasm/src/eval.c"
 
 char *binary_dir_path = "bin";
 
@@ -50,9 +50,9 @@ char *binary_dir_path = "bin";
 #endif
 
 const char *targets[] = {
-    "./kernel/lasm/src/lasm.c",
-    "./kernel/cpu/src/lunem.c",
-    "./dilasm/dilasm.c"
+    "lasm/src/lasm.c",
+    "cpu/src/lunem.c",
+    "dilasm/dilasm.c"
 };
 
 #define TARGET_LASM 0 
@@ -60,24 +60,21 @@ const char *targets[] = {
 #define TARGET_DILASM 2
 
 const char *outputs[] = {
-    "./kernel/lasm/src/lasm",
-    "./kernel/cpu/src/lunem",
-    "./dilasm/dilasm"
+    "lasm/src/lasm",
+    "cpu/src/lunem",
+    "dilasm/dilasm"
 };
 
 #define PREF_DOT "."
 #define PREF_CPU "cpu"
 #define PREF_SRC "src"
 #define PREF_LASM "lasm"
-#define PREF_KERNEL "kernel"
 #define PREF_EXAMPLES "examples"
-
-#define TO_KERNEL PREF_DOT, PREF_KERNEL
 
 void mk_path_to_example(Bil_String_Builder *sb, int *argc, char ***argv)
 {
     const char *target = bil_shift_args(argc, argv);
-    *sb = PATH(TO_KERNEL, PREF_LASM, PREF_EXAMPLES, target);
+    *sb = PATH(PREF_LASM, PREF_EXAMPLES, target);
     sb_join_nul(sb);
 }
 
@@ -127,7 +124,7 @@ int main(int argc, char **argv)
         Bil_String_Builder target_path = {0};
      
         if (!strcmp("lasm", target)) {
-            target_path = PATH(TO_KERNEL, PREF_LASM, PREF_SRC, target);
+            target_path = PATH(PREF_LASM, PREF_SRC, target);
             sb_join_nul(&target_path);
             bil_cmd_append(&handler, target_path.str);
 
@@ -156,7 +153,7 @@ int main(int argc, char **argv)
             sb_clean(&output_path);
 
         } else if (!strcmp("lunem", target)) {
-            target_path = PATH(TO_KERNEL, PREF_CPU, PREF_SRC, target);
+            target_path = PATH(PREF_CPU, PREF_SRC, target);
             sb_join_nul(&target_path);
             bil_cmd_append(&handler, target_path.str);
 
