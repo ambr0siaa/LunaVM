@@ -1,4 +1,4 @@
-#include "../kernel/cpu/src/cpu.h"
+#include "../cpu/src/cpu.h"
 
 // TODO: remake disassembler
 
