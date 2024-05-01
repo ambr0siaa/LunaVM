@@ -222,8 +222,6 @@ void sv_append_nul(String_View *sv)
     sv->data[sv->count] = '\0';
 }
 
-#include <stdio.h>
-
 String_View sv_cut_txt(String_View *sv, String_View special)
 {
     String_View result;
@@ -261,4 +259,50 @@ void sv_append_sv(String_View *dst, String_View src)
     dst->data = realloc(dst->data, sizeof(*src.data) * src.count + sizeof(*dst->data) * dst->count);
     memcpy(dst->data + dst->count, src.data, sizeof(*src.data) * src.count);
     dst->count = dst->count + src.count;
+}
+
+String_View sv_read_file(const char *file_path)
+{
+    FILE *fp = fopen(file_path, "r");
+    if (!fp) {
+        fprintf(stderr, "error: cannot open file by `%s` path\n", file_path);
+        exit(1);
+    }
+
+    if (fseek(fp, 0, SEEK_END) < 0) {
+        fprintf(stderr, "error: cannot read from `%s` file\n", file_path);
+        exit(1);
+    }
+
+    long file_size = ftell(fp);
+    if (file_size < 0) {
+        fprintf(stderr, "error: cannot read from `%s` file\n", file_path);
+        exit(1);
+    }
+
+    if (fseek(fp, 0, SEEK_SET) < 0) {
+        fprintf(stderr, "error: cannot read from `%s` file\n", file_path);
+        exit(1);
+    }
+
+    char *buf = malloc(file_size * sizeof(char) + 1);
+
+    if (!buf) {
+        fprintf(stderr, "error: cannot allocate memory for file: %s\n", strerror(errno));
+        exit(1);
+    }
+
+    size_t buf_size = fread(buf, 1, file_size, fp);
+
+    if (ferror(fp)) {
+        fprintf(stderr, "error: cannot read from `%s` file\n", file_path);
+        exit(1);
+    }
+
+    fclose(fp);
+
+    return (String_View) {
+        .count = buf_size,
+        .data = buf
+    };
 }

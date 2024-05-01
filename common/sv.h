@@ -47,4 +47,6 @@ String_View sv_cut_value(String_View *sv);
 String_View sv_cut_alpha(String_View *sv);
 String_View sv_cut_txt(String_View *sv, String_View special);
 
+String_View sv_read_file(const char *file_path);
+
 #endif // SV_H_

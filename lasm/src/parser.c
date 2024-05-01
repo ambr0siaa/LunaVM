@@ -164,13 +164,11 @@ void parse_kind_reg(Arena *arena, Inst_Addr *inst_pointer, Lexer *lex, Object_Bl
     *inst_pointer += 2;
 }
 
-void parse_kind_val(Arena *arena,
+void parse_kind_val(Lasm *L,
                     Inst inst, 
                     Inst_Addr *inst_pointer,
                     Lexer *lex, 
-                    Object_Block *objb, 
-                    Program_Jumps *PJ,
-                    Const_Table *ct,
+                    Object_Block *objb,
                     size_t line_num)
 {
     switch (inst) {
@@ -180,8 +178,8 @@ void parse_kind_val(Arena *arena,
                 tk.type == TYPE_AMPERSAND||
                 tk.type == TYPE_VALUE) {
 
-                Object obj = translate_val_expr_to_obj(lex, ct);
-                objb_push(arena, objb, obj);
+                Object obj = translate_val_expr_to_obj(lex, &L->ct);
+                objb_push(&L->arena, objb, obj);
 
             } else {
                 fprintf(stderr, "Error: unknown type `%u` in `parse_kind_val`\n", tk.type);
@@ -199,25 +197,25 @@ void parse_kind_val(Arena *arena,
             if (tk.type == TYPE_VALUE) {
                 if (tk.val.type == VAL_INT && tk.val.i64 >= 0) {
                     addr_obj = OBJ_UINT(tk.val.i64);
-                    objb_push(arena, objb, addr_obj);
+                    objb_push(&L->arena, objb, addr_obj);
                 } else {
                     fprintf(stderr, "Error: program jumps have to be integer and > 0\n");
                     exit(1);
                 }
             } else if (tk.type == TYPE_TEXT) {
-                Label label = ll_search_label(&PJ->current, tk.txt);
+                Label label = ll_search_label(&L->curjmps, tk.txt);
                 if (label.addr == (uint64_t)(-1)) {
                     Label dlabel = {
                         .name = tk.txt,
                         .addr = line_num
                     };
-                    ll_append(arena, &PJ->deferred, dlabel);
+                    ll_append(&L->arena, &L->defjmps, dlabel);
                     addr_obj = OBJ_UINT(dlabel.addr);
-                    objb_push(arena, objb, addr_obj);
+                    objb_push(&L->arena, objb, addr_obj);
 
                 } else {
                     addr_obj = OBJ_UINT(label.addr);
-                    objb_push(arena, objb, addr_obj);
+                    objb_push(&L->arena, objb, addr_obj);
                 }
 
             } else {
@@ -532,16 +530,14 @@ Const_Statement parse_line_constant(Lexer *lex)
     return cnst;
 }
 
-Object_Block parse_line_inst(Arena *arena, Line line, Hash_Table *ht, Program_Jumps *PJ, Const_Table *ct,
-                             size_t inst_counter, size_t *inst_pointer, 
-                             int db_line, size_t line_num)
+Object_Block parse_line_inst(Lasm *L, Line line, size_t inst_counter, size_t *inst_pointer, int db_line, size_t line_num)
 {
     Inst_Kind kind;
     Object_Block objb = {0};
     Lexer sublex = line.item;
-    Inst src_inst = parse_inst(&sublex, ht);
+    Inst src_inst = parse_inst(&sublex, &L->inst_table);
     Inst cpu_inst = convert_to_cpu_inst(src_inst, &kind, &sublex);
-    objb_push(arena, &objb, OBJ_INST(cpu_inst));
+    objb_push(&L->arena, &objb, OBJ_INST(cpu_inst));
     
     if (db_line) {
         printf("line: %zu; ", line_num + 1);
@@ -549,11 +545,11 @@ Object_Block parse_line_inst(Arena *arena, Line line, Hash_Table *ht, Program_Ju
     }
 
     switch (kind) {
-        case KIND_REG:     parse_kind_reg(arena, inst_pointer, &sublex, &objb);                                 break;
-        case KIND_VAL:     parse_kind_val(arena, cpu_inst, inst_pointer, &sublex, &objb, PJ, ct, inst_counter); break;
-        case KIND_NONE:    *inst_pointer += 1;                                                                  break;
-        case KIND_REG_REG: parse_kind_reg_reg(arena, inst_pointer, &sublex, &objb);                             break;
-        case KIND_REG_VAL: parse_kind_reg_val(arena, inst_pointer, &sublex, &objb, ct);                         break;
+        case KIND_REG:     parse_kind_reg(&L->arena, inst_pointer, &sublex, &objb);                 break;
+        case KIND_VAL:     parse_kind_val(L, cpu_inst, inst_pointer, &sublex, &objb, inst_counter); break;
+        case KIND_NONE:    *inst_pointer += 1;                                                      break;
+        case KIND_REG_REG: parse_kind_reg_reg(&L->arena, inst_pointer, &sublex, &objb);             break;
+        case KIND_REG_VAL: parse_kind_reg_val(&L->arena, inst_pointer, &sublex, &objb, &L->ct);     break;
         default: {
             fprintf(stderr, "Error: unknown kind `%u`\n", kind);
             exit(1);
@@ -564,14 +560,14 @@ Object_Block parse_line_inst(Arena *arena, Line line, Hash_Table *ht, Program_Ju
 }
 
 // TODO: rework line debug
-void parse_line_label(Arena *arena, Token tk, Program_Jumps *PJ, size_t inst_pointer, size_t line_num)
+void parse_line_label(Lasm *L, Token tk, size_t inst_pointer, size_t line_num)
 {
     if (tk.type != TYPE_TEXT) {
         fprintf(stderr, "Error: in line [%zu] expected label\n", line_num + 1);
         exit(1);
     }
     Label label = { .name = tk.txt, .addr = inst_pointer};
-    ll_append(arena, &PJ->current, label);
+    ll_append(&L->arena, &L->curjmps, label);
 }
 
 void block_chain_debug(Block_Chain *bc)
@@ -590,83 +586,92 @@ void block_chain_debug(Block_Chain *bc)
     printf("\n---------------------------------------------\n\n");
 }
 
-Block_Chain parse_linizer(Arena *arena, Linizer *lnz, Program_Jumps *PJ, Hash_Table *ht, Const_Table *ct, int line_debug, int bc_debug)
+Block_Chain parse_linizer(Lasm *L)
 {
     size_t entry_ip = 0;
     size_t inst_counter = 0;
     Inst_Addr inst_pointer = 0;
     Block_Chain block_chain = {0};
-    for (size_t i = 0; i < lnz->count; ++i) {
-        Line line = lnz->items[i];
-        if (line.type == LINE_INST) {
-            Object_Block objb = parse_line_inst(arena, line, ht, PJ, ct,
-                                                inst_counter, &inst_pointer, line_debug, i);
-            block_chain_push(arena, &block_chain, objb);
-            inst_counter += 1;
+    for (size_t i = 0; i < L->lnz.count; ++i) {
+        Line line = L->lnz.items[i];
+        switch (line.type) {
+            case LINE_INST: {
+                Object_Block objb = parse_line_inst(L, line, inst_counter, &inst_pointer, L->debug.line, i);
+                block_chain_push(&L->arena, &block_chain, objb);
+                inst_counter += 1;
+                break;
+            }
 
-        } else if (line.type == LINE_LABEL) {
-            Token tk = line.item.items[0];
-            parse_line_label(arena, tk, PJ, inst_pointer, i);
+            case LINE_LABEL: {
+                Token tk = line.item.items[0];
+                parse_line_label(L, tk, inst_pointer, i);
+                break;
+            }
 
-        } else if (line.type == LINE_ENTRY_LABLE) {
-            entry_ip = inst_pointer;
-            Token tk = line.item.items[0];
-            parse_line_label(arena, tk, PJ, inst_pointer, i);
+            case LINE_ENTRY_LABLE: {
+                entry_ip = inst_pointer;
+                Token tk = line.item.items[0];
+                parse_line_label(L, tk, inst_pointer, i);
+                break;
+            }
 
-        } else if (line.type == LINE_CONSTANT) {
-            Const_Statement cnst = parse_line_constant(&line.item);
-            ct_insert(ct, cnst);
+            case LINE_CONSTANT: {
+                Const_Statement cnst = parse_line_constant(&line.item);
+                ct_insert(&L->ct, cnst);
+                break;
+            }
 
-        } else {
-            fprintf(stderr, "Error: in `parse_linizer` unknown line [%lu] type\n", i + 1);
-            exit(1);
+            default: {
+                fprintf(stderr, "Error: in `parse_linizer` unknown line [%lu] type\n", i + 1);
+                exit(1);
+            }
         }
     }
 
     // TODO: erros for unused deffred labels
-    for (size_t i = 0; i < PJ->deferred.count; ++i) {
-        Label dlabel = PJ->deferred.labels[i];
-        Label label = ll_search_label(&PJ->current, dlabel.name);
+    for (size_t i = 0; i < L->defjmps.count; ++i) {
+        Label dlabel = L->defjmps.labels[i];
+        Label label = ll_search_label(&L->curjmps, dlabel.name);
         if (label.addr != (uint64_t)(-1)) {
             block_chain.items[dlabel.addr].items[1] = OBJ_UINT(label.addr); 
         }
     }
 
     Object_Block entry_obj = {0};
-    objb_push(arena, &entry_obj, OBJ_UINT(entry_ip));
-    block_chain_push(arena, &block_chain, entry_obj);
+    objb_push(&L->arena, &entry_obj, OBJ_UINT(entry_ip));
+    block_chain_push(&L->arena, &block_chain, entry_obj);
 
-    if (bc_debug == BLOCK_CHAIN_DEBUG_TRUE) 
+    if (L->debug.output_program) 
         block_chain_debug(&block_chain);
     
     return block_chain;
 }
 
-void objb_to_cpu(Arena *arena, CPU *c, Object_Block *objb)
+void objb_to_lasm(Lasm *L, Object_Block *objb)
 {
     for (size_t i = 0; i < objb->count; ++i) {
         Object obj = objb->items[i];
-        if (c->program_size + 1 >= c->program_capacity) {
-            size_t old_size = c->program_capacity * sizeof(*c->program);
-            c->program_capacity *= 2;
-            c->program = arena_realloc(arena, c->program, old_size,
-                                       c->program_capacity * sizeof(*c->program));
+        if (L->program_size + 1 >= L->program_capacity) {
+            size_t old_size = L->program_capacity * sizeof(*L->program);
+            L->program_capacity *= 2;
+            L->program = arena_realloc(&L->arena, L->program, old_size,
+                                       L->program_capacity * sizeof(*L->program));
         }
-        c->program[c->program_size++] = obj;
+        L->program[L->program_size++] = obj;
     }
 }
 
-void block_chain_to_cpu(Arena *arena, CPU *c, Block_Chain *block_chain)
+void block_chain_to_lasm(Lasm *L, Block_Chain *block_chain)
 {
-    if (c->program_capacity == 0) {
-        c->program_capacity = PROGRAM_INIT_CAPACITY;
-        c->program = arena_alloc(arena, c->program_capacity * sizeof(*c->program));
-        c->program_size = 0;
+    if (L->program_capacity == 0) {
+        L->program_capacity = PROGRAM_INIT_CAPACITY;
+        L->program = arena_alloc(&L->arena, L->program_capacity * sizeof(*L->program));
+        L->program_size = 0;
     }
 
     for (size_t i = 0; i < block_chain->count; ++i) {
         Object_Block objb = block_chain->items[i];
-        objb_to_cpu(arena, c, &objb);
+        objb_to_lasm(L, &objb);
     }
 }
 

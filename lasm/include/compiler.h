@@ -3,12 +3,19 @@
 
 #include "parser.h"
 
-String_View lasm_load_file(Arena *arena, const char *file_path);
+#define USAGE(program) \
+    fprintf(stdout, "Usage: %s -i <input.asm> -o <output.ln> [options]\n", (program))
+
+Lasm *lasm_init();
+void lasm_help();
+void lasm_cleanup(Lasm *L);
+void lasm_load_file(Lasm *L);
+void lasm_cmd_args(Lasm *L, int *argc, char ***argv);
+
 String_View lasm_cut_comments_from_src(String_View *sv);
 
 void lasm_cut_comments_from_line(String_View *line);
-void lasm_save_program_to_file(CPU *c, const char *file_path);
-void lasm_translate_source(Arena *arena, String_View src, CPU *c, Program_Jumps *PJ, Hash_Table *ht, Const_Table *ct,
-                           int db_lex, int db_lnz, int db_ht, int db_line, int db_lex_txt, int db_bc);
+void lasm_save_program_to_file(Lasm *L);
+void lasm_translate_source(Lasm *L);
 
 #endif // COMPILER_H_

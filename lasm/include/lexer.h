@@ -62,10 +62,6 @@ typedef struct {
 } Lexer;
 
 #define INIT_CAPACITY 8
-#define LEX_DEBUG_TRUE 1
-#define LEX_DEBUG_FALSE 0
-#define LEX_DEBUG_TXTS_TRUE 1
-#define LEX_DEBUG_TXTS_FALSE 0
 
 // macro for append item to dynamic array
 #define da_append(arena, da, new_item)                                                                         \

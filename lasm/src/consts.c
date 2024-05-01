@@ -43,6 +43,7 @@ void ct_insert(Const_Table *ct, Const_Statement cnst)
     hshv_t hash = hash_function(s);
     hshi_t index = make_index(ct->capacity, hash);
     ct->items[index] = ct_push(&ct->items[index], cnst, hash);
+    free(s);
 }
 
 void ct_print(Const_Table *ct)
@@ -64,9 +65,10 @@ void ct_print(Const_Table *ct)
 
 Const_Statement ct_get(Const_Table *ct, String_View name)
 {
-    const char *s = sv_to_cstr(name);
+    char *s = sv_to_cstr(name);
     hshv_t hash = hash_function(s);
     hshi_t index = make_index(ct->capacity, hash);
+    free(s);
     Ct_Item item = ct->items[index];
     do {
         if (item.hash == hash) 

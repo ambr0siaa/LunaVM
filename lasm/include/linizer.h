@@ -22,9 +22,6 @@ typedef struct {
     size_t capacity;
 } Linizer;
 
-#define LNZ_DEBUG_TRUE 1
-#define LNZ_DEBUG_FALSE 0
-
 void print_lnz(Linizer *lnz);
 void line_push(Arena *arena, Linizer *lnz, Line line);
 
