@@ -2,9 +2,9 @@
 
 Simple register-based virtual machine with own assembler.
 
-* [lasm](./kernel/lasm/src/lasm.c) - Assembler for the Luna.
-* [lunem](./kernel/cpu/src/lunem.c) - Luna's bytecode emulator.
-* [dis](./disasm/disasm.c) - disassembler for Luna's bytecode.
+* [lasm](lasm/src/lasm.c) - Assembler for the Luna.
+* [lunem](cpu/src/lunem.c) - Luna's bytecode emulator.
+* [dis](disasm/disasm.c) - disassembler for Luna's bytecode.
 
 ## Quick Start
 
