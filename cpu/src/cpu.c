@@ -173,6 +173,139 @@ void cpu_execute_inst(CPU *const c)
 
             break;
 
+        case INST_AND_RV:
+            reg1 = cpu_fetch(c).reg;
+            operand1 = cpu_fetch(c);
+
+            if (reg1 >= F0) {
+                fprintf(stderr, "Error: for bitwise operation need not float register\n");
+                exit(1);
+            }
+
+            AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, &, reg1);
+            break;
+
+        case INST_OR_RV:
+            reg1 = cpu_fetch(c).reg;
+            operand1 = cpu_fetch(c);
+
+            if (reg1 >= F0) {
+                fprintf(stderr, "Error: for bitwise operation need not float register\n");
+                exit(1);
+            }
+
+            AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, |, reg1);
+            break;
+
+        case INST_NOT:
+            reg1 = cpu_fetch(c).reg;
+
+            if (reg1 >= F0) {
+                fprintf(stderr, "Error: for bitwise operation need not float register\n");
+                exit(1);
+            }
+
+            c->regs[reg1] = ~c->regs[reg1];
+            c->ip += 1;
+            break;
+
+        case INST_XOR_RV:
+            reg1 = cpu_fetch(c).reg;
+            operand1 = cpu_fetch(c);
+
+            if (reg1 >= F0) {
+                fprintf(stderr, "Error: for bitwise operation need not float register\n");
+                exit(1);
+            }
+            
+            AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, ^, reg1);
+            break;
+
+        case INST_SHR_RV:
+            reg1 = cpu_fetch(c).reg;
+            operand1 = cpu_fetch(c);
+
+            if (reg1 >= F0) {
+                fprintf(stderr, "Error: for bitwise operation need not float register\n");
+                exit(1);
+            }
+
+            AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, >>, reg1);
+            break;
+
+        case INST_SHL_RV:
+            reg1 = cpu_fetch(c).reg;
+            operand1 = cpu_fetch(c);
+
+            if (reg1 >= F0) {
+                fprintf(stderr, "Error: for bitwise operation need not float register\n");
+                exit(1);
+            }
+
+            AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, <<, reg1);
+            break;
+        
+        case INST_AND_RR:
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
+
+            if (reg1 >= F0 || reg2 >= F0) {
+                fprintf(stderr, "Error: registers must be non float for bitwise operation\n");
+                exit(1);
+            }
+
+            AREFMETIC_OP(c, , c->regs[reg1], c->regs[reg2], &, reg1);
+            break;
+
+        case INST_OR_RR:
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
+
+            if (reg1 >= F0 || reg2 >= F0) {
+                fprintf(stderr, "Error: registers must be non float for bitwise operation\n");
+                exit(1);
+            }
+
+            AREFMETIC_OP(c, , c->regs[reg1], c->regs[reg2], |, reg1);
+            break;
+
+        case INST_XOR_RR:
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
+
+            if (reg1 >= F0 || reg2 >= F0) {
+                fprintf(stderr, "Error: registers must be non float for bitwise operation\n");
+                exit(1);
+            }
+
+            AREFMETIC_OP(c, , c->regs[reg1], c->regs[reg2], ^, reg1);
+            break;
+
+        case INST_SHR_RR:
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
+
+            if (reg1 >= F0 || reg2 >= F0) {
+                fprintf(stderr, "Error: registers must be non float for bitwise operation\n");
+                exit(1);
+            }
+
+            AREFMETIC_OP(c, , c->regs[reg1], c->regs[reg2], >>, reg1);
+            break;
+
+        case INST_SHL_RR:
+            reg1 = cpu_fetch(c).reg;
+            reg2 = cpu_fetch(c).reg;
+
+            if (reg1 >= F0 || reg2 >= F0) {
+                fprintf(stderr, "Error: registers must be non float for bitwise operation\n");
+                exit(1);
+            }
+
+            AREFMETIC_OP(c, , c->regs[reg1], c->regs[reg2], <<, reg1);
+            break;
+
+
         case INST_JMP:
             operand1.u64 = cpu_fetch(c).u64;
             c->ip = operand1.u64;
@@ -361,6 +494,25 @@ char *inst_as_cstr(Inst inst)
         case INST_SUB_RV: return "subv";
         case INST_DIV_RV: return "divv";
         case INST_MUL_RV: return "mulv";
+
+        case INST_AND:    return "and";
+        case INST_OR:     return "or";
+        case INST_NOT:    return "not";
+        case INST_XOR:    return "xor";
+        case INST_SHR:    return "shr";
+        case INST_SHL:    return "shl";
+
+        case INST_AND_RR: return "andr";
+        case INST_OR_RR:  return "orr";
+        case INST_XOR_RR: return "xorr";
+        case INST_SHR_RR: return "shrr";
+        case INST_SHL_RR: return "shlr";
+
+        case INST_AND_RV: return "andv";
+        case INST_OR_RV:  return "orv";
+        case INST_XOR_RV: return "xorv";
+        case INST_SHR_RV: return "shrv";
+        case INST_SHL_RV: return "shlv";
 
         case INST_MOV:    return "mov";
         case INST_MOVS:   return "movs";

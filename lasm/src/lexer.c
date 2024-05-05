@@ -88,7 +88,7 @@ Lexer lexer(Arena *arena, String_View src_sv, int db_txt)
         }
         lex_push(arena, &lex, tk);
     }
-
+    
     return lex;
 }
 

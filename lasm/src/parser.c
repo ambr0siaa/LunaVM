@@ -298,60 +298,39 @@ Inst convert_to_cpu_inst(Inst inst, Inst_Kind *inst_kind, Lexer *lex)
     switch (kind) {
         case KIND_REG_REG: {
             switch (inst) {
-                case INST_ADD:
-                    new_inst = INST_ADD_RR;
-                    break;
-
-                case INST_SUB:
-                    new_inst = INST_SUB_RR;
-                    break;
-
-                case INST_DIV:
-                    new_inst = INST_DIV_RR;
-                    break;
-
-                case INST_MUL:
-                    new_inst = INST_MUL_RR;
-                    break;
-
-                case INST_MOV:
-                    new_inst = INST_MOV_RR;
-                    break;
-
-                case INST_CMP:
-                    new_inst = inst;
-                    break;
-
-                case INST_RET:
-                    new_inst = INST_RET_RR;
-                    break; 
-
-                default:
+                case INST_ADD: new_inst = INST_ADD_RR; break;
+                case INST_SUB: new_inst = INST_SUB_RR; break;
+                case INST_DIV: new_inst = INST_DIV_RR; break;
+                case INST_MUL: new_inst = INST_MUL_RR; break;
+                case INST_MOV: new_inst = INST_MOV_RR; break;
+                case INST_RET: new_inst = INST_RET_RR; break;
+                case INST_AND: new_inst = INST_AND_RR; break;
+                case INST_OR:  new_inst = INST_OR_RR;  break;
+                case INST_XOR: new_inst = INST_XOR_RR; break;
+                case INST_SHR: new_inst = INST_SHR_RR; break;
+                case INST_SHL: new_inst = INST_SHL_RR; break;
+                case INST_CMP: new_inst = inst;        break;
+                default: {
                     fprintf(stderr, "inst `%s` hasn't got kind `REG_REG`\n", inst_as_cstr(inst));
                     exit(1);
+                }
             }
-        }
-        break;
+        } break;
 
         case KIND_REG_VAL: {
             switch (inst) {
-                case INST_ADD:
-                    new_inst = INST_ADD_RV;
-                    break;
-
-                case INST_SUB:
-                    new_inst = INST_SUB_RV;
-                    break;
-
-                case INST_DIV:
-                    new_inst = INST_DIV_RV;
-                    break;
-
-                case INST_MUL:
-                    new_inst = INST_MUL_RV;
-                    break;
-                    
-                case INST_MOV:
+                case INST_ADD: new_inst = INST_ADD_RV; break;
+                case INST_SUB: new_inst = INST_SUB_RV; break;
+                case INST_DIV: new_inst = INST_DIV_RV; break;
+                case INST_MUL: new_inst = INST_MUL_RV; break;
+                case INST_RET: new_inst = INST_RET_RV; break;
+                case INST_AND: new_inst = INST_AND_RV; break;
+                case INST_OR:  new_inst = INST_OR_RV;  break;
+                case INST_XOR: new_inst = INST_XOR_RV; break;
+                case INST_SHR: new_inst = INST_SHR_RV; break;
+                case INST_SHL: new_inst = INST_SHL_RV; break;
+                case INST_CMP: new_inst = inst;        break;
+                case INST_MOV: {
                     tk = token_get(lex, 2, SKIP_FALSE);
                     if (tk.type == TYPE_DOLLAR) {
                         new_inst = INST_MOVS;
@@ -359,84 +338,59 @@ Inst convert_to_cpu_inst(Inst inst, Inst_Kind *inst_kind, Lexer *lex)
                         new_inst = INST_MOV_RV;
                     }
                     break;
-
-                case INST_CMP:
-                    new_inst = inst;
-                    break;
-
-                case INST_RET:
-                    new_inst = INST_RET_RV;
-                    break;
-
-                default:
+                }
+                default: {
                     fprintf(stderr, "inst `%s` hasn't got kind `REG_VAL`\n", inst_as_cstr(inst));
                     exit(1);
+                }
             }
-        }
-        break;
+        } break;
 
         case KIND_REG: {
             switch (inst) {
-                case INST_PUSH:
-                    new_inst = INST_PUSH_R;
-                    break;
-
-                case INST_POP:
-                    new_inst = INST_POP_R;
-                    break;
-
-                case INST_DBR:
-                    new_inst = inst;
-                    break;
-
-                default:
+                case INST_PUSH: new_inst = INST_PUSH_R; break;
+                case INST_POP: new_inst = INST_POP_R;   break;
+                case INST_NOT:
+                case INST_DBR: new_inst = inst;         break;
+                default: {
                     fprintf(stderr, "inst `%s` hasn't got kind `REG`\n", inst_as_cstr(inst));
                     exit(1);
+                }
             }
-        }
-        break;
+        } break;
 
         case KIND_VAL: {
             switch (inst) {
-                case INST_PUSH:
-                    new_inst = INST_PUSH_V;
-                    break;
-
+                case INST_PUSH: new_inst = INST_PUSH_V; break;
                 case INST_JZ:
                 case INST_JMP:
                 case INST_JNZ:
-                case INST_CALL:
+                case INST_CALL: {
                     new_inst = inst;
                     break;
-
-                default:
+                }
+                default: {
                     fprintf(stderr, "inst `%s` hasn't got kind `VAL`\n", inst_as_cstr(inst));
                     exit(1);
+                }
             }
-        }
-        break;
+        } break;
 
         case KIND_NONE: {
             switch (inst) {
-                case INST_POP:
-                    new_inst = INST_POP_N;
-                    break;
-
-                case INST_RET:
-                    new_inst = INST_RET_N;
-                    break;
-
+                case INST_POP: new_inst = INST_POP_N; break;
+                case INST_RET: new_inst = INST_RET_N; break;
                 case INST_HLT:
-                case INST_VLAD:
+                case INST_VLAD: {
                     new_inst = inst;
                     break;
-
-                default:
+                }
+                default: {
                     fprintf(stderr, "inst `%s` hasn't got kind `none`\n", inst_as_cstr(inst));
                     exit(1);
+                }
             }
-        }
-        break;
+        } break;
 
         default: {
             fprintf(stderr, "Error: unknown kind `%u`\n", kind);

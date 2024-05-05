@@ -1,5 +1,13 @@
 #include "sv.h"
 
+String_View sv_from_parts(char *data, size_t count)
+{
+    return (String_View) {
+        .data = data,
+        .count = count
+    };
+}
+
 String_View sv_from_cstr(char *cstr)
 {
     return (String_View) {
@@ -241,6 +249,19 @@ String_View sv_cut_txt(String_View *sv, String_View special)
     sv->data += i;
 
     return result;
+}
+
+int sv_in_sv(String_View sv1, String_View sv2)
+{
+    size_t i = 0;
+    while (i < sv1.count) {
+        String_View tmp = sv_from_parts((char*)(sv1.data + i), sv2.count);
+        if (sv_cmp(tmp, sv2)) {
+            return 1;
+        }
+        i++;
+    }
+    return 0;
 }
 
 // return null terminated c-string

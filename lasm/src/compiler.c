@@ -154,7 +154,7 @@ void lasm_save_program_to_file(Lasm *L)
     }
 
     if (ferror(fp)) {
-        fprintf(stderr, "Error: cannot read from `%s` file\n", L->output_file);
+        fprintf(stderr, "Error: cannot write to `%s` file\n", L->output_file);
         exit(1);
     }
 

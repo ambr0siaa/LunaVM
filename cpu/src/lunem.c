@@ -62,6 +62,7 @@ int main(int argc, char **argv)
             USAGE(program);
             lunem_help();
             return EXIT_SUCCESS;
+            
         } else {
             fprintf(stderr, "Error: unknown flag `%s`\n", flag);
             USAGE(program);

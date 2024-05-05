@@ -31,7 +31,7 @@ typedef enum {
     // Kinds:
     INST_MOV_RR,
     INST_MOV_RV,
-    INST_MOVS, // Move value from stack relativly; `$` is option to get args for call from previous stack frame
+    INST_MOVS,   // Move value from stack relativly; `$` is option to get args for call from previous stack frame
 
     INST_HLT,
     INST_DBR, // DeBug Register
@@ -43,7 +43,7 @@ typedef enum {
     INST_DIV,
 
     // Kinds:
-    //  For integer registers
+    //  For register with registers
     INST_ADD_RR,
     INST_SUB_RR,
     INST_DIV_RR,
@@ -79,9 +79,31 @@ typedef enum {
     INST_RET_RR,
     INST_RET_RV,
 
-    // TODO: INST_INC, INST_DEC,
-    //       INST_AND, INST_OR, INST_NOT, INST_XOR, INST_RSR, INST_RSL
-    //       INST_GR, INST_GE, INST_LS, INST_LE
+    // INST_INC, 
+    // INST_DEC,
+
+    // binwise instruction headers    
+    INST_AND,
+    INST_OR,
+    INST_NOT,
+    INST_XOR,
+    INST_SHR,
+    INST_SHL,
+
+    // Kinds:
+    //  For register with register 
+    INST_AND_RR,
+    INST_OR_RR,
+    INST_XOR_RR,
+    INST_SHR_RR,
+    INST_SHL_RR,
+
+    // For value with registers
+    INST_AND_RV,
+    INST_OR_RV,
+    INST_XOR_RV,
+    INST_SHR_RV,
+    INST_SHL_RV,
 
     INST_JMP,
     INST_JNZ,
@@ -89,6 +111,10 @@ typedef enum {
 
     // TODO: INST_CMP_REG_REG, INST_CMP_REG_VAL
     INST_CMP,
+    // INST_GRT,
+    // INST_GET,
+    // INST_LST,
+    // INST_LET,
 
     INST_VLAD,
     IC          // IC -> inst count
