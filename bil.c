@@ -92,28 +92,37 @@ void cc(Bil_Cmd *cmd)
     bil_cmd_append(cmd, "-o");
 }
 
-void build_lasm(Bil_Cmd *cmd)
+int build_lasm(Bil_Cmd *cmd)
 {
     cc(cmd);
     bil_cmd_append(cmd, outputs[TARGET_LASM]);
     bil_cmd_append(cmd, targets[TARGET_LASM]);
     bil_cmd_append(cmd, SRC_LASM, SRC_CPU, SRC_COMMON);
+    if (!bil_cmd_run_sync(cmd)) return BIL_EXIT_FAILURE;
+    cmd->count = 0;
+    return BIL_EXIT_SUCCESS;
 }
 
-void build_lunem(Bil_Cmd *cmd)
+int build_lunem(Bil_Cmd *cmd)
 {
     cc(cmd);
     bil_cmd_append(cmd, outputs[TARGET_LUNEM]);
     bil_cmd_append(cmd, targets[TARGET_LUNEM]);
     bil_cmd_append(cmd, SRC_CPU);
+    if (!bil_cmd_run_sync(cmd)) return BIL_EXIT_FAILURE;
+    cmd->count = 0;
+    return BIL_EXIT_SUCCESS;
 }
 
-void build_dilasm(Bil_Cmd *cmd)
+int build_dilasm(Bil_Cmd *cmd)
 {
     cc(cmd);
     bil_cmd_append(cmd, outputs[TARGET_DILASM]);
     bil_cmd_append(cmd, targets[TARGET_DILASM]);
     bil_cmd_append(cmd, SRC_CPU);
+    if (!bil_cmd_run_sync(cmd)) return BIL_EXIT_FAILURE;
+    cmd->count = 0;
+    return BIL_EXIT_SUCCESS;
 }
 
 void cmd_args(int *argc, char ***argv)
@@ -136,7 +145,7 @@ void cmd_args(int *argc, char ***argv)
                 bil_delete_file(sb.items);
                 sb_clean(&sb);
             }
-            if (*argc < 1) 
+            if (*argc < 1)
                 BIL_EXIT(0);
 
         } else if (!strcmp("-b", flag)) {
@@ -144,17 +153,10 @@ void cmd_args(int *argc, char ***argv)
             int status = BIL_EXIT_SUCCESS; 
             for (size_t i = 0; i < 3; ++i) {
                 switch (i) {
-                    case TARGET_LASM: build_lasm(&cmd); break;
-                    case TARGET_LUNEM: build_lunem(&cmd); break;
-                    case TARGET_DILASM: build_dilasm(&cmd); break;
+                    case TARGET_LASM: status = build_lasm(&cmd); break;
+                    case TARGET_LUNEM: status = build_lunem(&cmd); break;
+                    case TARGET_DILASM: status = build_dilasm(&cmd); break;
                 }
-
-                if (!bil_cmd_run_sync(&cmd)) {
-                    status = BIL_EXIT_FAILURE;
-                    break;
-                }
-
-                cmd.count = 0;
             }
             bil_cmd_clean(&cmd);
             BIL_EXIT(status);
@@ -162,15 +164,14 @@ void cmd_args(int *argc, char ***argv)
     }
 }
 
-bool cmd_handler(int *argc, char ***argv)
+void cmd_handler(int *argc, char ***argv)
 {
     if (hdlr) {
         if (*argc < 1) {
             bil_log(BIL_ERROR, "expected commands for handler");
-            return false;
+            BIL_EXIT(BIL_EXIT_FAILURE);
         }
 
-        bool status = true;
         Bil_Cmd handler = {0};
         const char *target = bil_shift_args(argc, argv);
         Bil_String_Builder target_path = {0};
@@ -179,7 +180,7 @@ bool cmd_handler(int *argc, char ***argv)
             if (*argc < 1) {
                 bil_log(BIL_ERROR, "expected commands for `lasm`");
                 CMD("lasm/src/lasm", "-h");
-                return false;
+                BIL_EXIT(BIL_EXIT_FAILURE);
             }
 
             target_path = PATH(PREF_LASM, PREF_SRC, target);
@@ -205,7 +206,7 @@ bool cmd_handler(int *argc, char ***argv)
                 }
             }
 
-            if (!bil_cmd_run_sync(&handler)) status = false;
+            if (!bil_cmd_run_sync(&handler)) BIL_EXIT(BIL_EXIT_FAILURE);
 
             sb_clean(&input_path);
             sb_clean(&output_path);
@@ -214,7 +215,7 @@ bool cmd_handler(int *argc, char ***argv)
             if (*argc < 1) {
                 bil_log(BIL_ERROR, "expected commands for `lunem`");
                 CMD("lasm/src/lunem", "-h");
-                return false;
+                BIL_EXIT(BIL_EXIT_FAILURE);
             }
 
             target_path = PATH(PREF_CPU, PREF_SRC, target);
@@ -232,14 +233,14 @@ bool cmd_handler(int *argc, char ***argv)
                 }
             }
 
-            if (!bil_cmd_run_sync(&handler)) status = false;
+            if (!bil_cmd_run_sync(&handler)) BIL_EXIT(BIL_EXIT_FAILURE);
 
             sb_clean(&lunem_tar_path);
 
         } else if (!strcmp("dilasm", target)) {
             if (*argc < 1) {
                 bil_log(BIL_ERROR, "expected commands for `dilasm`");
-                return false;
+                BIL_EXIT(BIL_EXIT_FAILURE);
             }
 
             target_path = PATH(PREF_DOT, "dilasm", target);
@@ -250,14 +251,13 @@ bool cmd_handler(int *argc, char ***argv)
             mk_path_to_example(&input_path, argc, argv);
 
             bil_cmd_append(&handler, input_path.items);
-            if (!bil_cmd_run_sync(&handler)) status = false;
+            if (!bil_cmd_run_sync(&handler)) BIL_EXIT(BIL_EXIT_FAILURE);
         }
-        
+
         sb_clean(&target_path);
         bil_cmd_clean(&handler);
-        return status;
+        BIL_EXIT(BIL_EXIT_SUCCESS);
     }
-    return true;
 }
 
 int main(int argc, char **argv)
@@ -268,11 +268,9 @@ int main(int argc, char **argv)
                 bil_mkdir(dep_dir_path);
 
     cmd_args(&argc, &argv);
+    cmd_handler(&argc, &argv);
 
-    if (!cmd_handler(&argc, &argv))
-            return BIL_EXIT_FAILURE;
-
-    int status = 0;
+    int status = -1;
     Bil_Cmd cmd = {0};
 
     Bil_Dep lasm = {0};
@@ -289,25 +287,19 @@ int main(int argc, char **argv)
     bil_dep_init(&dilasm, dilasm_dep_path,
                  targets[TARGET_DILASM], SRC_CPU);
 
-    if (bil_dep_ischange(&lasm)) build_lasm(&cmd);
-    if (bil_dep_ischange(&lunem)) build_lunem(&cmd);
-    if (bil_dep_ischange(&dilasm)) build_dilasm(&cmd);
+    if (bil_dep_ischange(&lasm)) status = build_lasm(&cmd);
+    if (bil_dep_ischange(&lunem)) status = build_lunem(&cmd);
+    if (bil_dep_ischange(&dilasm)) status = build_dilasm(&cmd);
 
-    if (cmd.count != 0) {
-        if (!bil_cmd_run_sync(&cmd)) {
-            bil_cmd_clean(&cmd);
-            status = BIL_EXIT_FAILURE;
-            goto clean;
-        }
+    if (status == -1) {
         status = BIL_EXIT_SUCCESS;
-    } else {
         bil_log(BIL_INFO, "No changes");
     }
 
-clean:
     bil_cmd_clean(&cmd);
     bil_dep_clean(&lasm);
     bil_dep_clean(&lunem);
     bil_dep_clean(&dilasm);
+
     return status;
 }

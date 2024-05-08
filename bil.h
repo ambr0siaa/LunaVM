@@ -1,8 +1,9 @@
 // This custom build system like MakeFile, Cmake and etc
-// But C single header style library (stb style)  
+// But as C single header style library (stb style)
 // bil is crose platform (well, work on windows and linux)
+// This tiny build system has inspired by `https://github.com/tsoding/nobuild`
 
-// Inspired by`https://github.com/tsoding/nobuild`
+// Note: probably new fitures not working on windows
 
 #ifndef BIL_H_
 #define BIL_H_
@@ -194,19 +195,34 @@ struct bil_dep_info {
     Bil_FileTime t;
 };
 
-// TODO: implemente this struct as hash table
+// TODO: binary search
 typedef struct {
     struct bil_dep_info *items;
     size_t capacity;
     size_t count;
 } Bil_Deps_Info;
 
+
 typedef struct {
     Bil_Cstr_Array deps;    
     const char *output_file;
 } Bil_Dep;
 
-bool bil_dep_ischange(Bil_Dep *dep);
+/*
+*  Usage for dependences:
+*      Bil_Dep dep = {0};
+*      bil_dep_init(
+*             1. &dep, 
+*             2. path for output dependence file.
+*                Well, I named this files with extention `.bil`,
+*             3. file paths that is dependence
+*                this file bil will keep an eye on
+*           );
+*/
+
+bool bil_dep_ischange(Bil_Dep *dep);    // the main workhorse function for dependencies
+
+// some stuffs for bil's dependences 
 uint32_t bil_file_id(char *file_path);
 Bil_Deps_Info bil_parse_dep(char *src);
 Bil_FileTime bil_file_last_update(const char *path);
@@ -266,9 +282,9 @@ char *bil_read_file(const char *file_path);
                                                                                                     \
             Bil_Cmd cmd = {0};                                                                      \
             bil_cmd_append(&cmd, output_file_path);                                                 \
-            bil_cmd_run_sync(&cmd);                                                                 \
+            bil_cmd_run_async(&cmd);                                                                \
             bil_cmd_clean(&cmd);                                                                    \
-            exit(0);                                                                                \
+            BIL_EXIT(0);                                                                            \
         }                                                                                           \
     } while (0)
 
@@ -390,7 +406,7 @@ bool bil_dir_exist(const char *dir_path)
 }
 
 // TODO: not implemented
-void bil_dirent()
+void bil_wildcard()
 {
     DIR *d;
     struct dirent *dir;
@@ -839,7 +855,6 @@ bool bil_proc_await(Bil_Proc proc)
                 bil_log(BIL_ERROR, "command exited with exit code %d", exit_status);
                 return false;
             }
-
             break;
         }
 
