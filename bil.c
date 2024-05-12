@@ -77,11 +77,12 @@ char *outputs[] = {
 #define PREF_SRC "src"
 #define PREF_LASM "lasm"
 #define PREF_EXAMPLES "examples"
+#define PREF_BYTECODE "examples/bytecode"
 
-void mk_path_to_example(Bil_String_Builder *sb, int *argc, char ***argv)
+void mk_path_to_example(Bil_String_Builder *sb, char *where, int *argc, char ***argv)
 {
     const char *target = bil_shift_args(argc, argv);
-    *sb = PATH(PREF_LASM, PREF_EXAMPLES, target);
+    *sb = PATH(PREF_LASM, where, target);
     sb_join_nul(sb);
 }
 
@@ -178,6 +179,7 @@ void cmd_handler(int *argc, char ***argv)
      
         if (!strcmp("lasm", target)) {
             if (*argc < 1) {
+                lasm_error:
                 bil_log(BIL_ERROR, "expected commands for `lasm`");
                 CMD("lasm/src/lasm", "-h");
                 BIL_EXIT(BIL_EXIT_FAILURE);
@@ -193,16 +195,16 @@ void cmd_handler(int *argc, char ***argv)
             while (*argc > 0) {
                 const char *flag = bil_shift_args(argc, argv);
                 bil_cmd_append(&handler, flag);
+                if (*argc < 1) {
+                    goto lasm_error;
+                }
+
                 if (!strcmp("-o", flag)) {
-                    if (*argc > 0) {
-                        mk_path_to_example(&output_path, argc, argv);
-                        bil_cmd_append(&handler, output_path.items);
-                    }
+                    mk_path_to_example(&output_path, PREF_BYTECODE, argc, argv);
+                    bil_cmd_append(&handler, output_path.items);
                 } else if (!strcmp("-i", flag)) {
-                    if (*argc > 0) {
-                        mk_path_to_example(&input_path, argc, argv);
-                        bil_cmd_append(&handler, input_path.items);
-                    }
+                    mk_path_to_example(&input_path, PREF_EXAMPLES, argc, argv);
+                    bil_cmd_append(&handler, input_path.items);
                 }
             }
 
@@ -228,13 +230,12 @@ void cmd_handler(int *argc, char ***argv)
                 const char *flag = bil_shift_args(argc, argv);
                 bil_cmd_append(&handler, flag);
                 if (!strcmp(flag, "-i")) {
-                    mk_path_to_example(&lunem_tar_path, argc, argv);
+                    mk_path_to_example(&lunem_tar_path, PREF_BYTECODE, argc, argv);
                     bil_cmd_append(&handler, lunem_tar_path.items);
                 }
             }
 
             if (!bil_cmd_run_sync(&handler)) BIL_EXIT(BIL_EXIT_FAILURE);
-
             sb_clean(&lunem_tar_path);
 
         } else if (!strcmp("dilasm", target)) {
@@ -248,7 +249,7 @@ void cmd_handler(int *argc, char ***argv)
             bil_cmd_append(&handler, target_path.items);
 
             Bil_String_Builder input_path = {0};
-            mk_path_to_example(&input_path, argc, argv);
+            mk_path_to_example(&input_path, PREF_BYTECODE, argc, argv);
 
             bil_cmd_append(&handler, input_path.items);
             if (!bil_cmd_run_sync(&handler)) BIL_EXIT(BIL_EXIT_FAILURE);
