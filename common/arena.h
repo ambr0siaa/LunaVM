@@ -11,10 +11,10 @@
 typedef struct Region Region;
 
 struct Region {
-    struct Region *next;
     size_t alloc_pos;
     size_t capacity;
-    char data[];
+    Region *next;
+    char *data;
 };
 
 Region *region_create(size_t capacity);
