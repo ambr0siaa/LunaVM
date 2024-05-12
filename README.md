@@ -11,7 +11,7 @@ Simple register-based virtual machine with own assembler.
 To build all project at start use ```bilSetup.sh``` then run ```bil```:
 ```
 $ ./bilSetup.sh
-$ ./bin/bil 
+$ ./bin/bil -b
 ```
 
 To test some example:
