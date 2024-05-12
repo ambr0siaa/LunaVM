@@ -24,6 +24,7 @@
 
 #define CC "gcc"
 #define DEBUG_MODE "-g3", "-ggdb"
+#define CFLAGS "-Wall", "-Wextra", "-flto", "-ggdb", "-g3"
 
 #define SRC_CPU      \
     "cpu/src/cpu.c", \
@@ -52,12 +53,6 @@ const char *lasm_dep_path = "bin/dep/lasm.bil";
 const char *lunem_dep_path = "bin/dep/lunem.bil";
 const char *dilasm_dep_path = "bin/dep/dilasm.bil";
 
-#ifdef _Win32
-#   define CFLAGS " "
-#else
-#   define CFLAGS "-Wall", "-Wextra", "-flto"
-#endif
-
 char *targets[] = {
     "lasm/src/lasm.c",
     "cpu/src/lunem.c",
@@ -81,6 +76,8 @@ char *outputs[] = {
 #define PREF_EXAMPLES "examples"
 #define PREF_BYTECODE "examples/bytecode"
 
+#define workflow_status(s) status = (s); goto endw;
+
 void mk_path_to_example(Bil_String_Builder *sb, char *where, int *argc, char ***argv)
 {
     const char *target = bil_shift_args(argc, argv);
@@ -92,6 +89,7 @@ void cc(Bil_Cmd *cmd)
 {
     bil_cmd_append(cmd, CC);
     bil_cmd_append(cmd, CFLAGS);
+    if (debug) bil_cmd_append(cmd, DEBUG_MODE);
     bil_cmd_append(cmd, "-o");
 }
 
@@ -130,135 +128,140 @@ int build_dilasm(Bil_Cmd *cmd)
 
 void cmd_args(int *argc, char ***argv)
 {
-    while (*argc > 0) {
-        const char *flag = bil_shift_args(argc, argv);
-        if (!strcmp("-db", flag)) {
-            debug = 1;
+    int status = -1;
+    bil_workflow_begin();
 
-        } else if (!strcmp("-hdlr", flag)) {
-            hdlr = 1;
-            break;
+        while (*argc > 0) {
+            const char *flag = bil_shift_args(argc, argv);
+            if (!strcmp("-db", flag)) {
+                debug = 1;
 
-        } else if (!strcmp("-d", flag)) {
-            if (!strcmp(binary_dir_path, BIL_CURRENT_DIR)) {
-                bil_delete_file(DELETEME_FILE);
-            } else {
-                Bil_String_Builder sb = PATH(PREF_DOT, binary_dir_path, DELETEME_FILE);
-                sb_join_nul(&sb);
-                bil_delete_file(sb.items);
-                sb_clean(&sb);
-            }
-            if (*argc < 1)
-                BIL_EXIT(0);
+            } else if (!strcmp("-hdlr", flag)) {
+                hdlr = 1;
+                break;
 
-        } else if (!strcmp("-b", flag)) {
-            Bil_Cmd cmd = {0};
-            int status = BIL_EXIT_SUCCESS; 
-            for (size_t i = 0; i < 3; ++i) {
-                switch (i) {
-                    case TARGET_LASM: status = build_lasm(&cmd); break;
-                    case TARGET_LUNEM: status = build_lunem(&cmd); break;
-                    case TARGET_DILASM: status = build_dilasm(&cmd); break;
+            } else if (!strcmp("-d", flag)) {
+                if (strcmp(binary_dir_path, BIL_CURRENT_DIR)) {
+                    Bil_String_Builder sb = PATH(PREF_DOT, binary_dir_path, DELETEME_FILE);
+                    sb_join_nul(&sb);
+                    bil_delete_file(sb.items);
+                } else bil_delete_file(DELETEME_FILE);
+
+                if (*argc < 1)
+                    workflow_status(BIL_EXIT_SUCCESS);
+
+            } else if (!strcmp("-b", flag)) {
+                Bil_Cmd cmd = {0};
+                for (size_t i = 0; i < 3; ++i) {
+                    switch (i) {
+                        case TARGET_LASM: status = build_lasm(&cmd); break;
+                        case TARGET_LUNEM: status = build_lunem(&cmd); break;
+                        case TARGET_DILASM: status = build_dilasm(&cmd); break;
+                    }
                 }
+                workflow_status(status);
             }
-            bil_cmd_clean(&cmd);
-            BIL_EXIT(status);
         }
-    }
+
+    endw:
+    bil_workflow_end();
+    if (status != -1) BIL_EXIT(status);
 }
 
 void cmd_handler(int *argc, char ***argv)
 {
     if (hdlr) {
-        if (*argc < 1) {
-            bil_log(BIL_ERROR, "expected commands for handler");
-            BIL_EXIT(BIL_EXIT_FAILURE);
-        }
+        int status = BIL_EXIT_SUCCESS;
+        bil_workflow_begin();
 
-        Bil_Cmd handler = {0};
-        const char *target = bil_shift_args(argc, argv);
-        Bil_String_Builder target_path = {0};
-     
-        if (!strcmp("lasm", target)) {
             if (*argc < 1) {
-                lasm_error:
-                bil_log(BIL_ERROR, "expected commands for `lasm`");
-                CMD("lasm/src/lasm", "-h");
-                BIL_EXIT(BIL_EXIT_FAILURE);
+                bil_log(BIL_ERROR, "expected commands for handler");
+                workflow_status(BIL_EXIT_FAILURE);
             }
 
-            target_path = PATH(PREF_LASM, PREF_SRC, target);
-            sb_join_nul(&target_path);
-            bil_cmd_append(&handler, target_path.items);
-
-            Bil_String_Builder output_path = {0};
-            Bil_String_Builder input_path = {0};
-
-            while (*argc > 0) {
-                const char *flag = bil_shift_args(argc, argv);
-                bil_cmd_append(&handler, flag);
+            Bil_Cmd handler = {0};
+            const char *target = bil_shift_args(argc, argv);
+            Bil_String_Builder target_path = {0};
+        
+            if (!strcmp("lasm", target)) {
                 if (*argc < 1) {
-                    goto lasm_error;
+                    lasm_error:
+                    bil_log(BIL_ERROR, "expected commands for `lasm`");
+                    CMD("lasm/src/lasm", "-h");
+                    workflow_status(BIL_EXIT_FAILURE);
                 }
 
-                if (!strcmp("-o", flag)) {
-                    mk_path_to_example(&output_path, PREF_BYTECODE, argc, argv);
-                    bil_cmd_append(&handler, output_path.items);
-                } else if (!strcmp("-i", flag)) {
-                    mk_path_to_example(&input_path, PREF_EXAMPLES, argc, argv);
-                    bil_cmd_append(&handler, input_path.items);
+                target_path = PATH(PREF_LASM, PREF_SRC, target);
+                sb_join_nul(&target_path);
+                bil_cmd_append(&handler, target_path.items);
+
+                Bil_String_Builder output_path = {0};
+                Bil_String_Builder input_path = {0};
+
+                while (*argc > 0) {
+                    const char *flag = bil_shift_args(argc, argv);
+                    bil_cmd_append(&handler, flag);
+                    if (*argc < 1)
+                        goto lasm_error;
+
+                    if (!strcmp("-o", flag)) {
+                        mk_path_to_example(&output_path, PREF_BYTECODE, argc, argv);
+                        bil_cmd_append(&handler, output_path.items);
+
+                    } else if (!strcmp("-i", flag)) {
+                        mk_path_to_example(&input_path, PREF_EXAMPLES, argc, argv);
+                        bil_cmd_append(&handler, input_path.items);
+                    }
                 }
-            }
 
-            if (!bil_cmd_run_sync(&handler)) BIL_EXIT(BIL_EXIT_FAILURE);
+                if (!bil_cmd_run_sync(&handler))
+                    workflow_status(BIL_EXIT_FAILURE);
 
-            sb_clean(&input_path);
-            sb_clean(&output_path);
-
-        } else if (!strcmp("lunem", target)) {
-            if (*argc < 1) {
-                bil_log(BIL_ERROR, "expected commands for `lunem`");
-                CMD("lasm/src/lunem", "-h");
-                BIL_EXIT(BIL_EXIT_FAILURE);
-            }
-
-            target_path = PATH(PREF_CPU, PREF_SRC, target);
-            sb_join_nul(&target_path);
-            bil_cmd_append(&handler, target_path.items);
-
-            Bil_String_Builder lunem_tar_path = {0};
-
-            while (*argc > 0) {
-                const char *flag = bil_shift_args(argc, argv);
-                bil_cmd_append(&handler, flag);
-                if (!strcmp(flag, "-i")) {
-                    mk_path_to_example(&lunem_tar_path, PREF_BYTECODE, argc, argv);
-                    bil_cmd_append(&handler, lunem_tar_path.items);
+            } else if (!strcmp("lunem", target)) {
+                if (*argc < 1) {
+                    bil_log(BIL_ERROR, "expected commands for `lunem`");
+                    CMD("lasm/src/lunem", "-h");
+                    workflow_status(BIL_EXIT_FAILURE);
                 }
+
+                target_path = PATH(PREF_CPU, PREF_SRC, target);
+                sb_join_nul(&target_path);
+                bil_cmd_append(&handler, target_path.items);
+
+                Bil_String_Builder lunem_tar_path = {0};
+
+                while (*argc > 0) {
+                    const char *flag = bil_shift_args(argc, argv);
+                    bil_cmd_append(&handler, flag);
+                    if (!strcmp(flag, "-i")) {
+                        mk_path_to_example(&lunem_tar_path, PREF_BYTECODE, argc, argv);
+                        bil_cmd_append(&handler, lunem_tar_path.items);
+                    }
+                }
+
+                if (!bil_cmd_run_sync(&handler)) 
+                    workflow_status(BIL_EXIT_FAILURE);
+
+            } else if (!strcmp("dilasm", target)) {
+                if (*argc < 1) {
+                    bil_log(BIL_ERROR, "expected commands for `dilasm`");
+                    workflow_status(BIL_EXIT_FAILURE);
+                }
+
+                target_path = PATH(PREF_DOT, "dilasm", target);
+                sb_join_nul(&target_path);
+                bil_cmd_append(&handler, target_path.items);
+
+                Bil_String_Builder input_path = {0};
+                mk_path_to_example(&input_path, PREF_BYTECODE, argc, argv);
+
+                bil_cmd_append(&handler, input_path.items);
+                if (!bil_cmd_run_sync(&handler))
+                    workflow_status(BIL_EXIT_FAILURE);
             }
 
-            if (!bil_cmd_run_sync(&handler)) BIL_EXIT(BIL_EXIT_FAILURE);
-            sb_clean(&lunem_tar_path);
-
-        } else if (!strcmp("dilasm", target)) {
-            if (*argc < 1) {
-                bil_log(BIL_ERROR, "expected commands for `dilasm`");
-                BIL_EXIT(BIL_EXIT_FAILURE);
-            }
-
-            target_path = PATH(PREF_DOT, "dilasm", target);
-            sb_join_nul(&target_path);
-            bil_cmd_append(&handler, target_path.items);
-
-            Bil_String_Builder input_path = {0};
-            mk_path_to_example(&input_path, PREF_BYTECODE, argc, argv);
-
-            bil_cmd_append(&handler, input_path.items);
-            if (!bil_cmd_run_sync(&handler)) BIL_EXIT(BIL_EXIT_FAILURE);
-        }
-
-        sb_clean(&target_path);
-        bil_cmd_clean(&handler);
+        endw:
+        bil_workflow_end();
         BIL_EXIT(BIL_EXIT_SUCCESS);
     }
 }
@@ -280,36 +283,34 @@ int main(int argc, char **argv)
     cmd_args(&argc, &argv);
     cmd_handler(&argc, &argv);
 
-    int status = -1;
-    Bil_Cmd cmd = {0};
+    bil_workflow_begin();
 
-    Bil_Dep lasm = {0};
-    Bil_Dep lunem = {0};
-    Bil_Dep dilasm = {0};
+        int status = -1;
+        Bil_Cmd cmd = {0};
 
-    bil_dep_init(&lasm, lasm_dep_path, 
-                 targets[TARGET_LASM], SRC_LASM, 
-                 SRC_CPU, SRC_COMMON);
-    
-    bil_dep_init(&lunem, lunem_dep_path,
-                 targets[TARGET_LUNEM], SRC_CPU);
-    
-    bil_dep_init(&dilasm, dilasm_dep_path,
-                 targets[TARGET_DILASM], SRC_CPU);
+        Bil_Dep lasm = {0};
+        Bil_Dep lunem = {0};
+        Bil_Dep dilasm = {0};
 
-    if (bil_dep_ischange(&lasm)) status = build_lasm(&cmd);
-    if (bil_dep_ischange(&lunem)) status = build_lunem(&cmd);
-    if (bil_dep_ischange(&dilasm)) status = build_dilasm(&cmd);
+        bil_dep_init(&lasm, lasm_dep_path, 
+                    targets[TARGET_LASM], SRC_LASM, 
+                    SRC_CPU, SRC_COMMON);
+        
+        bil_dep_init(&lunem, lunem_dep_path,
+                    targets[TARGET_LUNEM], SRC_CPU);
+        
+        bil_dep_init(&dilasm, dilasm_dep_path,
+                    targets[TARGET_DILASM], SRC_CPU);
 
-    if (status == -1) {
-        status = BIL_EXIT_SUCCESS;
-        bil_log(BIL_INFO, "No changes");
-    }
+        if (bil_dep_ischange(&lasm)) status = build_lasm(&cmd);
+        if (bil_dep_ischange(&lunem)) status = build_lunem(&cmd);
+        if (bil_dep_ischange(&dilasm)) status = build_dilasm(&cmd);
 
-    bil_cmd_clean(&cmd);
-    bil_dep_clean(&lasm);
-    bil_dep_clean(&lunem);
-    bil_dep_clean(&dilasm);
+        if (status == -1) {
+            status = BIL_EXIT_SUCCESS;
+            bil_log(BIL_INFO, "No changes");
+        }
 
+    bil_workflow_end();
     return status;
 }

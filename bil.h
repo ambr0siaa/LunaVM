@@ -27,20 +27,25 @@
 #    include <sys/stat.h>
 #    include <unistd.h>
 #    include <fcntl.h>
+#    include <sys/time.h>
 #endif
 
-#define BIL_ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-
 #define BIL_DA_INIT_CAPACITY 256
+
+#define BIL_ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#define BIL_DA_SIZE(da) (da)->capacity * sizeof(*(da)->items)
+
 #define BIL_ASSERT assert
 #define BIL_FREE free
 #define BIL_EXIT exit
-#define BIL_REALLOC realloc
+#define BIL_REALLOC bil_realloc
 
 #define BIL_INFO_COLOR "\033[0;36m"
 #define BIL_ERROR_COLOR "\033[0;31m"
 #define BIL_NORMAL_COLOR "\x1B[0m"
 #define BIL_WARNING_COLOR "\x1b[36m"
+
+static int bil_alloc_flag;
 
 #ifdef _WIN32
 typedef HANDLE Bil_Proc;
@@ -50,47 +55,60 @@ typedef int Bil_Proc;
 #define BIL_INVALID_PROC (-1)
 #endif
 
-#define bil_da_append(da, new_item)                                                              \
-    do {                                                                                         \
-        if ((da)->count >= (da)->capacity) {                                                     \
-            (da)->capacity = (da)->capacity > 0 ? (da)->capacity * 2 : BIL_DA_INIT_CAPACITY;     \
-            (da)->items = BIL_REALLOC((da)->items, (da)->capacity * sizeof(*(da)->items));       \
-            BIL_ASSERT((da)->items != NULL);                                                     \
-        }                                                                                        \
-        (da)->items[(da)->count++] = (new_item);                                                 \
-    } while(0)
+#define bil_da_init(da, cap)            \
+    do {                                \
+        (da)->items = bil_alloc((cap)); \
+        (da)->capacity = (cap);         \
+        (da)->count = 0;                \
+    } while (0)
 
-#define bil_da_append_many(da, new_items, items_count)                                           \
-    do {                                                                                         \
-        if ((da)->count + (items_count) >= (da)->capacity) {                                     \
-            if ((da)->capacity == 0) (da)->capacity = BIL_DA_INIT_CAPACITY;                      \
-            while ((da)->count + (items_count) >= (da)->capacity) { (da)->capacity *= 2; }       \
-            (da)->items = BIL_REALLOC((da)->items, (da)->capacity * sizeof(*(da)->items));       \
-            BIL_ASSERT((da)->items != NULL);                                                     \
-        }                                                                                        \
-        memcpy((da)->items + (da)->count, (new_items), (items_count) * sizeof(*(da)->items));    \
-        (da)->count += (items_count);                                                            \
+#define bil_da_append(da, new_item)                                                          \
+    do {                                                                                     \
+        if ((da)->capacity == 0) bil_da_init((da), BIL_DA_INIT_CAPACITY);                    \
+        if ((da)->count >= (da)->capacity) {                                                 \
+            size_t old_size = BIL_DA_SIZE((da));                                             \
+            (da)->capacity = (da)->capacity > 0 ? (da)->capacity * 2 : BIL_DA_INIT_CAPACITY; \
+            (da)->items = BIL_REALLOC((da)->items, old_size, BIL_DA_SIZE((da)));             \
+            BIL_ASSERT((da)->items != NULL);                                                 \
+        }                                                                                    \
+        (da)->items[(da)->count++] = (new_item);                                             \
+    } while (0)
+
+#define bil_da_append_many(da, new_items, items_count)                                        \
+    do {                                                                                      \
+        if ((da)->capacity == 0) bil_da_init((da), BIL_DA_INIT_CAPACITY);                     \
+        if ((da)->count + (items_count) >= (da)->capacity) {                                  \
+            if ((da)->capacity == 0) (da)->capacity = BIL_DA_INIT_CAPACITY;                   \
+            size_t old_size = BIL_DA_SIZE((da));                                              \
+            while ((da)->count + (items_count) >= (da)->capacity) { (da)->capacity *= 2; }    \
+            (da)->items = BIL_REALLOC((da)->items, old_size, BIL_DA_SIZE((da)));              \
+            BIL_ASSERT((da)->items != NULL);                                                  \
+        }                                                                                     \
+        memcpy((da)->items + (da)->count, (new_items), (items_count) * sizeof(*(da)->items)); \
+        (da)->count += (items_count);                                                         \
     } while (0)
 
 #define bil_da_append_da(dst, src)                                                               \
     do {                                                                                         \
+        if ((dst)->capacity == 0) bil_da_init((dst), BIL_DA_INIT_CAPACITY);                      \
         if ((dst)->count + (src)->count >= (dst)->capacity) {                                    \
             if ((dst)->capacity == 0) (dst)->capacity = BIL_DA_INIT_CAPACITY;                    \
+            size_t old_size = BIL_DA_SIZE((dst));                                                \
             while ((dst)->count + (src)->count >= (dst)->capacity) { (dst)->capacity *= 2; }     \
-            (dst)->items = BIL_REALLOC((dst)->items, (dst)->capacity * sizeof(*(dst)->items));   \
+            (dst)->items = BIL_REALLOC((dst)->items, old_size, BIL_DA_SIZE((dst)));              \
             BIL_ASSERT((dst)->items != NULL);                                                    \
         }                                                                                        \
         memcpy((dst)->items + (dst)->count, (src)->items, (src)->count * sizeof(*(src)->items)); \
         (dst)->count += (src)->count;                                                            \
     } while (0)
 
-#define bil_da_clean(da)            \
-    do {                            \
-        if ((da)->items != NULL) {  \
-            BIL_FREE((da)->items);  \
-            (da)->capacity = 0;     \
-            (da)->count = 0;        \
-        }                           \
+#define bil_da_clean(da)                              \
+    do {                                              \
+        if ((da)->items != NULL && bil_alloc_flag) {  \
+            BIL_FREE((da)->items);                    \
+            (da)->capacity = 0;                       \
+            (da)->count = 0;                          \
+        }                                             \
     } while (0)
 
 typedef enum {
@@ -202,7 +220,6 @@ typedef struct {
     size_t count;
 } Bil_Deps_Info;
 
-
 typedef struct {
     Bil_Cstr_Array deps;    
     const char *output_file;
@@ -295,9 +312,159 @@ char *bil_shift_args(int *argc, char ***argv);
 Bil_String_Builder bil_mk_path(char *file, ...);
 #define PATH(file, ...) bil_mk_path(file, __VA_ARGS__, NULL)
 
+typedef struct Bil_Region Bil_Region;
+#define BIL_REGION_DEFAULT_CAPACITY (4 * 1024)
+#define BIL_ALIGNMENT sizeof(void*)
+#define BIL_ASIZE_CMP(size) ((size) < BIL_REGION_DEFAULT_CAPACITY ? BIL_REGION_DEFAULT_CAPACITY : (size))
+
+struct Bil_Region {
+    size_t capacity;
+    size_t alloc_pos;
+    Bil_Region *next;
+    char *data;
+};
+
+Bil_Region *bil_region_create(size_t region_size);
+void *bil_alloc(size_t size);
+void *bil_realloc(void *ptr, size_t old_size, size_t new_size);
+
+typedef struct Job Job;
+
+struct Job {
+    struct timeval begin;
+    struct timeval end;
+    Bil_Region *r_head;
+    Bil_Region *r_tail;
+    Job *next;
+};
+
+typedef struct {
+    Job *head;
+    Job *tail;
+} Bil_Workflow;
+
+Bil_Workflow *workflow = NULL;
+
+void bil_workflow_begin();
+void bil_workflow_end();
+
 #endif // BIL_H_
 
 #ifdef BIL_IMPLEMENTATION
+
+Bil_Region *bil_region_create(size_t region_size)
+{
+    Bil_Region *r = malloc(sizeof(Bil_Region));
+    r->data = malloc(region_size);
+    r->capacity = region_size;
+    r->alloc_pos = 0;
+    r->next = NULL;
+    return r;
+}
+
+void *bil_alloc(size_t size)
+{
+    if (workflow == NULL) {
+        bil_alloc_flag = 1;
+        bil_log(BIL_WARNING, "Default malloc is used. Keep memory clean!");
+        return malloc(size);
+    }
+
+    bil_alloc_flag = 0;
+    Job *actual = workflow->tail;
+    Bil_Region *cur = actual->r_head;
+    size_t align_size = (size + (BIL_ALIGNMENT - 1)) & ~(BIL_ALIGNMENT - 1);
+
+    while (1) {
+        if (cur == NULL) {
+            Bil_Region* r = bil_region_create((size) < BIL_REGION_DEFAULT_CAPACITY ?
+                                              BIL_REGION_DEFAULT_CAPACITY : (size));
+            actual->r_tail->next = r;
+            actual->r_tail = r;
+            cur = actual->r_tail;
+        }
+
+        if (cur->alloc_pos + align_size <= cur->capacity) {
+            char *ptr = (char*)(cur->data + cur->alloc_pos);
+            memset(ptr, 0, align_size);
+            cur->alloc_pos += align_size;
+            return ptr;
+        
+        } else {
+            cur = cur->next;
+            continue;
+        }
+    }
+}
+
+void *bil_realloc(void *ptr, size_t old_size, size_t new_size)
+{
+    if (new_size > old_size) {
+        void *new_ptr = bil_alloc(new_size);
+        memcpy(new_ptr, ptr, old_size);
+        return new_ptr;
+    } else {
+        return ptr;
+    }
+}
+
+void bil_workflow_begin()
+{
+    Job *job = malloc(sizeof(Job));
+    job->end = (struct timeval) {0};
+    gettimeofday(&job->begin, NULL);
+
+    Bil_Region *r = bil_region_create(BIL_REGION_DEFAULT_CAPACITY);
+    job->r_head = r;
+    job->r_tail = r;
+
+    job->next = NULL;
+    
+    if (workflow == NULL) {
+        workflow = malloc(sizeof(Bil_Workflow));
+        workflow->head = job;
+        workflow->tail = job;
+    } else {
+        workflow->tail->next = job;
+        workflow->tail = job;
+    }
+}
+
+void bil_workflow_end()
+{
+    if (workflow == NULL) {
+        bil_log(BIL_WARNING, "Cannot clear workflow that not exist. All workflows have already done or haven't begun\n");
+        return;
+    }
+
+    Job *job = workflow->tail;
+    Bil_Region *r = job->r_head;
+    while(r != NULL) {
+        Bil_Region *r_next = r->next;
+        free(r->data);
+        free(r);
+        r = r_next;
+    }
+
+    gettimeofday(&job->end, NULL);
+
+    double time_taken = (job->end.tv_sec - job->begin.tv_sec) * 1e6;
+    time_taken = (time_taken + (job->end.tv_usec - job->begin.tv_usec)) * 1e-6;
+    bil_log(BIL_INFO, "Workflow has taken: %lf sec", time_taken);
+
+    Job *cur = workflow->head;
+    if (cur == job) {
+        free(job);
+        free(workflow);
+        workflow = NULL;
+        return;
+    }
+
+    while (cur->next != job) cur = cur->next;
+    free(job);
+    cur->next = NULL;
+    workflow->tail = cur;
+}
 
 uint32_t sv_to_u32(Bil_String_View sv)
 {
@@ -420,6 +587,7 @@ void bil_wildcard()
     }
 }
 
+// TODO: add return result
 char *bil_read_file(const char *file_path)
 {
     FILE *f = fopen(file_path, "r");
@@ -438,7 +606,7 @@ char *bil_read_file(const char *file_path)
     if (fseek(f, 0, SEEK_SET) < 0) 
         goto error_reading;
 
-    char *buf = malloc(file_size + 1);
+    char *buf = bil_alloc(file_size + 1);
     if (!buf) {
         bil_log(BIL_ERROR, "cannot allocate size `%li`\n", file_size);
         BIL_EXIT(1);
@@ -494,6 +662,7 @@ Bil_FileTime bil_file_last_update(const char *path)
 #endif
 }
 
+// TODO: add return result
 void bil_dep_write(const char *path, Bil_String_Builder *dep)
 {
     FILE *f = fopen(path, "w");
@@ -639,7 +808,7 @@ bool bil_dep_ischange(Bil_Dep *dep)
         sb_clean(&out);
     }
 
-    free(buf);
+    if (bil_alloc_flag) free(buf);
     bil_da_clean(&info);
     return result;
 }
@@ -709,7 +878,7 @@ Bil_String_Builder sb_from_cstr(char *cstr)
         do { capacity *= 2; } while (len > capacity);
     }
 
-    char *buf = malloc(capacity * sizeof(char));
+    char *buf = bil_alloc(capacity * sizeof(char));
     memcpy(buf, cstr, len);
 
     return (Bil_String_Builder) {
@@ -784,7 +953,7 @@ Bil_Proc bil_cmd_run_async(Bil_Cmd *cmd)
     sb_clean(&command);
     return pi.hProcess;
 #else
-    sb_clean(&command);
+    if (bil_alloc_flag) sb_clean(&command);
     pid_t cpid = fork();
 
     if (cpid < 0) {
