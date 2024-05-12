@@ -46,6 +46,8 @@ static int hdlr = 0;
 static char *binary_dir_path = "bin";
 
 const char *dep_dir_path = "bin/dep";
+const char *bytecode_dir_path = "lasm/examples/bytecode";
+
 const char *lasm_dep_path = "bin/dep/lasm.bil";
 const char *lunem_dep_path = "bin/dep/lunem.bil";
 const char *dilasm_dep_path = "bin/dep/dilasm.bil";
@@ -261,13 +263,20 @@ void cmd_handler(int *argc, char ***argv)
     }
 }
 
+void mk_important_dirs()
+{
+    if (!bil_dir_exist(dep_dir_path)) 
+        bil_mkdir(dep_dir_path);
+
+    if (!bil_dir_exist(bytecode_dir_path))
+        bil_mkdir(bytecode_dir_path);
+}
+
 int main(int argc, char **argv)
 {
-    BIL_REBUILD(argv, binary_dir_path);
+    BIL_REBUILD(argc, argv, binary_dir_path);
 
-    if (!bil_dir_exist(dep_dir_path)) 
-                bil_mkdir(dep_dir_path);
-
+    mk_important_dirs();
     cmd_args(&argc, &argv);
     cmd_handler(&argc, &argv);
 

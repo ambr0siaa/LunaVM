@@ -250,7 +250,7 @@ char *bil_read_file(const char *file_path);
 #define BIL_CURRENT_DIR "current"
 
 // After rebuilding old file renames to `DELETME`
-#define BIL_REBUILD(argv, deleteme_dir)                                                             \
+#define BIL_REBUILD(argc, argv, deleteme_dir)                                                       \
     do {                                                                                            \
         const char *output_file_path = (argv[0]);                                                   \
         const char *source_file_path = __FILE__;                                                    \
@@ -281,7 +281,7 @@ char *bil_read_file(const char *file_path);
             bil_log(BIL_INFO, "rebuild complete");                                                  \
                                                                                                     \
             Bil_Cmd cmd = {0};                                                                      \
-            bil_cmd_append(&cmd, output_file_path);                                                 \
+            bil_da_append_many(&cmd, argv, argc);                                                   \
             bil_cmd_run_async(&cmd);                                                                \
             bil_cmd_clean(&cmd);                                                                    \
             BIL_EXIT(0);                                                                            \
