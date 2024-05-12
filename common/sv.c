@@ -295,7 +295,7 @@ String_View sv_read_file(const char *file_path)
         exit(1);
     }
 
-    long file_size = ftell(fp);
+    long int file_size = ftell(fp);
     if (file_size < 0) {
         fprintf(stderr, "error: cannot read from `%s` file\n", file_path);
         exit(1);
