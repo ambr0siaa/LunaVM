@@ -136,7 +136,39 @@ String_View lasm_cut_comments_from_src(String_View *sv)
 
 void lasm_load_file(Lasm *L)
 {
-    L->src = sv_read_file(L->input_file);
+    FILE *f = fopen(L->input_file, "rb");
+    if (!f) {
+        fprintf(stderr, "Error: cannot open file `%s`\n", L->input_file);
+        lasm_cleanup(L);
+        exit(1);
+    }
+
+    if (fseek(f, 0, SEEK_END) < 0)
+        goto error;
+
+    long int file_size = ftell(f);
+    if (file_size < 0)
+        goto error;
+
+    char *buf = arena_alloc(&L->arena, file_size + 1);
+    if (!buf)
+        goto error;
+
+    if (fseek(f, 0, SEEK_SET) < 0)
+        goto error;
+
+    size_t buf_len = fread(buf, sizeof(buf[0]), file_size, f);
+    buf[buf_len] = '\0';
+
+    L->src = sv_from_parts(buf, buf_len);
+    fclose(f);
+    return;
+
+error:
+    fprintf(stderr, "Error: cannot read from file `%s`\n", L->input_file);
+    lasm_cleanup(L);
+    fclose(f);
+    exit(1);
 }
 
 void lasm_save_program_to_file(Lasm *L)
@@ -144,21 +176,22 @@ void lasm_save_program_to_file(Lasm *L)
     FILE *fp = fopen(L->output_file, "wb");
     if (!fp) {
         fprintf(stderr, "Error: cannot open file by `%s` path\n", L->output_file);
+        lasm_cleanup(L);
         exit(1);
     }
 
     size_t count = fwrite(L->program, sizeof(L->program[0]), L->program_size, fp);
-    if (count != L->program_size) {
-        fprintf(stderr, "Error: cannot write to file `%s`", L->output_file);
-        exit(1);
-    }
-
-    if (ferror(fp)) {
-        fprintf(stderr, "Error: cannot write to `%s` file\n", L->output_file);
-        exit(1);
-    }
+    if (count != L->program_size) goto error;
+    if (ferror(fp)) goto error;
 
     fclose(fp);
+    return;
+
+error:
+    fprintf(stderr, "Error: cannot write to `%s` file\n", L->output_file);
+    lasm_cleanup(L);
+    fclose(fp);
+    exit(1);
 }
 
 void lasm_translate_source(Lasm *L)
