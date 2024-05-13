@@ -121,14 +121,15 @@ typedef enum {
 #define BIL_EXIT_FAILURE 1
 
 #ifndef BIL_REBUILD_COMMAND
+#  define BIL_REBUILD_CFLAGS "-Wall", "-Wextra", "-flto", "-O3"
 #  if _WIN32
 #    if defined(__GNUC__)
-#       define BIL_REBUILD_COMMAND(source_path, output_path) "gcc", "-o", (output_path), (source_path)
+#       define BIL_REBUILD_COMMAND(source_path, output_path) "gcc", "-o", (output_path), (source_path), BIL_REBUILD_CFLAGS
 #    elif defined(__clang__)
-#       define BIL_REBUILD_COMMAND(source_path, output_path) "clang", "-o", (output_path), (source_path)
+#       define BIL_REBUILD_COMMAND(source_path, output_path) "clang", "-o", (output_path), (source_path), BIL_REBUILD_CFLAGS
 #    endif
 #  else
-#       define BIL_REBUILD_COMMAND(source_path, output_path) "gcc", "-o", (output_path), (source_path)
+#       define BIL_REBUILD_COMMAND(source_path, output_path) "gcc", "-o", (output_path), (source_path), BIL_REBUILD_CFLAGS
 #  endif
 #endif // BIL_REBUILD_COMMAND
 
@@ -228,12 +229,14 @@ typedef struct {
 /*
 *  Usage for dependences:
 *      Bil_Dep dep = {0};
-*      bil_dep_init(
-*             1. &dep, 
-*             2. path for output dependence file.
-*                Well, I named this files with extention `.bil`,
-*             3. file paths that is dependence
-*                this file bil will keep an eye on
+*      bil_dep_init (
+*             &dep,
+
+*             [path for output dependence file.
+*              Well, I named this files with extention `.bil`],
+
+*             [file paths that is dependence
+*              this file bil will keep an eye on]
 *           );
 */
 
@@ -241,11 +244,14 @@ bool bil_dep_ischange(Bil_Dep *dep);    // the main workhorse function for depen
 
 // some stuffs for bil's dependences 
 uint32_t bil_file_id(char *file_path);
-Bil_Deps_Info bil_parse_dep(char *src);
 Bil_FileTime bil_file_last_update(const char *path);
-void bil_dep_write(const char *path, Bil_String_Builder *dep);
+
+Bil_Deps_Info bil_parse_dep(char *src);
+bool bil_dep_write(const char *path, Bil_String_Builder *dep);
+
 Bil_String_Builder bil_mk_dependence_file(Bil_Cstr_Array deps);
 Bil_String_Builder bil_mk_dependence_from_info(Bil_Deps_Info *info);
+
 void bil_change_dep_info(Bil_Deps_Info *info, struct bil_dep_info new_info);
 bool bil_deps_info_search(Bil_Deps_Info *info, uint32_t id, struct bil_dep_info *target); 
 
@@ -261,60 +267,65 @@ bool bil_deps_info_search(Bil_Deps_Info *info, uint32_t id, struct bil_dep_info 
 
 void bil_mkdir(const char *name);
 bool bil_dir_exist(const char *dir_path);
-char *bil_read_file(const char *file_path);
 
 #define DELETEME_FILE "DELETEME"
-#define BIL_CURRENT_DIR "current"
+#define BIL_CURRENT_DIR "cur"
 
 // After rebuilding old file renames to `DELETME`
-#define BIL_REBUILD(argc, argv, deleteme_dir)                                                       \
-    do {                                                                                            \
-        const char *output_file_path = (argv[0]);                                                   \
-        const char *source_file_path = __FILE__;                                                    \
-                                                                                                    \
-        bool rebuild_is_need = bil_check_for_rebuild(output_file_path, source_file_path);           \
-                                                                                                    \
-        if (rebuild_is_need) {                                                                      \
-            bil_log(BIL_INFO, "start rebuild file `%s`", source_file_path);                         \
-            Bil_String_Builder deleteme_sb_path = {0};                                              \
-            const char *deleteme_path;                                                              \
-                                                                                                    \
-            int is_current = strcmp(deleteme_dir, BIL_CURRENT_DIR);                                 \
-                                                                                                    \
-            if (is_current) {                                                                       \
-                deleteme_sb_path = PATH(".", deleteme_dir, DELETEME_FILE);                          \
-                deleteme_path = deleteme_sb_path.items;                                             \
-            } else {                                                                                \
-                deleteme_path = DELETEME_FILE;                                                      \
-            }                                                                                       \
-                                                                                                    \
-            if (!bil_rename_file(output_file_path, deleteme_path)) BIL_EXIT(1);                     \
-            if (is_current) sb_clean(&deleteme_sb_path);                                            \
-                                                                                                    \
-            Bil_Cmd rebuild_cmd = {0};                                                              \
-            bil_cmd_append(&rebuild_cmd, BIL_REBUILD_COMMAND(source_file_path, output_file_path));  \
-            if (!bil_cmd_run_sync(&rebuild_cmd)) BIL_EXIT(1);                                       \
-            bil_cmd_clean(&rebuild_cmd);                                                            \
-            bil_log(BIL_INFO, "rebuild complete");                                                  \
-                                                                                                    \
-            Bil_Cmd cmd = {0};                                                                      \
-            bil_da_append_many(&cmd, argv, argc);                                                   \
-            bil_cmd_run_async(&cmd);                                                                \
-            bil_cmd_clean(&cmd);                                                                    \
-            BIL_EXIT(0);                                                                            \
-        }                                                                                           \
+#define BIL_REBUILD(argc, argv, deleteme_dir)                                                           \
+    do {                                                                                                \
+        bil_workflow_begin();                                                                           \
+            int status = -1;                                                                            \
+            const char *output_file_path = (argv[0]);                                                   \
+            const char *source_file_path = __FILE__;                                                    \
+                                                                                                        \
+            bool rebuild_is_need = bil_check_for_rebuild(output_file_path, source_file_path);           \
+                                                                                                        \
+            if (rebuild_is_need) {                                                                      \
+                Bil_String_Builder deleteme_sb_path = {0};                                              \
+                const char *deleteme_path;                                                              \
+                                                                                                        \
+                int is_current = strcmp(deleteme_dir, BIL_CURRENT_DIR);                                 \
+                                                                                                        \
+                if (is_current) {                                                                       \
+                    deleteme_sb_path = PATH(".", deleteme_dir, DELETEME_FILE);                          \
+                    deleteme_path = deleteme_sb_path.items;                                             \
+                } else {                                                                                \
+                    deleteme_path = DELETEME_FILE;                                                      \
+                }                                                                                       \
+                                                                                                        \
+                if (!bil_rename_file(output_file_path, deleteme_path)) BIL_EXIT(1);                     \
+                if (is_current) sb_clean(&deleteme_sb_path);                                            \
+                                                                                                        \
+                Bil_Cmd rebuild_cmd = {0};                                                              \
+                bil_cmd_append(&rebuild_cmd, BIL_REBUILD_COMMAND(source_file_path, output_file_path));  \
+                if (!bil_cmd_run_sync(&rebuild_cmd)) bil_defer_status(BIL_EXIT_FAILURE);                \
+                bil_log(BIL_INFO, "rebuild complete");                                                  \
+                bil_cmd_clean(&rebuild_cmd);                                                            \
+                                                                                                        \
+                Bil_Cmd cmd = {0};                                                                      \
+                bil_da_append_many(&cmd, argv, argc);                                                   \
+                bil_cmd_run_sync(&cmd);                                                                 \
+                bil_cmd_clean(&cmd);                                                                    \
+            }                                                                                           \
+    defer:                                                                                              \
+        bil_workflow_end(WORKFLOW_NO_TIME);                                                             \
+        if (status != -1) BIL_EXIT(status);                                                             \
     } while (0)
 
 int bil_file_exist(const char *file_path);
 void bil_delete_file(const char *file_path);
+bool bil_read_file(const char *file_path, char **dst);
+
 char *bil_shift_args(int *argc, char ***argv);
 
 Bil_String_Builder bil_mk_path(char *file, ...);
 #define PATH(file, ...) bil_mk_path(file, __VA_ARGS__, NULL)
 
 typedef struct Bil_Region Bil_Region;
-#define BIL_REGION_DEFAULT_CAPACITY (4 * 1024)
+
 #define BIL_ALIGNMENT sizeof(void*)
+#define BIL_REGION_DEFAULT_CAPACITY (1024)
 #define BIL_ASIZE_CMP(size) ((size) < BIL_REGION_DEFAULT_CAPACITY ? BIL_REGION_DEFAULT_CAPACITY : (size))
 
 struct Bil_Region {
@@ -325,12 +336,15 @@ struct Bil_Region {
 };
 
 Bil_Region *bil_region_create(size_t region_size);
+
 void *bil_alloc(size_t size);
 void *bil_realloc(void *ptr, size_t old_size, size_t new_size);
 
+// TODO: rename Job -> Context
 typedef struct Job Job;
 
 struct Job {
+    // TODO: implemente time of workflow on windows
     struct timeval begin;
     struct timeval end;
     Bil_Region *r_head;
@@ -338,15 +352,50 @@ struct Job {
     Job *next;
 };
 
+#define bil_defer_status(s) do { status = (s); goto defer; } while(0)
+#define WORKFLOW_NO_TIME 1
+
 typedef struct {
     Job *head;
     Job *tail;
 } Bil_Workflow;
 
+/*
+* Usage for workflow:
+    
+    - Workflow is special region which simplify working 
+      with memmory allocations.
+
+    - You also don't have to use workflow but
+      if don't use it, you should clean everything up by hands.
+
+    - For using workflow context
+      put `bil_workflow_begin` (start of workflow context)
+      next put `bil_workflow_end` (end of workflow context).
+      In bitween of this functions do some stuff and don't care about memmory leaks
+      current workflow context will care about it.
+
+    - Workflow contexts can be define in other workflow context.
+ 
+    - Example:
+        void somefunc() {
+            ...
+            bil_workflow_begin();
+                
+                some building job
+
+            bil_workflow_end();
+            ...
+        }
+*/
+
 Bil_Workflow *workflow = NULL;
 
 void bil_workflow_begin();
-void bil_workflow_end();
+void workflow_end(const int *args, int argc);
+
+#define bil_workflow_end(...) \
+    workflow_end(((const int[]){__VA_ARGS__}), sizeof((const int[]){__VA_ARGS__}) / sizeof(const int));
 
 #endif // BIL_H_
 
@@ -430,7 +479,7 @@ void bil_workflow_begin()
     }
 }
 
-void bil_workflow_end()
+void workflow_end(const int *args, int argc)
 {
     if (workflow == NULL) {
         bil_log(BIL_WARNING, "Cannot clear workflow that not exist. All workflows have already done or haven't begun\n");
@@ -438,6 +487,15 @@ void bil_workflow_end()
     }
 
     Job *job = workflow->tail;
+
+    if (argc < 1) {
+    workflow_time:
+        gettimeofday(&job->end, NULL);
+        double time_taken = (job->end.tv_sec - job->begin.tv_sec) * 1e6;
+        time_taken = (time_taken + (job->end.tv_usec - job->begin.tv_usec)) * 1e-6;
+        bil_log(BIL_INFO, "Workflow has taken %lf sec", time_taken);
+    } else if (argc > 0 && args[0] != WORKFLOW_NO_TIME) goto workflow_time;
+
     Bil_Region *r = job->r_head;
     while(r != NULL) {
         Bil_Region *r_next = r->next;
@@ -445,12 +503,6 @@ void bil_workflow_end()
         free(r);
         r = r_next;
     }
-
-    gettimeofday(&job->end, NULL);
-
-    double time_taken = (job->end.tv_sec - job->begin.tv_sec) * 1e6;
-    time_taken = (time_taken + (job->end.tv_usec - job->begin.tv_usec)) * 1e-6;
-    bil_log(BIL_INFO, "Workflow has taken: %lf sec", time_taken);
 
     Job *cur = workflow->head;
     if (cur == job) {
@@ -559,7 +611,7 @@ void bil_mkdir(const char *dir_path)
 
 bool bil_dir_exist(const char *dir_path)
 {
-    bool result;
+    bool result = true;
     DIR *dir = opendir(dir_path);
     if (dir) {
         result = true;
@@ -567,6 +619,7 @@ bool bil_dir_exist(const char *dir_path)
         result = false;
     } else {
         bil_log(BIL_ERROR, "file `%s` not a directory\n", dir_path);
+        result = false;
     }
     closedir(dir);
     return result;
@@ -587,44 +640,40 @@ void bil_wildcard()
     }
 }
 
-// TODO: add return result
-char *bil_read_file(const char *file_path)
+
+bool bil_read_file(const char *file_path, char **dst)
 {
+    bool status = true;
     FILE *f = fopen(file_path, "r");
-    if (!f) {
-        bil_log(BIL_ERROR, "cannot open file `%s`", file_path);
-        BIL_EXIT(1);
-    }
+    if (!f) bil_defer_status(false);
 
     if (fseek(f, 0, SEEK_END) < 0)
-        goto error_reading; 
+        bil_defer_status(false); 
 
     long int file_size = ftell(f);
     if (file_size < 0)
-        goto error_reading;
+        bil_defer_status(false);
 
-    if (fseek(f, 0, SEEK_SET) < 0) 
-        goto error_reading;
+    if (fseek(f, 0, SEEK_SET) < 0)
+        bil_defer_status(false);
 
     char *buf = bil_alloc(file_size + 1);
-    if (!buf) {
-        bil_log(BIL_ERROR, "cannot allocate size `%li`\n", file_size);
-        BIL_EXIT(1);
-    }
+    if (!buf) bil_defer_status(false);
 
     size_t buf_len = fread(buf, 1, file_size, f);
     buf[buf_len] = '\0';
 
     if (ferror(f))
-        goto error_reading; 
+        bil_defer_status(false);
 
+    *dst = buf;
+
+defer:
     fclose(f);
-    return buf;
-
-    error_reading:
-        fclose(f);
-        bil_log(BIL_ERROR, "cannot read from `%s`: %s", file_path, strerror(errno));
-        BIL_EXIT(1);
+    if (status != true)
+        bil_log(BIL_ERROR, "cannot read from `%s`: %s",
+                file_path, strerror(errno));
+    return status;
 }
 
 Bil_FileTime bil_file_last_update(const char *path)
@@ -662,23 +711,25 @@ Bil_FileTime bil_file_last_update(const char *path)
 #endif
 }
 
-// TODO: add return result
-void bil_dep_write(const char *path, Bil_String_Builder *dep)
+bool bil_dep_write(const char *path, Bil_String_Builder *dep)
 {
+    bool status = true;
     FILE *f = fopen(path, "w");
     if (!f) {
         bil_log(BIL_ERROR, "cannot open file by path `%s`", path);
-        BIL_EXIT(1);
+        bil_defer_status(false);
     }
 
     fwrite(dep->items, sizeof(dep->items[0]), sizeof(dep->items[0]) * dep->count, f);
 
     if (ferror(f)) {
         bil_log(BIL_ERROR, "cannot write to `%s` file", path);
-        BIL_EXIT(1);
+        bil_defer_status(false);
     }
 
+defer:
     fclose(f);
+    return status;
 }
 
 uint32_t bil_file_id(char *file_path)
@@ -767,7 +818,8 @@ bool bil_dep_ischange(Bil_Dep *dep)
         return false;
     }
 
-    char *buf = bil_read_file(dep->output_file);
+    char *buf;
+    if (!bil_read_file(dep->output_file, &buf)) return false;
     Bil_Deps_Info info = bil_parse_dep(buf);
 
     for (size_t i = 0; i < dep->deps.count; ++i) {
@@ -953,7 +1005,7 @@ Bil_Proc bil_cmd_run_async(Bil_Cmd *cmd)
     sb_clean(&command);
     return pi.hProcess;
 #else
-    if (bil_alloc_flag) sb_clean(&command);
+    sb_clean(&command);
     pid_t cpid = fork();
 
     if (cpid < 0) {
@@ -979,7 +1031,7 @@ Bil_Proc bil_cmd_run_async(Bil_Cmd *cmd)
 
 char *bil_shift_args(int *argc, char ***argv)
 {
-    assert(argc >= 0);
+    assert(*argc >= 0);
     char *result = **argv;
 
     *argv += 1;

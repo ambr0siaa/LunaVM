@@ -24,7 +24,7 @@
 
 #define CC "gcc"
 #define DEBUG_MODE "-g3", "-ggdb"
-#define CFLAGS "-Wall", "-Wextra", "-flto", "-ggdb", "-g3"
+#define CFLAGS "-Wall", "-Wextra", "-flto"
 
 #define SRC_CPU      \
     "cpu/src/cpu.c", \
@@ -75,8 +75,6 @@ char *outputs[] = {
 #define PREF_LASM "lasm"
 #define PREF_EXAMPLES "examples"
 #define PREF_BYTECODE "examples/bytecode"
-
-#define workflow_status(s) status = (s); goto endw;
 
 void mk_path_to_example(Bil_String_Builder *sb, char *where, int *argc, char ***argv)
 {
@@ -148,7 +146,7 @@ void cmd_args(int *argc, char ***argv)
                 } else bil_delete_file(DELETEME_FILE);
 
                 if (*argc < 1)
-                    workflow_status(BIL_EXIT_SUCCESS);
+                    bil_defer_status(BIL_EXIT_SUCCESS);
 
             } else if (!strcmp("-b", flag)) {
                 Bil_Cmd cmd = {0};
@@ -159,12 +157,12 @@ void cmd_args(int *argc, char ***argv)
                         case TARGET_DILASM: status = build_dilasm(&cmd); break;
                     }
                 }
-                workflow_status(status);
+                bil_defer_status(status);
             }
         }
 
-    endw:
-    bil_workflow_end();
+defer:
+    bil_workflow_end(WORKFLOW_NO_TIME);
     if (status != -1) BIL_EXIT(status);
 }
 
@@ -176,7 +174,7 @@ void cmd_handler(int *argc, char ***argv)
 
             if (*argc < 1) {
                 bil_log(BIL_ERROR, "expected commands for handler");
-                workflow_status(BIL_EXIT_FAILURE);
+                bil_defer_status(BIL_EXIT_FAILURE);
             }
 
             Bil_Cmd handler = {0};
@@ -188,7 +186,7 @@ void cmd_handler(int *argc, char ***argv)
                     lasm_error:
                     bil_log(BIL_ERROR, "expected commands for `lasm`");
                     CMD("lasm/src/lasm", "-h");
-                    workflow_status(BIL_EXIT_FAILURE);
+                    bil_defer_status(BIL_EXIT_FAILURE);
                 }
 
                 target_path = PATH(PREF_LASM, PREF_SRC, target);
@@ -215,13 +213,13 @@ void cmd_handler(int *argc, char ***argv)
                 }
 
                 if (!bil_cmd_run_sync(&handler))
-                    workflow_status(BIL_EXIT_FAILURE);
+                    bil_defer_status(BIL_EXIT_FAILURE);
 
             } else if (!strcmp("lunem", target)) {
                 if (*argc < 1) {
                     bil_log(BIL_ERROR, "expected commands for `lunem`");
                     CMD("lasm/src/lunem", "-h");
-                    workflow_status(BIL_EXIT_FAILURE);
+                    bil_defer_status(BIL_EXIT_FAILURE);
                 }
 
                 target_path = PATH(PREF_CPU, PREF_SRC, target);
@@ -240,12 +238,12 @@ void cmd_handler(int *argc, char ***argv)
                 }
 
                 if (!bil_cmd_run_sync(&handler)) 
-                    workflow_status(BIL_EXIT_FAILURE);
+                    bil_defer_status(BIL_EXIT_FAILURE);
 
             } else if (!strcmp("dilasm", target)) {
                 if (*argc < 1) {
                     bil_log(BIL_ERROR, "expected commands for `dilasm`");
-                    workflow_status(BIL_EXIT_FAILURE);
+                    bil_defer_status(BIL_EXIT_FAILURE);
                 }
 
                 target_path = PATH(PREF_DOT, "dilasm", target);
@@ -257,12 +255,12 @@ void cmd_handler(int *argc, char ***argv)
 
                 bil_cmd_append(&handler, input_path.items);
                 if (!bil_cmd_run_sync(&handler))
-                    workflow_status(BIL_EXIT_FAILURE);
+                    bil_defer_status(BIL_EXIT_FAILURE);
             }
 
-        endw:
+    defer:
         bil_workflow_end();
-        BIL_EXIT(BIL_EXIT_SUCCESS);
+        BIL_EXIT(status);
     }
 }
 
@@ -292,15 +290,9 @@ int main(int argc, char **argv)
         Bil_Dep lunem = {0};
         Bil_Dep dilasm = {0};
 
-        bil_dep_init(&lasm, lasm_dep_path, 
-                    targets[TARGET_LASM], SRC_LASM, 
-                    SRC_CPU, SRC_COMMON);
-        
-        bil_dep_init(&lunem, lunem_dep_path,
-                    targets[TARGET_LUNEM], SRC_CPU);
-        
-        bil_dep_init(&dilasm, dilasm_dep_path,
-                    targets[TARGET_DILASM], SRC_CPU);
+        bil_dep_init(&lasm, lasm_dep_path, targets[TARGET_LASM], SRC_LASM, SRC_CPU, SRC_COMMON);
+        bil_dep_init(&lunem, lunem_dep_path, targets[TARGET_LUNEM], SRC_CPU);
+        bil_dep_init(&dilasm, dilasm_dep_path, targets[TARGET_DILASM], SRC_CPU);
 
         if (bil_dep_ischange(&lasm)) status = build_lasm(&cmd);
         if (bil_dep_ischange(&lunem)) status = build_lunem(&cmd);

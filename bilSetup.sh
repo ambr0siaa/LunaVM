@@ -2,10 +2,9 @@
 dir=./bin
 
 if [ ! -d "$dir" ]; then
-    echo "[Info] Start making dirictory $dir"
     mkdir $dir
-    echo "[Info] $dir has made"
+    echo "INFO: $dir has made"
 fi
 
-gcc bil.c -flto -ggdb -g -O3 -fno-ident -pipe -fno-ident -z noexecstack -DNDEBUG -o $dir/bil
+gcc bil.c -Wall -Wextra -flto -O3 -fno-ident -pipe -fno-ident -z noexecstack -DNDEBUG -o $dir/bil
 strip -s -R .comment -R .note $dir/bil
