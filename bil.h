@@ -32,7 +32,7 @@
 
 #define BIL_DA_INIT_CAPACITY 256
 
-#define BIL_ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#define BIL_ARRAY_SIZE(arr) (sizeof(arr)/sizeof(arr[0]))
 #define BIL_DA_SIZE(da) (da)->capacity * sizeof(*(da)->items)
 
 #define BIL_ASSERT assert
@@ -241,6 +241,10 @@ typedef struct {
 */
 
 bool bil_dep_ischange(Bil_Dep *dep);    // the main workhorse function for dependencies
+int *bil_deps_ischange(const Bil_Dep *deps, size_t count);
+
+#define bil_check_deps(...) \
+    bil_deps_ischange(((const Bil_Dep[]){__VA_ARGS__}), sizeof((const Bil_Dep[]){__VA_ARGS__}) / sizeof(const Bil_Dep))
 
 // some stuffs for bil's dependences 
 uint32_t bil_file_id(char *file_path);
@@ -389,7 +393,7 @@ typedef struct {
         }
 */
 
-Bil_Workflow *workflow = NULL;
+static Bil_Workflow *workflow = NULL;
 
 void bil_workflow_begin();
 void workflow_end(const int *args, int argc);
@@ -849,7 +853,7 @@ bool bil_dep_ischange(Bil_Dep *dep)
         }
 
         if (changed == true) {
-            bil_log(BIL_INFO, "Changed dependece `%s`", dependence);
+            bil_log(BIL_INFO, "Dependence `%s` has changed", dependence);
             bil_change_dep_info(&info, dependence_info);
         }
     }
@@ -863,6 +867,14 @@ bool bil_dep_ischange(Bil_Dep *dep)
     if (bil_alloc_flag) free(buf);
     bil_da_clean(&info);
     return result;
+}
+
+int *bil_deps_ischange(const Bil_Dep *deps, size_t count)
+{
+    int *changes = bil_alloc(sizeof(int)*count);
+    for (size_t i = 0; i < count; ++i)
+        changes[i] = bil_dep_ischange((Bil_Dep*)(&deps[i]));
+    return changes;
 }
 
 void cmd_single_run(const char **args, size_t args_count)

@@ -13,7 +13,7 @@
 *    -b     if flag was provided it expexted target for building (lasm, lunem, dilasm) and build only 1 provided target. 
 *           By default `bil` builds all targets.
 *
-*    -db    if flag was provided current targets builds with `-g` and `-ggdb` for debug.
+*    -db    if flag was provided current targets builds with `-g3` and `-ggdb` for debug.
 *
 *    -hdlr  bil's handler flag. It simplify working with main targets (lasm, lunem, dilasm) by making path's to examples 
 *           Example: type in terminal [ bin/bil -hdlr lasm -i call.asm -o call.ln ]
@@ -25,6 +25,9 @@
 #define CC "gcc"
 #define DEBUG_MODE "-g3", "-ggdb"
 #define CFLAGS "-Wall", "-Wextra", "-flto"
+
+#define CPU_INCLUDE "-Icpu/src/"
+#define COMMON_INCLUDE "-Icommon/"
 
 #define SRC_CPU      \
     "cpu/src/cpu.c", \
@@ -59,9 +62,12 @@ char *targets[] = {
     "dilasm/dilasm.c"
 };
 
-#define TARGET_LASM 0 
-#define TARGET_LUNEM 1
-#define TARGET_DILASM 2
+enum {
+    TARGET_LASM = 0,
+    TARGET_LUNEM,
+    TARGET_DILASM,
+    TARGET_AMOUNT
+};
 
 char *outputs[] = {
     "lasm/src/lasm",
@@ -83,45 +89,39 @@ void mk_path_to_example(Bil_String_Builder *sb, char *where, int *argc, char ***
     sb_join_nul(sb);
 }
 
-void cc(Bil_Cmd *cmd)
-{
-    bil_cmd_append(cmd, CC);
-    bil_cmd_append(cmd, CFLAGS);
-    if (debug) bil_cmd_append(cmd, DEBUG_MODE);
-    bil_cmd_append(cmd, "-o");
-}
+#define BUILD_TARGET(tar, cmd, ...)                                                     \
+    do {                                                                                \
+        bil_cmd_append(cmd, CC);                                                        \
+        bil_cmd_append(cmd, CFLAGS);                                                    \
+        bil_cmd_append(cmd, CPU_INCLUDE);                                               \
+        bil_cmd_append(cmd, COMMON_INCLUDE);                                            \
+        if (debug) bil_cmd_append(cmd, DEBUG_MODE);                                     \
+        bil_cmd_append(cmd, "-o");                                                      \
+        bil_cmd_append(cmd, outputs[tar]);                                              \
+        bil_cmd_append(cmd, targets[tar]);                                              \
+        bil_da_append_many(cmd,                                                         \
+                           ((const char*[]){__VA_ARGS__}),                              \
+                           sizeof((const char*[]){__VA_ARGS__}) / sizeof(const char*)); \
+                                                                                        \
+        if (!bil_cmd_run_sync(cmd)) return BIL_EXIT_FAILURE;                            \
+                                                                                        \
+        cmd->count = 0;                                                                 \
+        return BIL_EXIT_SUCCESS;                                                        \
+    } while (0)
 
 int build_lasm(Bil_Cmd *cmd)
 {
-    cc(cmd);
-    bil_cmd_append(cmd, outputs[TARGET_LASM]);
-    bil_cmd_append(cmd, targets[TARGET_LASM]);
-    bil_cmd_append(cmd, SRC_LASM, SRC_CPU, SRC_COMMON);
-    if (!bil_cmd_run_sync(cmd)) return BIL_EXIT_FAILURE;
-    cmd->count = 0;
-    return BIL_EXIT_SUCCESS;
+    BUILD_TARGET(TARGET_LASM, cmd, SRC_LASM, SRC_CPU, SRC_COMMON);
 }
 
 int build_lunem(Bil_Cmd *cmd)
 {
-    cc(cmd);
-    bil_cmd_append(cmd, outputs[TARGET_LUNEM]);
-    bil_cmd_append(cmd, targets[TARGET_LUNEM]);
-    bil_cmd_append(cmd, SRC_CPU);
-    if (!bil_cmd_run_sync(cmd)) return BIL_EXIT_FAILURE;
-    cmd->count = 0;
-    return BIL_EXIT_SUCCESS;
+    BUILD_TARGET(TARGET_LUNEM, cmd, SRC_CPU);
 }
 
 int build_dilasm(Bil_Cmd *cmd)
 {
-    cc(cmd);
-    bil_cmd_append(cmd, outputs[TARGET_DILASM]);
-    bil_cmd_append(cmd, targets[TARGET_DILASM]);
-    bil_cmd_append(cmd, SRC_CPU);
-    if (!bil_cmd_run_sync(cmd)) return BIL_EXIT_FAILURE;
-    cmd->count = 0;
-    return BIL_EXIT_SUCCESS;
+    BUILD_TARGET(TARGET_DILASM, cmd, SRC_CPU);
 }
 
 void cmd_args(int *argc, char ***argv)
@@ -149,13 +149,29 @@ void cmd_args(int *argc, char ***argv)
                     bil_defer_status(BIL_EXIT_SUCCESS);
 
             } else if (!strcmp("-b", flag)) {
+                size_t target = 0;
+                size_t build_amount = 3;
+                if (*argc > 0) {
+                    flag = bil_shift_args(argc, argv);
+                    if (!strcmp(flag, "lasm")) target = TARGET_LASM;
+                    else if (!strcmp(flag, "lunem")) target = TARGET_LUNEM;
+                    else if (!strcmp(flag, "dilasm")) target = TARGET_DILASM;
+                    else {
+                        bil_log(BIL_ERROR, "Unknown target for building `%s`",flag);
+                        bil_defer_status(BIL_EXIT_FAILURE);
+                    }
+                    build_amount = target + 1;
+                }
+
                 Bil_Cmd cmd = {0};
-                for (size_t i = 0; i < 3; ++i) {
+                for (size_t i = target; i < build_amount; ++i) {
                     switch (i) {
                         case TARGET_LASM: status = build_lasm(&cmd); break;
                         case TARGET_LUNEM: status = build_lunem(&cmd); break;
                         case TARGET_DILASM: status = build_dilasm(&cmd); break;
                     }
+                    if (status == BIL_EXIT_FAILURE)
+                        bil_defer_status(status);
                 }
                 bil_defer_status(status);
             }
@@ -256,6 +272,8 @@ void cmd_handler(int *argc, char ***argv)
                 bil_cmd_append(&handler, input_path.items);
                 if (!bil_cmd_run_sync(&handler))
                     bil_defer_status(BIL_EXIT_FAILURE);
+            } else if (!strcmp(target, "allCases")) {
+
             }
 
     defer:
@@ -285,18 +303,22 @@ int main(int argc, char **argv)
 
         int status = -1;
         Bil_Cmd cmd = {0};
-
-        Bil_Dep lasm = {0};
-        Bil_Dep lunem = {0};
-        Bil_Dep dilasm = {0};
+        Bil_Dep lasm = {0}, lunem = {0}, dilasm = {0};
 
         bil_dep_init(&lasm, lasm_dep_path, targets[TARGET_LASM], SRC_LASM, SRC_CPU, SRC_COMMON);
         bil_dep_init(&lunem, lunem_dep_path, targets[TARGET_LUNEM], SRC_CPU);
         bil_dep_init(&dilasm, dilasm_dep_path, targets[TARGET_DILASM], SRC_CPU);
 
-        if (bil_dep_ischange(&lasm)) status = build_lasm(&cmd);
-        if (bil_dep_ischange(&lunem)) status = build_lunem(&cmd);
-        if (bil_dep_ischange(&dilasm)) status = build_dilasm(&cmd);
+        int *changes = bil_check_deps(lasm, lunem, dilasm);
+        for (size_t target = 0; target < TARGET_AMOUNT; ++target) {
+            if (changes[target]) {
+                switch (target) {
+                    case TARGET_LASM:   status = build_lasm(&cmd); break;
+                    case TARGET_LUNEM:  status = build_lunem(&cmd); break;
+                    case TARGET_DILASM: status = build_dilasm(&cmd); break;
+                }
+            }
+        }
 
         if (status == -1) {
             status = BIL_EXIT_SUCCESS;
