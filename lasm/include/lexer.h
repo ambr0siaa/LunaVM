@@ -4,10 +4,11 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
-#include "../../common/sv.h"
+
+#include "sv.h"
 
 #ifndef ARENA_H_
-#include "../../common/arena.h"
+#include "arena.h"
 #endif // ARENA_H_
 
 typedef enum {

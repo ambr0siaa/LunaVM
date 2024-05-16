@@ -73,9 +73,9 @@ String_View sv_div_by_delim(String_View *sv, char delim)
 hshv_t sv_get_hash(String_View sv)
 {
     char *s = sv_to_cstr(sv);
-    hshv_t hash = hash_function(s);
+    hshv_t hash = hash_func_primary(s);
     free(s);
-    return hash;  
+    return hash;
 }
 
 int sv_cmp(String_View sv1, String_View sv2)

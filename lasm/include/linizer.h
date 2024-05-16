@@ -2,7 +2,7 @@
 #define LINIZER_H_
 
 #include "lexer.h"
-#include "../../common/ht.h"
+#include "ht.h"
 
 typedef enum {
     LINE_INST = 0,

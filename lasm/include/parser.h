@@ -6,7 +6,11 @@
 #include "eval.h"
 #include "linizer.h"
 
-#include "../../cpu/src/cpu.h"
+#include "cpu.h"
+
+#ifndef SV_H_
+#include "sv.h"
+#endif
 
 typedef uint64_t Inst_Addr;
 
@@ -41,6 +45,7 @@ typedef struct {
 typedef struct {
     Arena arena;
     
+    // TODO: using lasm program instead of block_chain
     Object *program;
     size_t program_size;
     size_t program_capacity;
@@ -58,6 +63,7 @@ typedef struct {
     Const_Table ct;
     Hash_Table inst_table;
 
+    // TODO: remove this debug and add debug information
     struct {
         int ht;
         int lex;
@@ -85,7 +91,7 @@ int parse_register(String_View sv);
 Inst parse_inst(Lexer *lex, Hash_Table *ht);
 Token parse_constant_expr(Token tk, Const_Table *ct);
 
-Const_Statement parse_line_constant(Lexer *lex);
+Const_Statement *parse_line_constant(Arena *a, Lexer *lex);
 void parse_line_label(Lasm *L, Token tk, size_t inst_pointer, size_t line_num);
 Object_Block parse_line_inst(Lasm *L, Line line, size_t inst_counter, size_t *inst_pointer, int db_line, size_t line_num);
 

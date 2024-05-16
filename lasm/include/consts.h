@@ -1,11 +1,15 @@
 #ifndef CONSTS_H_
 #define CONSTS_H_
 
-#ifndef PARSER_H_
-#   include "../../common/sv.h"
+#ifndef SV_H_
+#   include "sv.h"
 #endif
 
-#include "../../common/ht.h"
+#ifndef ARENA_H_
+#include "arena.h"
+#endif
+
+#include "ht.h"
 
 typedef enum {
     CONST_TYPE_INT = 0,
@@ -14,33 +18,27 @@ typedef enum {
     CONST_TYPE_ERR
 } Const_Type;
 
-typedef struct {
-    String_View name;
-    Const_Type type;
-    union {
-        int64_t as_i64;
-        uint64_t as_u64;
-        double as_f64;
-    };
-} Const_Statement;
+typedef union {
+    int64_t as_i64;
+    uint64_t as_u64;
+    double as_f64;
+} Const_Value;
 
-typedef struct ct_item {
-    Const_Statement cnst;
-    hshv_t hash;
-    struct ct_item *next;
-} Ct_Item;
+typedef struct {
+    Const_Type type;
+    String_View name;
+    Const_Value value;
+} Const_Statement;
 
 #define CT_CAPACITY 60
 
-typedef struct {
-    Ct_Item items[CT_CAPACITY];
-    size_t capacity;
-} Const_Table;
+typedef Hash_Table Const_Table;
+void ct_init(Arena *a, Const_Table *ct, size_t capacity);
 
 void ct_print(Const_Table *ct);
+Const_Statement *cnst_state_create(Arena *a, String_View name, Const_Type type, Const_Value val);
 void cnst_print(Const_Statement *cnst);
-void ct_insert(Const_Table *ct, Const_Statement cnst);
-Const_Statement ct_get(Const_Table *ct, String_View name);
-Ct_Item ct_push(Ct_Item *ci, Const_Statement cnst, hshv_t hash);
+void ct_insert(Arena *a, Const_Table *ct, Const_Statement *cnst);
+Const_Statement *ct_get(Const_Table *ct, String_View name);
 
 #endif // CONSTS_H_

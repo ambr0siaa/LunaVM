@@ -7,7 +7,7 @@ int try_inst(Hash_Table *ht, Token tk)
     int result = 0;
     if (tk.type == TYPE_TEXT) {
         char *str = sv_to_cstr(tk.txt);
-        int inst = ht_get_inst(ht, str);
+        int inst = inst_table_get(ht, str);
 
         if (inst == -1) result = 0;
         else result = 1;
@@ -87,9 +87,8 @@ Linizer linizer(Arena *arena, Lexer *lex, Hash_Table *ht, int ht_debug, int lnz_
 {
     Linizer lnz = {0};
 
-    if (ht->capacity == 0) {
-        inst_ht_init(arena, ht, ht_debug);
-    }
+    if (ht->capacity == 0)
+        inst_table_init(arena, ht, ht_debug);
 
     while (1) {
         Token tk = token_next(lex);

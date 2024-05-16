@@ -401,17 +401,13 @@ Inst convert_to_cpu_inst(Inst inst, Inst_Kind *inst_kind, Lexer *lex)
 }
 
 // TODO: better errors
-Const_Statement parse_line_constant(Lexer *lex)
+Const_Statement *parse_line_constant(Arena *a, Lexer *lex)
 {
-    Const_Statement cnst = {0};
-    
     Token cnst_name = token_next(lex);
     if (cnst_name.type != TYPE_TEXT) {
         fprintf(stderr, "Error: uncorrect name for constant. type: `%u`\n", cnst_name.type);
         exit(1);
     }
-
-    cnst.name = cnst_name.txt;
 
     Token open_curly = token_next(lex);
     if (open_curly.type != TYPE_OPEN_CURLY) {
@@ -425,14 +421,15 @@ Const_Statement parse_line_constant(Lexer *lex)
         exit(1);
     }
 
+    Const_Type const_type = 0;
     if (sv_cmp(cnst_type.txt, sv_from_cstr("i64"))) {
-        cnst.type = CONST_TYPE_INT;
+        const_type = CONST_TYPE_INT;
 
     } else if (sv_cmp(cnst_type.txt, sv_from_cstr("u64"))) {
-        cnst.type = CONST_TYPE_UINT;
+        const_type = CONST_TYPE_UINT;
 
     } else if (sv_cmp(cnst_type.txt, sv_from_cstr("f64"))) {
-        cnst.type = CONST_TYPE_FLOAT;
+        const_type = CONST_TYPE_FLOAT;
 
     } else {
         fprintf(stderr, "Error: unknown type `"SV_Fmt"` for constant\n", SV_Args(cnst_type.txt));
@@ -446,14 +443,15 @@ Const_Statement parse_line_constant(Lexer *lex)
     }
 
     // TODO: check that value and type are the same
+    Const_Value value = {0};
     Token cnst_value = token_next(lex);
-    switch (cnst.type) {
+    switch (const_type) {
         case CONST_TYPE_INT:
             if (cnst_value.val.type != VAL_INT) {
                 fprintf(stderr, "Error: after type `i64` expectes integer\n");
                 exit(1);
             }
-            cnst.as_i64 = cnst_value.val.i64;
+            value.as_i64 = cnst_value.val.i64;
             break;
 
         case CONST_TYPE_UINT:
@@ -465,7 +463,7 @@ Const_Statement parse_line_constant(Lexer *lex)
                 fprintf(stderr, "Error: unsigned value cannot be less than 0\n");
                 exit(1);    
             }
-            cnst.as_u64 = cnst_value.val.i64;
+            value.as_u64 = cnst_value.val.i64;
             break;
 
         case CONST_TYPE_FLOAT:
@@ -473,7 +471,7 @@ Const_Statement parse_line_constant(Lexer *lex)
                 fprintf(stderr, "Error: after type `f64` expectes float\n");
                 exit(1);
             }
-            cnst.as_f64 = cnst_value.val.f64;
+            value.as_f64 = cnst_value.val.f64;
             break;
 
         default:
@@ -481,7 +479,7 @@ Const_Statement parse_line_constant(Lexer *lex)
             exit(1);
     }
 
-    return cnst;
+    return cnst_state_create(a, cnst_name.txt, const_type, value);
 }
 
 Object_Block parse_line_inst(Lasm *L, Line line, size_t inst_counter, size_t *inst_pointer, int db_line, size_t line_num)
@@ -570,8 +568,8 @@ Block_Chain parse_linizer(Lasm *L)
             }
 
             case LINE_CONSTANT: {
-                Const_Statement cnst = parse_line_constant(&line.item);
-                ct_insert(&L->ct, cnst);
+                Const_Statement *cnst = parse_line_constant(&L->arena, &line.item);
+                ct_insert(&L->arena, &L->ct, cnst);
                 break;
             }
 
@@ -636,7 +634,7 @@ int translate_inst(String_View inst_sv, Hash_Table *ht)
         exit(1);
     }
     char *inst_cstr = sv_to_cstr(inst_sv);
-    int inst = ht_get_inst(ht, inst_cstr);
+    int inst = inst_table_get(ht, inst_cstr);
     free(inst_cstr);
 
     return inst;

@@ -6,14 +6,15 @@ Lasm *lasm_init()
     
     L->arena = (Arena) {0};
     L->inst_table = (Hash_Table) {0};
-    inst_ht_init(&L->arena, &L->inst_table, 0);
+    inst_table_init(&L->arena, &L->inst_table, 0);
     
     L->curjmps = (Label_List)  {0};
     L->defjmps = (Label_List)  {0};
     L->src =     (String_View) {0};
     L->lnz =     (Linizer)     {0};
     L->lex =     (Lexer)       {0};
-    L->ct =      (Const_Table) { .capacity = CT_CAPACITY };
+    L->ct =      (Const_Table) {0};
+    ct_init(&L->arena, &L->ct, CT_CAPACITY);
     
     L->debug.ht = 0;
     L->debug.lex = 0;

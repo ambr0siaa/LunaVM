@@ -1,6 +1,8 @@
 #ifndef CPU_H_
 #define CPU_H_
 
+// TODO: separate instructions stuff to diffrent file 
+
 #include <ctype.h>
 #include <errno.h>
 #include <stdint.h>
@@ -8,7 +10,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "../../common/arena.h"
+#include "arena.h"
 
 #define ARRAY_SIZE(arr) sizeof((arr)) / sizeof((arr)[0])
 
@@ -111,17 +113,15 @@ typedef enum {
 
     // TODO: INST_CMP_REG_REG, INST_CMP_REG_VAL
     INST_CMP,
-    // INST_GRT,
-    // INST_GET,
-    // INST_LST,
-    // INST_LET,
+
+    // TODO: INST_GRT, INST_GET, INST_LST, INST_LET
 
     INST_VLAD,
     IC          // IC -> inst count
 } Inst;
 
 typedef enum {
-    KIND_REG_REG =0,
+    KIND_REG_REG= 0,
     KIND_REG_VAL,
     KIND_REG,
     KIND_VAL,

@@ -6,8 +6,9 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
-#ifdef SV_H_
+#ifndef HT_H_
 #   include "ht.h"
 #endif
 
