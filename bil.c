@@ -272,8 +272,6 @@ void cmd_handler(int *argc, char ***argv)
                 bil_cmd_append(&handler, input_path.items);
                 if (!bil_cmd_run_sync(&handler))
                     bil_defer_status(BIL_EXIT_FAILURE);
-            } else if (!strcmp(target, "allCases")) {
-
             }
 
     defer:
