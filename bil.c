@@ -124,7 +124,7 @@ int build_dilasm(Bil_Cmd *cmd)
     BUILD_TARGET(TARGET_DILASM, cmd, SRC_CPU);
 }
 
-void cmd_args(int *argc, char ***argv)
+int cmd_args(int *argc, char ***argv)
 {
     int status = -1;
     bil_workflow_begin();
@@ -182,7 +182,7 @@ void cmd_args(int *argc, char ***argv)
 
 defer:
     bil_workflow_end(WORKFLOW_NO_TIME);
-    if (status != -1) BIL_EXIT(status);
+    return status;
 }
 
 void cmd_handler(int *argc, char ***argv)
@@ -297,7 +297,8 @@ int main(int argc, char **argv)
     BIL_REBUILD(argc, argv, binary_dir_path);
 
     mk_important_dirs();
-    cmd_args(&argc, &argv);
+    if (cmd_args(&argc, &argv) == 1)
+            BIL_EXIT(BIL_EXIT_FAILURE);
     cmd_handler(&argc, &argv);
 
     bil_workflow_begin();
