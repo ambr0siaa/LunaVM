@@ -141,7 +141,7 @@ void print_token(Token tk)
             if (tk.val.type == VAL_FLOAT) {
                 printf("float: `%lf`\n", tk.val.f64);
             } else {
-                printf("int: `%ld`\n", tk.val.i64);
+                printf("int: `%"PRIi64"`\n", tk.val.i64);
             }
             break;
         }

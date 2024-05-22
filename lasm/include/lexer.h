@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 #include "sv.h"
 

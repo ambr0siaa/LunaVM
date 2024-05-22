@@ -27,7 +27,7 @@ char *reg_as_cstr(uint64_t operand)
 
         case RC:
         default:
-            fprintf(stderr, "Error: unreachable reg `%li`\n", operand);
+            fprintf(stderr, "Error: unreachable reg `%"PRIi64"`\n", operand);
             exit(1);
     }
 }
@@ -338,7 +338,7 @@ void cpu_execute_inst(CPU *const c)
             printf("%s: ", reg_as_cstr(reg1));
 
             if (reg1 >= F0) printf("%lf\n",c->regsf[reg1 - CPU_REGS]);
-            else printf("%li\n", c->regs[reg1]);
+            else printf("%"PRIi64"\n", c->regs[reg1]);
 
             c->ip += 1;
             break;
@@ -592,12 +592,12 @@ int inst_has_1_op(Inst inst)
 
 void debug_regs(CPU *const c)
 {
-    printf("ip: %lu\n", c->ip);
-    printf("sp: %lu\n", c->sp);
-    printf("fp: %lu\n", c->fp);
+    printf("ip: %"PRIu64"\n", c->ip);
+    printf("sp: %"PRIu64"\n", c->sp);
+    printf("fp: %"PRIu64"\n", c->fp);
     for (size_t i = 0; i < RC; ++i) {
         if (i >= F0) printf("%s: %lf\n", reg_as_cstr(i), c->regsf[i - CPU_REGS]); 
-        else printf("%s: %li\n", reg_as_cstr(i), c->regs[i]);
+        else printf("%s: %"PRIi64"\n", reg_as_cstr(i), c->regs[i]);
     }
     printf("zero flag: %d\n", c->zero_flag);
     printf("halt: %d\n", c->halt);
@@ -609,7 +609,7 @@ void debug_stack(CPU *const c)
     printf("Stack:\n");
     if (c->stack_size == 0) printf("    empty\n");
     for (size_t i = 0; i < c->stack_size; ++i) {
-        printf("    i64: %li, u64: %lu, f64: %lf\n",
+        printf("    i64: %"PRIi64", u64: %"PRIu64", f64: %lf\n",
                 c->stack[i].i64, c->stack[i].u64, c->stack[i].f64);
     }
 }

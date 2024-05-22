@@ -142,8 +142,11 @@ void cmd_args(int *argc, char ***argv)
                 if (strcmp(binary_dir_path, BIL_CURRENT_DIR)) {
                     Bil_String_Builder sb = PATH(PREF_DOT, binary_dir_path, DELETEME_FILE);
                     sb_join_nul(&sb);
-                    bil_delete_file(sb.items);
-                } else bil_delete_file(DELETEME_FILE);
+                    if (!bil_delete_file(sb.items))
+                        bil_defer_status(BIL_EXIT_FAILURE);
+                } else
+                    if (!bil_delete_file(DELETEME_FILE))
+                        bil_defer_status(BIL_EXIT_FAILURE);
 
                 if (*argc < 1)
                     bil_defer_status(BIL_EXIT_SUCCESS);

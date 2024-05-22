@@ -1,8 +1,10 @@
 #ifndef CONSTS_H_
 #define CONSTS_H_
 
+#include <inttypes.h>
+
 #ifndef SV_H_
-#   include "sv.h"
+#include "sv.h"
 #endif
 
 #ifndef ARENA_H_

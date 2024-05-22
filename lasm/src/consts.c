@@ -14,13 +14,13 @@ void cnst_print(Const_Statement *cnst)
     printf("name: ["SV_Fmt"], type: [%u], value:", SV_Args(cnst->name), cnst->type);
     switch (cnst->type) {
         case CONST_TYPE_INT:
-            printf("%li", cnst->value.as_i64);
+            printf("%"PRIi64"", cnst->value.as_i64);
             break;
         case CONST_TYPE_FLOAT:
             printf("%lf", cnst->value.as_f64);
             break;
         case CONST_TYPE_UINT:
-            printf("%lu", cnst->value.as_u64);
+            printf("%"PRIu64"", cnst->value.as_u64);
             break;
         default:
             fprintf(stderr, "Error: unknown type in `ct_print`\n");

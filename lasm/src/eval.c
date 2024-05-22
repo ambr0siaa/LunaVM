@@ -95,7 +95,7 @@ Eval_Node *resolve_eval(Eval_Node *node)
                         printf("f64: `%lf`\n", node->left_operand->token.val.f64);
                         break;
                     case VAL_INT:
-                        printf("i64: `%li`\n", node->left_operand->token.val.i64);
+                        printf("i64: `%"PRIi64"`\n", node->left_operand->token.val.i64);
                         break;
                     default:
                         fprintf(stderr, "Error: unknown type `%u` in `resolve_eval`\n",
@@ -109,7 +109,7 @@ Eval_Node *resolve_eval(Eval_Node *node)
                         printf(" f64: `%lf`\n", node->right_operand->token.val.f64);
                         break;
                     case VAL_INT:
-                        printf(" i64: `%li`\n", node->right_operand->token.val.i64);
+                        printf(" i64: `%"PRIi64"`\n", node->right_operand->token.val.i64);
                         break;
                     default:
                         fprintf(stderr, "Error: unknown type `%u` in `resolve_eval`\n",
@@ -307,7 +307,7 @@ Eval_Node *parse_expr(Token tk, Lexer *lex, Const_Table *ct)
             } else {
                 fprintf(stderr, "Error: in `parse_expr` unknown token type `%u`\n", type);
                 print_token(lex->items[lex->tp]);
-                printf("tp: %li\n", lex->tp);
+                printf("tp: %"PRIi64"\n", lex->tp);
                 printf("count: %zu\n", lex->count);
                 exit(1);
             }
