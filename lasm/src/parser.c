@@ -34,7 +34,7 @@ void ll_print(Label_List *ll)
     printf("\n--------- Label List -----------\n\n");
     for (size_t i = 0; i < ll->count; ++i) {
         Label label = ll->labels[i];
-        printf("name: {"SV_Fmt"}; addr: {%lu}\n", SV_Args(label.name), label.addr);
+        printf("name: {"SV_Fmt"}; addr: {%"PRIu64"}\n", SV_Args(label.name), label.addr);
     }
     printf("\n--------------------------------\n\n");
 }
@@ -530,7 +530,7 @@ void block_chain_debug(Block_Chain *bc)
         printf("object block: %zu\n", i);
         for (size_t j = 0; j < objb.count; ++j) {
             Object o = objb.items[j];
-            printf("inst: %u, reg: %u, i64: %li, u64: %lu, f64: %lf\n",
+            printf("inst: %u, reg: %u, i64: %"PRIi64", u64: %"PRIu64", f64: %lf\n",
                     o.inst, o.reg, o.i64, o.u64, o.f64);
         }
         printf("\n");
@@ -574,7 +574,7 @@ Block_Chain parse_linizer(Lasm *L)
             }
 
             default: {
-                fprintf(stderr, "Error: in `parse_linizer` unknown line [%lu] type\n", i + 1);
+                fprintf(stderr, "Error: in `parse_linizer` unknown line [%"PRIu64"] type\n", i + 1);
                 exit(1);
             }
         }

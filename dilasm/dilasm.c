@@ -32,7 +32,7 @@ int main(int argc, char **argv)
             i += 3;
 
         } else if (inst_has_1_op(inst)) {
-            printf("%s %lu\n", inst_as_cstr(inst), cpu.program[i + 1].u64);
+            printf("%s %"PRIu64"\n", inst_as_cstr(inst), cpu.program[i + 1].u64);
             i += 2;
 
         } else if (inst_has_no_ops(inst)) {
@@ -40,7 +40,7 @@ int main(int argc, char **argv)
             i += 1;
 
         } else {
-            printf("%s %s, %li\n", inst_as_cstr(inst),
+            printf("%s %s, %"PRIi64"\n", inst_as_cstr(inst),
                                  reg_as_cstr(cpu.program[i + 1].reg),
                                  cpu.program[i + 2].i64);
             i += 3;
