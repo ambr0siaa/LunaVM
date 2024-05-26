@@ -685,9 +685,3 @@ char *luna_shift_args(int *argc, char ***argv)
 
     return result;
 }
-
-void cpu_set_entry_ip(CPU *c)
-{
-    c->ip = c->program[c->program_size - 1].u64;
-    c->program_size -= 1;
-}

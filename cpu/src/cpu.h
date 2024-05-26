@@ -209,7 +209,6 @@ char *reg_as_cstr(uint64_t operand);
 char *luna_shift_args(int *argc, char ***argv);
 
 void cpu_inst_return(CPU *c);
-void cpu_set_entry_ip(CPU *c);
 Object cpu_fetch(CPU *const c);
 
 void debug_regs(CPU *const c);
