@@ -630,40 +630,35 @@ void load_program_from_file(Arena *arena, CPU *c, const char *file_path)
 
     FILE *fp = fopen(file_path, "rb");
     if (!fp) {
-        fprintf(stderr, "Error: cannot open file by `%s` path\n", file_path);
+        fprintf(stderr, "Error: cannot open file by `%s` path: %s\n",
+            file_path, strerror(errno));
         exit(1);
     }
 
-    if (fseek(fp, 0, SEEK_END) < 0) {
-        fprintf(stderr, "Error: cannot read from `%s` file\n", file_path);
+    Luna_File_Meta meta = {0};
+    size_t n = fread(&meta, sizeof(meta), 1, fp);
+    if (n < 1) {
+        fprintf(stderr, "Error: cannot open file by `%s` path: %s\n",
+            file_path, strerror(errno));
         exit(1);
     }
 
-    long int file_size = ftell(fp);
-    if (file_size < 0) {
-        fprintf(stderr, "Error: cannot read from `%s` file\n", file_path);
+    if (meta.magic != LUNA_MAGIC) {
+        fprintf(stderr, "Error: not a Luna Bytecode Format - ln\n");
+        fprintf(stderr, "Expected 0x%04x but provided 0x%04lx",
+                LUNA_MAGIC, meta.magic);
         exit(1);
     }
 
-    size_t object_count = file_size / sizeof(c->program[0]);
 
-    if (object_count + 1 >= c->program_capacity) {
-        size_t old_size = c->program_capacity * sizeof(*c->program);
-        do { c->program_capacity *= 2; } while (object_count + 1 >= c->program_capacity);
-        c->program = arena_realloc(arena, c->program, old_size, c->program_capacity * sizeof(*c->program));
-    }
-
-    if (fseek(fp, 0, SEEK_SET) < 0) {
-        fprintf(stderr, "Error: cannot read from `%s` file\n", file_path);
+    c->program_size = fread(c->program, sizeof(*c->program), meta.program_size, fp);
+    if (meta.program_size != c->program_size) {
+        fprintf(stderr, "Error: expected %"PRIi64" program size reading %"PRIi64"",
+                meta.program_size, c->program_size);
         exit(1);
     }
 
-    c->program_size = fread(c->program, sizeof(c->program[0]), object_count, fp);
-
-    if (ferror(fp)) {
-        fprintf(stderr, "Error: cannot read from `%s` file\n", file_path);
-        exit(1);
-    }
+    c->ip = meta.entry;
 
     fclose(fp);
 }

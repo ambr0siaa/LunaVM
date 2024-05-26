@@ -6,7 +6,7 @@
 #include "eval.h"
 #include "linizer.h"
 
-#include "cpu.h"
+#include "./cpu.h"
 
 #ifndef SV_H_
 #include "sv.h"
@@ -52,6 +52,8 @@ typedef struct {
     
     Label_List curjmps;
     Label_List defjmps;
+
+    size_t entry;
     
     String_View src;
     const char *input_file;

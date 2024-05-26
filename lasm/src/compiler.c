@@ -3,33 +3,31 @@
 Lasm *lasm_init()
 {
     Lasm *L = malloc(sizeof(Lasm));
-    
-    L->arena = (Arena) {0};
-    L->inst_table = (Hash_Table) {0};
-    inst_table_init(&L->arena, &L->inst_table, 0);
-    
-    L->curjmps = (Label_List)  {0};
-    L->defjmps = (Label_List)  {0};
-    L->src =     (String_View) {0};
-    L->lnz =     (Linizer)     {0};
-    L->lex =     (Lexer)       {0};
-    L->ct =      (Const_Table) {0};
-    ct_init(&L->arena, &L->ct, CT_CAPACITY);
-    
-    L->debug.ht = 0;
-    L->debug.lex = 0;
-    L->debug.lnz = 0;
-    L->debug.line = 0;
-    L->debug.lex_txts = 0;
+
+    L->arena                = (Arena)       {0};
+    L->lex                  = (Lexer)       {0};
+    L->lnz                  = (Linizer)     {0};
+    L->inst_table           = (Hash_Table)  {0};
+    L->curjmps              = (Label_List)  {0};
+    L->defjmps              = (Label_List)  {0};
+    L->src                  = (String_View) {0};
+    L->ct                   = (Const_Table) {0};
+    L->debug.ht             = 0;
+    L->debug.lex            = 0;
+    L->debug.lnz            = 0;
+    L->debug.line           = 0;
+    L->debug.lex_txts       = 0;
     L->debug.output_program = 0;
+    L->input_file           = NULL;
+    L->output_file          = NULL;
+    L->program              = NULL;
+    L->program_capacity     = 0;
+    L->program_size         = 0;
+    L->entry                = 0;
 
-    L->input_file = NULL;
-    L->output_file = NULL;
+    inst_table_init(&L->arena, &L->inst_table, 0);
+    ct_init(&L->arena, &L->ct, CT_CAPACITY);
 
-    L->program = NULL;
-    L->program_capacity = 0;
-    L->program_size = 0;  
-    
     return L;
 }
 
@@ -182,8 +180,16 @@ void lasm_save_program_to_file(Lasm *L)
         exit(1);
     }
 
-    size_t count = fwrite(L->program, sizeof(L->program[0]), L->program_size, fp);
-    if (count != L->program_size) goto error;
+    Luna_File_Meta meta = {
+        .magic = LUNA_MAGIC,
+        .entry = L->entry,
+        .program_size = L->program_size
+    };
+
+    fwrite(&meta, sizeof(meta), 1, fp);
+    if (ferror(fp)) goto error;
+
+    fwrite(L->program, sizeof(L->program[0]), L->program_size, fp);
     if (ferror(fp)) goto error;
 
     fclose(fp);

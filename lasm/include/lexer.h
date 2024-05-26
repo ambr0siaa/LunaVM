@@ -6,10 +6,10 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-#include "sv.h"
+#include "./sv.h"
 
 #ifndef ARENA_H_
-#include "arena.h"
+#include "./arena.h"
 #endif // ARENA_H_
 
 typedef enum {

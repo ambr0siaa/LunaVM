@@ -540,7 +540,6 @@ void block_chain_debug(Block_Chain *bc)
 
 Block_Chain parse_linizer(Lasm *L)
 {
-    size_t entry_ip = 0;
     size_t inst_counter = 0;
     Inst_Addr inst_pointer = 0;
     Block_Chain block_chain = {0};
@@ -561,7 +560,7 @@ Block_Chain parse_linizer(Lasm *L)
             }
 
             case LINE_ENTRY_LABLE: {
-                entry_ip = inst_pointer;
+                L->entry = inst_pointer;
                 Token tk = line.item.items[0];
                 parse_line_label(L, tk, inst_pointer, i);
                 break;
@@ -589,13 +588,9 @@ Block_Chain parse_linizer(Lasm *L)
         }
     }
 
-    Object_Block entry_obj = {0};
-    objb_push(&L->arena, &entry_obj, OBJ_UINT(entry_ip));
-    block_chain_push(&L->arena, &block_chain, entry_obj);
-
     if (L->debug.output_program) 
         block_chain_debug(&block_chain);
-    
+
     return block_chain;
 }
 

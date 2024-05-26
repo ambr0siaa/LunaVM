@@ -163,6 +163,22 @@ typedef struct {
     uint8_t halt;
 } CPU;
 
+
+#if defined(__GNUC__) || defined(__clang__)
+#  define PACKED __attribute__((packed))
+#else
+#  warning "Packed attributes for struct is not implemented for this compiler. This may result in a program working incorrectly. Feel free to fix that and submit a Pull Request to https://github.com/tsoding/bng"
+#  define PACKED
+#endif
+
+#define LUNA_MAGIC 0x4e4c
+
+typedef struct {
+    size_t magic;
+    size_t entry;
+    size_t program_size;
+} PACKED Luna_File_Meta;
+
 #define OBJ_INST(type)   (Object) { .inst = (type) }
 #define OBJ_FLOAT(val)   (Object) { .f64 = (val) }
 #define OBJ_UINT(val)    (Object) { .u64 = (val) }

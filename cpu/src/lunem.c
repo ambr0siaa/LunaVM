@@ -71,7 +71,6 @@ int main(int argc, char **argv)
     }
 
     load_program_from_file(&arena, &cpu, input_file_path);
-    cpu_set_entry_ip(&cpu);
     cpu_execute_program(&cpu, db, limit, stk);
 
     arena_free(&arena);

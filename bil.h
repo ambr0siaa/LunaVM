@@ -255,7 +255,7 @@ typedef struct {
 /*
 *  Bil_Dep - bil's dependence. Uses for keep tracking of dependent files.
 *  Takes many dependences and 1 output file where writes info about depenences.
-*  Output file I prefer name's with extention `.bil` but also you can use diffrent extention.
+*  Output file I prefer name's with extention `.bil` but you can also use diffrent extention.
 */
 typedef struct {
     Bil_Cstr_Array deps;    
@@ -304,7 +304,7 @@ bool bil_dir_exist(const char *dir_path);
 #define BIL_CURRENT_DIR "cur"
 
 /*
-*  Macro for rebuilding building executable file when provided this macro.
+*  Macro for rebuilding building executable file when it provided.
 *  After rebuilding old file will rename to `DELETME` and run.
 */
 #define BIL_REBUILD(argc, argv, deleteme_dir)                                                           \
@@ -329,7 +329,7 @@ bool bil_dir_exist(const char *dir_path);
                     deleteme_path = DELETEME_FILE;                                                      \
                 }                                                                                       \
                                                                                                         \
-                if (!bil_rename_file(output_file_path, deleteme_path)) extra_exit();                     \
+                if (!bil_rename_file(output_file_path, deleteme_path)) extra_exit();                    \
                 if (is_current) sb_clean(&deleteme_sb_path);                                            \
                                                                                                         \
                 Bil_Cmd rebuild_cmd = {0};                                                              \
@@ -532,26 +532,26 @@ void *bil_context_realloc(void *ptr, size_t old_size, size_t new_size)
 
 void bil_workflow_begin()
 {
-    WfContext *job = malloc(sizeof(WfContext));
-    job->end = (struct timeval) {0};
+    WfContext *wfc = malloc(sizeof(WfContext));
+    wfc->end = (struct timeval) {0};
 #ifdef _WIN32
-    gettimeofday(&job->begin);
+    gettimeofday(&wfc->begin);
 #else
-    gettimeofday(&job->begin, NULL);
+    gettimeofday(&wfc->begin, NULL);
 #endif
     Bil_Region *r = bil_region_create(BIL_REGION_DEFAULT_CAPACITY);
-    job->r_head = r;
-    job->r_tail = r;
+    wfc->r_head = r;
+    wfc->r_tail = r;
 
-    job->next = NULL;
+    wfc->next = NULL;
     
     if (workflow == NULL) {
         workflow = malloc(sizeof(Bil_Workflow));
-        workflow->head = job;
-        workflow->tail = job;
+        workflow->head = wfc;
+        workflow->tail = wfc;
     } else {
-        workflow->tail->next = job;
-        workflow->tail = job;
+        workflow->tail->next = wfc;
+        workflow->tail = wfc;
     }
 }
 
@@ -562,21 +562,21 @@ void workflow_end(const int *args, int argc)
         return;
     }
 
-    WfContext *job = workflow->tail;
+    WfContext *wfc = workflow->tail;
 
     if (argc < 1) {
     workflow_time:
     #ifdef _WIN32
-        gettimeofday(&job->end);
+        gettimeofday(&wfc->end);
     #else
-        gettimeofday(&job->end, NULL);
+        gettimeofday(&wfc->end, NULL);
     #endif
-        double time_taken = (job->end.tv_sec - job->begin.tv_sec) * 1e6;
-        time_taken = (time_taken + (job->end.tv_usec - job->begin.tv_usec)) * 1e-6;
+        double time_taken = (wfc->end.tv_sec - wfc->begin.tv_sec) * 1e6;
+        time_taken = (time_taken + (wfc->end.tv_usec - wfc->begin.tv_usec)) * 1e-6;
         bil_log(BIL_INFO, "Workflow has taken %lf sec", time_taken);
     } else if (argc > 0 && args[0] != WORKFLOW_NO_TIME) goto workflow_time;
 
-    Bil_Region *r = job->r_head;
+    Bil_Region *r = wfc->r_head;
     while(r != NULL) {
         Bil_Region *r_next = r->next;
         free(r->data);
@@ -585,15 +585,16 @@ void workflow_end(const int *args, int argc)
     }
 
     WfContext *cur = workflow->head;
-    if (cur == job) {
-        free(job);
+    if (cur == wfc) {
+        free(wfc);
         free(workflow);
         workflow = NULL;
         return;
     }
 
-    while (cur->next != job) cur = cur->next;
-    free(job);
+    while (cur->next != wfc)
+        cur = cur->next;
+    free(wfc);
     cur->next = NULL;
     workflow->tail = cur;
 }

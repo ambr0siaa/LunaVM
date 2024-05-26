@@ -4,11 +4,11 @@
 #include <inttypes.h>
 
 #ifndef SV_H_
-#include "sv.h"
+#include "./sv.h"
 #endif
 
 #ifndef ARENA_H_
-#include "arena.h"
+#include "../arena.h"
 #endif
 
 #include "ht.h"
