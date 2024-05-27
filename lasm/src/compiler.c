@@ -12,12 +12,6 @@ Lasm *lasm_init()
     L->defjmps              = (Label_List)  {0};
     L->src                  = (String_View) {0};
     L->ct                   = (Const_Table) {0};
-    L->debug.ht             = 0;
-    L->debug.lex            = 0;
-    L->debug.lnz            = 0;
-    L->debug.line           = 0;
-    L->debug.lex_txts       = 0;
-    L->debug.output_program = 0;
     L->input_file           = NULL;
     L->output_file          = NULL;
     L->program              = NULL;

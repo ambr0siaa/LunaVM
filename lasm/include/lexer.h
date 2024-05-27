@@ -29,22 +29,25 @@ typedef struct {
 #define VALUE_FLOAT(val) (Value) { .type = VAL_FLOAT, .f64 = (val) }
 
 typedef enum {
-    TYPE_OPERATOR = 0,
-    TYPE_VALUE,
-    TYPE_OPEN_S_BRACKET,
-    TYPE_CLOSE_S_BRACKET,
-    TYPE_OPEN_BRACKET,
-    TYPE_CLOSE_BRACKET,
-    TYPE_OPEN_CURLY,
-    TYPE_CLOSE_CURLY,
-    TYPE_SEMICOLON,
-    TYPE_AMPERSAND,
-    TYPE_DOLLAR,
-    TYPE_COLON,
-    TYPE_DOT,
-    TYPE_TEXT,
-    TYPE_COMMA,
-    TYPE_NONE
+    TK_OPERATOR = 0,
+    TK_VALUE,
+    TK_OPEN_S_BRACKET,
+    TK_CLOSE_S_BRACKET,
+    TK_OPEN_BRACKET,
+    TK_CLOSE_BRACKET,
+    TK_OPEN_CURLY,
+    TK_CLOSE_CURLY,
+    TK_SEMICOLON,
+    TK_AMPERSAND,
+    TK_EQ,
+    TK_DOLLAR,
+    TK_COLON,
+    TK_CONST,
+    TK_ENTRY,
+    TK_DOT,
+    TK_TEXT,
+    TK_COMMA,
+    TK_NONE
 } Token_Type;
 
 typedef struct {
@@ -54,13 +57,15 @@ typedef struct {
         char op;
         String_View txt;
     };
+    uint64_t location;
 } Token;
 
 typedef struct {
-    Token *items;
-    size_t count;
-    size_t capacity;
     int64_t tp;         // Token Pointer
+    size_t count;
+    uint8_t debug_info;
+    size_t capacity;
+    Token *items;
 } Lexer;
 
 #define INIT_CAPACITY 8
@@ -90,17 +95,19 @@ void print_token(Token tk);
 #define LEX_PRINT_MODE_FALSE 0
 
 void print_lex(Lexer *lex, int mode);
-void lex_push(Arena *arena, Lexer *lex, Token tk);
+void lex_append(Arena *arena, Lexer *lex, Token tk);
 
 Token token_next(Lexer *lex);
+Token token_yield(Lexer *lex, Token_Type type);
 Token_Type token_peek(Lexer *lex);
 void token_back(Lexer *lex, int shift);
+Token token_get(Lexer *lex, int shift, int skip);
+int tokenizer(String_View *src, Token *tk, size_t *location);
 
 #define SKIP_TRUE 1
 #define SKIP_FALSE 0
-Token token_get(Lexer *lex, int shift, int skip);
 
 Value tokenise_value(String_View sv);
-Lexer lexer(Arena *arena, String_View src_sv, int db_txt);
+Lexer lexer(Arena *arena, String_View src_sv);
 
 #endif // LEXER_H_

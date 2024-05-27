@@ -60,20 +60,11 @@ typedef struct {
     const char *output_file;
 
     Lexer lex;
+    uint8_t debug_info;
     Linizer lnz;
     
     Const_Table ct;
     Hash_Table inst_table;
-
-    // TODO: remove this debug and add debug information
-    struct {
-        int ht;
-        int lex;
-        int lnz;
-        int line;
-        int lex_txts;
-        int output_program;
-    } debug;
 } Lasm;
 
 void objb_to_lasm(Lasm *L, Object_Block *objb);

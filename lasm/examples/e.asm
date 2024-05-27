@@ -1,7 +1,7 @@
 ;; Calculate e^x
 
-.constant limit   {f64: 100.0}
-.constant default {f64: 1.0}
+const limit   = 100.0
+const default = 1.0
 
 ;; Args:         in regsiter f0 put number of power
 ;; Return value: returns in register accf end value
@@ -37,7 +37,7 @@ exp:
 
     ret accf, f1
 
-.entry main:
+entry main:
     mov  f0, 1.0
     call exp
     dbr  accf
