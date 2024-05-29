@@ -239,7 +239,7 @@ Eval_Node *parse_expr(Token tk, Lexer *lex, Const_Table *ct)
                     opr = eval_node_create(_op);
 
                     Token v2 = token_next(lex);
-                    
+
                     if (v2.type == TYPE_OPEN_BRACKET) {
                         Token t1 = token_next(lex);
                         val2 = parse_expr(t1, lex, ct);

@@ -208,46 +208,27 @@ String_View sv_cut_value(String_View *sv)
     return result;
 }
 
-String_View sv_cut_alpha(String_View *sv)
-{
-    String_View result;
-    size_t i = 0;
-    while (i < sv->count && isalpha(sv->data[i])) {
-        i++;
-    }
-
-    result.count = i;
-    result.data = sv->data;
-
-    sv->count -= i;
-    sv->data += i;
-
-    return result;
-}
-
 void sv_append_nul(String_View *sv)
 {
     sv->data[sv->count] = '\0';
 }
 
-String_View sv_cut_txt(String_View *sv, String_View special)
+String_View sv_cut_txt(String_View *sv)
 {
     String_View result;
     size_t i = 0;
-    while (i < sv->count) {
-        if (char_in_sv(special, sv->data[i]) || isspace(sv->data[i]) || sv->data[i] == '\0') {
-            break;
-        } else {
-            i++;
-        }
+    while (i < sv->count &&
+           isalnum(sv->data[i]) &&
+           !isspace(sv->data[i])) {
+        i++;
     }
-
-    result.count = i;
+    
     result.data = sv->data;
+    result.count = i;
 
-    sv->count -= i;
     sv->data += i;
-
+    sv->count -= i;
+    
     return result;
 }
 

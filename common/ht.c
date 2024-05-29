@@ -257,16 +257,18 @@ int ht_get(Hash_Table *ht, const char *key, void **dst)
         return 1;
     }
 
-    struct bucket *b1 = ht_bucket_search(ht->buckets[index1], hash1);
-    if (b1 != NULL) {
-        *dst = b1->item->value;
-        return 1;
-    }
+    if (ht->buckets) {
+        struct bucket *b1 = ht_bucket_search(ht->buckets[index1], hash1);
+        if (b1 != NULL) {
+            *dst = b1->item->value;
+            return 1;
+        }
 
-    struct bucket *b2 = ht_bucket_search(ht->buckets[index2], hash2);
-    if (b2 != NULL) {
-        *dst = b2->item->value;
-        return 1;
+        struct bucket *b2 = ht_bucket_search(ht->buckets[index2], hash2);
+        if (b2 != NULL) {
+            *dst = b2->item->value;
+            return 1;
+        }
     }
 
     return 0;

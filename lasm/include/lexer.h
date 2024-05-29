@@ -6,35 +6,25 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-#include "./sv.h"
+#include "../common/sv.h"
+#include "../common/ht.h"
 
-#ifndef ARENA_H_
-#include "./arena.h"
-#endif // ARENA_H_
+typedef struct Token Token;
 
-typedef enum {
-    VAL_FLOAT = 0,
-    VAL_INT
-} Value_Type;
+#include "error.h"
 
-typedef struct {
-    Value_Type type;
-    union {
-        int64_t i64;
-        double f64;
-    };
-} Value;
+#define LEXER_KEYS_COUNT 2
 
-#define VALUE_INT(val) (Value) { .type = VAL_INT, .i64 = (val) }
-#define VALUE_FLOAT(val) (Value) { .type = VAL_FLOAT, .f64 = (val) }
+extern const char *lexer_key_words[LEXER_KEYS_COUNT];
+extern Hash_Table lexer_keys;
 
 typedef enum {
     TK_OPERATOR = 0,
-    TK_VALUE,
-    TK_OPEN_S_BRACKET,
-    TK_CLOSE_S_BRACKET,
+    TK_NUMBER,
     TK_OPEN_BRACKET,
     TK_CLOSE_BRACKET,
+    TK_OPEN_PAREN,
+    TK_CLOSE_PAREN,
     TK_OPEN_CURLY,
     TK_CLOSE_CURLY,
     TK_SEMICOLON,
@@ -42,30 +32,29 @@ typedef enum {
     TK_EQ,
     TK_DOLLAR,
     TK_COLON,
-    TK_CONST,
-    TK_ENTRY,
+    TK_STRING,
+    TK_INST,
     TK_DOT,
     TK_TEXT,
     TK_COMMA,
+    TK_CONST,
+    TK_ENTRY,
     TK_NONE
 } Token_Type;
 
-typedef struct {
+struct Token {
+    String_View txt;
     Token_Type type;
-    union {
-        Value val;
-        char op;
-        String_View txt;
-    };
-    uint64_t location;
-} Token;
+    uint32_t location;
+    uint32_t line;
+};
 
 typedef struct {
-    int64_t tp;         // Token Pointer
-    size_t count;
-    uint8_t debug_info;
-    size_t capacity;
     Token *items;
+    size_t capacity;
+    size_t count;
+    int64_t tp;              // Token Pointer
+    uint8_t debug_info;
 } Lexer;
 
 #define INIT_CAPACITY 8
@@ -88,26 +77,23 @@ typedef struct {
         (da)->items[(da)->count++] = (new_item);                                                               \
     } while(0)
 
+#define lexer_append(arena, L, tk) da_append(arena, L, tk);
 void print_token(Token tk);
 
-// prints at header of lexer `LEXER` if true
-#define LEX_PRINT_MODE_TRUE 1
-#define LEX_PRINT_MODE_FALSE 0
-
-void print_lex(Lexer *lex, int mode);
-void lex_append(Arena *arena, Lexer *lex, Token tk);
+void print_lex(Lexer *lex, int mode, String_View_Array *info);
 
 Token token_next(Lexer *lex);
-Token token_yield(Lexer *lex, Token_Type type);
 Token_Type token_peek(Lexer *lex);
 void token_back(Lexer *lex, int shift);
+Token token_yield(Lexer *lex, Token_Type type);
 Token token_get(Lexer *lex, int shift, int skip);
-int tokenizer(String_View *src, Token *tk, size_t *location);
 
-#define SKIP_TRUE 1
-#define SKIP_FALSE 0
+String_View lexer_cut_string(String_View *src);
 
-Value tokenise_value(String_View sv);
-Lexer lexer(Arena *arena, String_View src_sv);
+int tokenizer(String_View *src, Token *tk, String_View_Array *info, size_t *location);
+void lexer_create(Arena *arena, String_View src, Lexer *L, String_View_Array *info);
+
+size_t lexer_key_get(Hash_Table *ht, const char *key);
+void lexer_keys_init(Arena *a, Hash_Table *ht, size_t capacity);
 
 #endif // LEXER_H_

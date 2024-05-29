@@ -2,7 +2,7 @@
 #define HT_H_
 
 #ifndef CPU_H_
-# include "cpu.h"
+# include "./cpu.h"
 #else
 # include <stdio.h>
 # include <stdlib.h>

@@ -17,6 +17,12 @@ typedef struct {
     size_t count;
 } String_View;
 
+typedef struct {
+    String_View *items;
+    size_t capacity;
+    size_t count;
+} String_View_Array;
+
 /*
 * Usage for printing sv:
 *   printf(""SV_Fmt"\n", SV_Args(sv));
@@ -47,8 +53,7 @@ void sv_cut_while_char(String_View *sv, char sym);
 void sv_append_sv(String_View *dst, String_View src);
 
 String_View sv_cut_value(String_View *sv);
-String_View sv_cut_alpha(String_View *sv);
-String_View sv_cut_txt(String_View *sv, String_View special);
+String_View sv_cut_txt(String_View *sv);
 
 String_View sv_read_file(const char *file_path);
 

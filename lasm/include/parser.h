@@ -19,16 +19,12 @@ typedef struct {
     Inst_Addr addr;
 } Label;
 
+// TODO: make hash table intead of dynamic array
 typedef struct {
     Label *labels;
     size_t capacity;
     size_t count;
 } Label_List;
-
-typedef struct {
-    Label_List current;
-    Label_List deferred;
-} Program_Jumps;
 
 typedef struct {
     Object *items;
@@ -44,14 +40,13 @@ typedef struct {
 
 typedef struct {
     Arena arena;
-    
-    // TODO: using lasm program instead of block_chain
+
     Object *program;
     size_t program_size;
     size_t program_capacity;
-    
-    Label_List curjmps;
-    Label_List defjmps;
+
+    Label_List jmps;
+    Label_List defered_jmps;
 
     size_t entry;
     
@@ -59,12 +54,7 @@ typedef struct {
     const char *input_file;
     const char *output_file;
 
-    Lexer lex;
-    uint8_t debug_info;
-    Linizer lnz;
-    
-    Const_Table ct;
-    Hash_Table inst_table;
+    String_View_Array debug_info;
 } Lasm;
 
 void objb_to_lasm(Lasm *L, Object_Block *objb);

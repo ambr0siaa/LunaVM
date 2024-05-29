@@ -1,122 +1,145 @@
 #include "../include/lexer.h"
 
-Value tokenise_value(String_View sv)
+Hash_Table lexer_keys = {0};
+
+const char *lexer_key_words[LEXER_KEYS_COUNT] = {
+    "const", "entry"
+};
+
+void lexer_keys_init(Arena *a, Hash_Table *ht, size_t capacity)
 {
-    int is_float = sv_is_float(sv);
-
-    if (is_float) {
-        char *float_cstr = malloc(sizeof(char) * sv.count + 1);
-        char *endptr = float_cstr; 
-        memcpy(float_cstr, sv.data, sv.count);
-
-        double d = strtod(float_cstr, &float_cstr);
-
-        if (d == 0 && endptr == float_cstr) {
-            fprintf(stderr, "Error: cannot parse `%s` to float64\n",float_cstr);
-            exit(1);
-        }
-        
-        free(endptr);
-        return VALUE_FLOAT(d);
-
-    } else {
-        int64_t value = sv_to_int(sv);
-        return VALUE_INT(value);
+    size_t tk = TK_CONST;
+    ht_init(a, ht, capacity);
+    for (size_t i = 0; i < LEXER_KEYS_COUNT; ++i) {
+        size_t *value = arena_alloc(a, sizeof(size_t));
+        *value = tk + i;
+        ht_insert(a, ht, lexer_key_words[i], (void*)(value));
     }
 }
 
-void lex_append(Arena *arena, Lexer *lex, Token tk) { da_append(arena, lex, tk); }
-
-int tokenizer(String_View *src, Token *tk, size_t *location)
+size_t lexer_key_get(Hash_Table *ht, const char *key)
 {
-    // TODO: remove special
-    const String_View special = sv_from_cstr("+-*/():,.;$&{}[]=");
+    size_t *dst;
+    if (!ht_get(ht, key, (void**)(&dst)))
+        return 0;
+    return *dst;
+}
+
+String_View lexer_cut_string(String_View *src)
+{
+    if (src->data[0] == '"')
+        sv_cut_left(src, 1);
+
+    size_t i = 0;
+    while (i < src->count && src->data[i] != '"') {
+        i++;
+    }
+
+    String_View result = sv_from_parts(src->data, i);
+    sv_cut_left(src, i + 1); // plus 1 for skipping quote
+
+    return result;
+}
+
+int tokenizer(String_View *src, Token *tk, String_View_Array *info, size_t *location)
+{
+    int shift = 1;
+    tk->location = *location;
 
     if (isdigit(src->data[0])) {
-        String_View value = sv_cut_value(src);
-        tk->val = tokenise_value(value);
-        tk->type = TK_VALUE;
+        tk->txt = sv_cut_value(src);
+        tk->type = TK_NUMBER;
         sv_cut_space_left(src);
 
-    } else if (char_in_sv(special, src->data[0])){
+    } else {
         switch(src->data[0]) {
-            case '=': tk->type = TK_EQ;              break;
-            case '.': tk->type = TK_DOT;             break;
-            case ',': tk->type = TK_COMMA;           break;
-            case ':': tk->type = TK_COLON;           break;
-            case '$': tk->type = TK_DOLLAR;          break;
-            case '/': tk->type = TK_OPERATOR;        break;
-            case '+': tk->type = TK_OPERATOR;        break;
-            case '*': tk->type = TK_OPERATOR;        break;
-            case '-': tk->type = TK_OPERATOR;        break;
-            case '&': tk->type = TK_AMPERSAND;       break;
-            case '{': tk->type = TK_OPEN_CURLY;      break;
-            case '}': tk->type = TK_CLOSE_CURLY;     break;
-            case '(': tk->type = TK_OPEN_BRACKET;    break;
-            case ')': tk->type = TK_CLOSE_BRACKET;   break;
-            case '[': tk->type = TK_OPEN_S_BRACKET;  break;
-            case ']': tk->type = TK_CLOSE_S_BRACKET; break;
+            case '/':
+            case '+':
+            case '*':
+            case '-': tk->type = TK_OPERATOR;      break;
+            case '=': tk->type = TK_EQ;            break;
+            case '.': tk->type = TK_DOT;           break;
+            case ',': tk->type = TK_COMMA;         break;
+            case ':': tk->type = TK_COLON;         break;
+            case '$': tk->type = TK_DOLLAR;        break;
+            case '&': tk->type = TK_AMPERSAND;     break;
+            case '{': tk->type = TK_OPEN_CURLY;    break;
+            case '}': tk->type = TK_CLOSE_CURLY;   break;
+            case '(': tk->type = TK_OPEN_PAREN;    break;
+            case ')': tk->type = TK_CLOSE_PAREN;   break;
+            case '[': tk->type = TK_OPEN_BRACKET;  break;
+            case ']': tk->type = TK_CLOSE_BRACKET; break;
+            case '"': {
+                shift = 0;
+                tk->txt = lexer_cut_string(src);
+                tk->type = TK_STRING;
+                break;
+            }
             case ';': {
                 if (src->data[1] == ';') {
                     sv_div_by_delim(src, '\n');
                     return 0;
-                } else
-                    tk->type = TK_SEMICOLON;
+                } else tk->type = TK_SEMICOLON;
                 break;
             }
+            case '\000': {
+                sv_cut_left(src, shift);
+                return 0;
+            }
             default: {
-                fprintf(stderr, "Error: unknown operator `%c`\n", src->data[0]);
-                exit(1);
+                shift = 0;
+                tk->txt = sv_cut_txt(src);
+                if (tk->txt.count == 0) {
+                    tk->txt.count = 1;
+                    pr_error(LEXICAL_ERR, info, *tk, "cannot tokenize `%c`\n", src->data[0]);
+                    return -1;
+                }
+
+                char *key = sv_to_cstr(tk->txt);
+                size_t type = lexer_key_get(&lexer_keys, key);
+                if (!type) tk->type = TK_TEXT;
+                else tk->type = type;
+                free(key);
+
+                sv_cut_space_left(src);
+                break;
             }
         }
 
-        tk->op = src->data[0];
-        sv_cut_left(src, 1);
+        if (shift != 0) tk->txt = sv_from_parts(src->data, 1);
+        sv_cut_left(src, shift);
         sv_cut_space_left(src);
-
-    } else if (isalpha(src->data[0])){
-        // TODO: Better checking for key words and instructions (as HashTable)
-        tk->txt = sv_cut_txt(src, special);
-
-        if (sv_cmp(tk->txt, sv_from_cstr("const"))) {
-            tk->type = TK_CONST;
-        } else if (sv_cmp(tk->txt, sv_from_cstr("entry"))) {
-            tk->type = TK_ENTRY;  
-        } else
-            tk->type = TK_TEXT;
-
-        sv_cut_space_left(src);
-
-    } else {
-        if (src->data[0] == '\000') {
-            sv_cut_left(src, 1);
-            return 0;
-        } else {
-            fprintf(stderr, "Error: cannot tokenize `%c`\n", src->data[0]);
-            fprintf(stderr, "Current src:\n `"SV_Fmt"`\n", SV_Args(*src));
-            return -1;
-        }
     }
 
-    tk->location = *location;
     return 1;
 }
 
-Lexer lexer(Arena *arena, String_View src)
+void lexer_create(Arena *arena, String_View src, Lexer *L, String_View_Array *info)
 {
-    Lexer lex = {0};
+    Arena local = {0};
+    if (lexer_keys.capacity == 0)
+        lexer_keys_init(&local, &lexer_keys, LEXER_KEYS_COUNT);
+
     size_t line_num = 1;
+    size_t line_ptr = 0;
+
     while (src.count > 0) {
         String_View line = sv_div_by_delim(&src, '\n');
+        if (info != NULL && L->debug_info)
+            da_append(arena, info, line);
         sv_cut_space_left(&line);
+
         while (line.count > 0) {
             Token tk = {0};
-            if (tokenizer(&line, &tk, &line_num))
-                lex_append(arena, &lex, tk);
+            if (L->debug_info) tk.line = line_ptr;
+            int status = tokenizer(&line, &tk, info, &line_num);
+            if (status > 0) lexer_append(arena, L, tk);
         }
-        line_num++;
+
+        line_ptr = line_num++;
     }
-    return lex;
+
+    arena_free(&local);
 }
 
 Token token_next(Lexer *lex)
@@ -181,7 +204,7 @@ void print_token(Token tk)
 {
     printf("line ");
     if (tk.location == 0) printf("unknown: ");
-    else printf("%zu: ", tk.location);
+    else printf("%u: ", tk.location);
 
     switch (tk.type) {
         case TK_EQ:
@@ -194,22 +217,25 @@ void print_token(Token tk)
         case TK_SEMICOLON:
         case TK_OPEN_CURLY:
         case TK_CLOSE_CURLY:
+        case TK_OPEN_PAREN:
+        case TK_CLOSE_PAREN:
         case TK_OPEN_BRACKET:
         case TK_CLOSE_BRACKET:
-        case TK_OPEN_S_BRACKET:
-        case TK_CLOSE_S_BRACKET:
-            printf("`%c`\n", tk.op);
+            printf("`%c`\n", tk.txt.data[0]);
             break;
-        case TK_VALUE: {
-            if (tk.val.type == VAL_FLOAT) {
-                printf("`%lf`\n", tk.val.f64);
-            } else {
-                printf("`%"PRIi64"`\n", tk.val.i64);
-            }
+        case TK_NUMBER: {
+            printf("number: `"SV_Fmt"`\n",
+                   SV_Args(tk.txt));
             break;
         }
         case TK_TEXT: {
-            printf("txt: `"SV_Fmt"`\n", SV_Args(tk.txt));
+            printf("txt: `"SV_Fmt"`\n",
+                   SV_Args(tk.txt));
+            break;
+        }
+        case TK_STRING: {
+            printf("string: `"SV_Fmt"`\n",
+                   SV_Args(tk.txt));
             break;
         }
         case TK_CONST: {
@@ -230,15 +256,15 @@ void print_token(Token tk)
     }
 }
 
-void print_lex(Lexer *lex, int mode)
+void print_lex(Lexer *lex, int mode, String_View_Array *info)
 {
-    if (mode == 1) {
-        printf("\n-------------- LEXER --------------\n\n");
-    } else {
-        printf("\n-----------------------------------\n\n");    
-    }
+    printf("\n-----------------------------------\n\n");    
     for (size_t i = 0; i < lex->count; ++i) {
-        print_token(lex->items[i]);
+        Token tk = lex->items[i];
+        print_token(tk);
+        if (info->count > 0 && lex->debug_info && mode)
+            printf("reference: `"SV_Fmt"`\n",
+                    SV_Args(info->items[tk.line]));
     }
     printf("\n-----------------------------------\n\n");
 }
