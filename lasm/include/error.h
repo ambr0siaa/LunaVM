@@ -9,18 +9,24 @@
 #endif
 
 typedef struct {
+    Arena *a;
     uint8_t defined;
-    const char * program;
+    const char *program;
     String_View *items;
     size_t capacity;
     size_t count;
-} Program_Error;
+} Luna_Error;
 
-extern Program_Error err_global;
+extern Luna_Error err_global;
 
 typedef enum {
     LEXICAL_ERR = 0,
+    PROGRAM_ERR,
+    INPUT_ERR,
 } error_level;
+
+#define ERROR PROGRAM_ERR, TOKEN_NONE
+#define ERRI INPUT_ERR, TOKEN_NONE
 
 String_View err_line(size_t line_ptr);
 void pr_error(error_level level, Token tk, const char *fmt, ...);

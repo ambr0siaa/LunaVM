@@ -49,6 +49,8 @@ struct Token {
     uint32_t line;
 };
 
+#define TOKEN_NONE (Token) { .type = TK_NONE, .location = 0, .line = 0 }
+
 typedef struct {
     Token *items;
     size_t capacity;

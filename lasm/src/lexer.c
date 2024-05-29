@@ -110,7 +110,6 @@ int tokenizer(String_View *src, Token *tk, size_t *location)
         sv_cut_left(src, shift);
         sv_cut_space_left(src);
     }
-
     return 1;
 }
 
@@ -165,27 +164,22 @@ Token_Type token_peek(Lexer *lex)
 Token token_yield(Lexer *lex, Token_Type type)
 {
     Token tk = token_next(lex);
-    if (tk.type == TK_NONE) {
-        fprintf(stderr, "Error: all tokens were yielded\n");
-        exit(1);
-    }
+    if (tk.type == TK_NONE)
+        pr_error(ERROR, "all tokens were yielded");
 
-    if (tk.type != type) {
-        fprintf(stderr, "Error: expected %d, but provided %d", type, tk.type);
-        exit(1);
-    }
+    if (tk.type != type)
+        pr_error(ERROR, "expected %d, but provided %d",
+                 type, tk.type);
 
     return tk;
 }
 
 void token_back(Lexer *lex, int shift)
 {
-    if (lex->tp - shift >= 0) {
+    if (lex->tp - shift >= 0)
         lex->tp -= shift;
-    } else {
-        fprintf(stderr, "Error: token pointer must be > 0!\n");
-        exit(1);
-    }
+    else
+        pr_error(ERROR, "token pointer must be > 0!");
 }
 
 Token token_get(Lexer *lex, int shift, int skip)
@@ -250,8 +244,7 @@ void print_token(Token tk)
             break;
         }
         default: 
-            fprintf(stderr, "Error: unknown type `%u`\n", tk.type);
-            exit(1);
+            pr_error(ERROR, "unknown type `%u`\n", tk.type);
     }
 }
 
