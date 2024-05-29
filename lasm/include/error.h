@@ -8,10 +8,21 @@
 #include "lexer.h"
 #endif
 
+typedef struct {
+    uint8_t defined;
+    const char * program;
+    String_View *items;
+    size_t capacity;
+    size_t count;
+} Program_Error;
+
+extern Program_Error err_global;
+
 typedef enum {
-    LEXICAL_ERR =0,
+    LEXICAL_ERR = 0,
 } error_level;
 
-void pr_error(error_level level, String_View_Array *info, Token tk, const char *fmt, ...);
+String_View err_line(size_t line_ptr);
+void pr_error(error_level level, Token tk, const char *fmt, ...);
 
 #endif // ERROR_H_

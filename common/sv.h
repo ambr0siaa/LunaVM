@@ -17,12 +17,6 @@ typedef struct {
     size_t count;
 } String_View;
 
-typedef struct {
-    String_View *items;
-    size_t capacity;
-    size_t count;
-} String_View_Array;
-
 /*
 * Usage for printing sv:
 *   printf(""SV_Fmt"\n", SV_Args(sv));

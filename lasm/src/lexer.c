@@ -41,7 +41,7 @@ String_View lexer_cut_string(String_View *src)
     return result;
 }
 
-int tokenizer(String_View *src, Token *tk, String_View_Array *info, size_t *location)
+int tokenizer(String_View *src, Token *tk, size_t *location)
 {
     int shift = 1;
     tk->location = *location;
@@ -91,7 +91,7 @@ int tokenizer(String_View *src, Token *tk, String_View_Array *info, size_t *loca
                 tk->txt = sv_cut_txt(src);
                 if (tk->txt.count == 0) {
                     tk->txt.count = 1;
-                    pr_error(LEXICAL_ERR, info, *tk, "cannot tokenize `%c`\n", src->data[0]);
+                    pr_error(LEXICAL_ERR, *tk, "cannot tokenize `%c`", src->data[0]);
                     return -1;
                 }
 
@@ -114,7 +114,7 @@ int tokenizer(String_View *src, Token *tk, String_View_Array *info, size_t *loca
     return 1;
 }
 
-void lexer_create(Arena *arena, String_View src, Lexer *L, String_View_Array *info)
+void lexer_create(Arena *arena, String_View src, Lexer *L)
 {
     Arena local = {0};
     if (lexer_keys.capacity == 0)
@@ -125,14 +125,13 @@ void lexer_create(Arena *arena, String_View src, Lexer *L, String_View_Array *in
 
     while (src.count > 0) {
         String_View line = sv_div_by_delim(&src, '\n');
-        if (info != NULL && L->debug_info)
-            da_append(arena, info, line);
+        if (err_global.defined) da_append(arena, &err_global, line);
         sv_cut_space_left(&line);
 
         while (line.count > 0) {
             Token tk = {0};
-            if (L->debug_info) tk.line = line_ptr;
-            int status = tokenizer(&line, &tk, info, &line_num);
+            if (err_global.defined) tk.line = line_ptr;
+            int status = tokenizer(&line, &tk, &line_num);
             if (status > 0) lexer_append(arena, L, tk);
         }
 
@@ -256,15 +255,15 @@ void print_token(Token tk)
     }
 }
 
-void print_lex(Lexer *lex, int mode, String_View_Array *info)
+void print_lex(Lexer *lex, int mode)
 {
     printf("\n-----------------------------------\n\n");    
     for (size_t i = 0; i < lex->count; ++i) {
         Token tk = lex->items[i];
         print_token(tk);
-        if (info->count > 0 && lex->debug_info && mode)
+        if (err_global.defined && mode)
             printf("reference: `"SV_Fmt"`\n",
-                    SV_Args(info->items[tk.line]));
+                    SV_Args(err_line(tk.line)));
     }
     printf("\n-----------------------------------\n\n");
 }

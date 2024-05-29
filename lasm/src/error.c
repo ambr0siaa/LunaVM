@@ -1,6 +1,8 @@
 #include "../include/error.h"
 
-size_t err_pos(String_View where, String_View what)
+Program_Error err_global;
+
+static size_t err_pos(String_View where, String_View what)
 {
     size_t i = 0;
     while (i < where.count) {
@@ -12,12 +14,26 @@ size_t err_pos(String_View where, String_View what)
     return i;
 }
 
-void pr_error(error_level level, String_View_Array *info, Token tk, const char *fmt, ...)
+String_View err_line(size_t line_ptr)
 {
-    String_View line = info->items[tk.line];
-    size_t pos = err_pos(line, tk.txt);
+    if (err_global.defined) return err_global.items[line_ptr];
+    else return (String_View) {
+        .count = 0
+    };
+}
 
-    fprintf(stderr, "At line %u in position %zu\n", tk.location, pos + 1);
+void pr_error(error_level level, Token tk, const char *fmt, ...)
+{
+    String_View line;
+    size_t pos;
+
+    if (err_global.defined) {
+        line = err_line(tk.line);
+        pos = err_pos(line, tk.txt);
+        fprintf(stderr, "In \"%s\" at line %u in position %zu\n",
+                err_global.program, tk.location, pos + 1);
+    }
+
     switch (level) {
         case LEXICAL_ERR:
             fprintf(stderr, "Lexical Error: ");
@@ -30,14 +46,19 @@ void pr_error(error_level level, String_View_Array *info, Token tk, const char *
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
-    fprintf(stderr, "|\n");
+    if (!err_global.defined)
+        fprintf(stderr, ", at line %u", tk.location);
+    fprintf(stderr, "\n");
     va_end(args);
 
-    fprintf(stderr, "|    "SV_Fmt"\n", SV_Args(line));
-    fprintf(stderr, "|    ");
-    for (size_t i = 0; i < pos; ++i)
-        fprintf(stderr, " ");
-    fprintf(stderr, "^\n");
+    if (err_global.defined) {
+        fprintf(stderr, "|\n");
+        fprintf(stderr, "|    "SV_Fmt"\n", SV_Args(line));
+        fprintf(stderr, "|    ");
+        for (size_t i = 0; i < pos; ++i)
+            fprintf(stderr, " ");
+        fprintf(stderr, "^\n");
+    }
 
     exit(1);
 }

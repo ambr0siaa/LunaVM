@@ -1,7 +1,7 @@
 ;; Calculate e^x
 
 const limit   = 100.0
-const default = 1.0
+const default = 1.0!
 
 ;; Args:         in regsiter f0 put number of power
 ;; Return value: returns in register accf end value

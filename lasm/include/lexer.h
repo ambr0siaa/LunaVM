@@ -53,8 +53,7 @@ typedef struct {
     Token *items;
     size_t capacity;
     size_t count;
-    int64_t tp;              // Token Pointer
-    uint8_t debug_info;
+    int64_t tp;      // Token Pointer
 } Lexer;
 
 #define INIT_CAPACITY 8
@@ -80,7 +79,7 @@ typedef struct {
 #define lexer_append(arena, L, tk) da_append(arena, L, tk);
 void print_token(Token tk);
 
-void print_lex(Lexer *lex, int mode, String_View_Array *info);
+void print_lex(Lexer *lex, int mode);
 
 Token token_next(Lexer *lex);
 Token_Type token_peek(Lexer *lex);
@@ -90,8 +89,8 @@ Token token_get(Lexer *lex, int shift, int skip);
 
 String_View lexer_cut_string(String_View *src);
 
-int tokenizer(String_View *src, Token *tk, String_View_Array *info, size_t *location);
-void lexer_create(Arena *arena, String_View src, Lexer *L, String_View_Array *info);
+int tokenizer(String_View *src, Token *tk, size_t *location);
+void lexer_create(Arena *arena, String_View src, Lexer *L);
 
 size_t lexer_key_get(Hash_Table *ht, const char *key);
 void lexer_keys_init(Arena *a, Hash_Table *ht, size_t capacity);

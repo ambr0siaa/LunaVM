@@ -53,8 +53,6 @@ typedef struct {
     String_View src;
     const char *input_file;
     const char *output_file;
-
-    String_View_Array debug_info;
 } Lasm;
 
 void objb_to_lasm(Lasm *L, Object_Block *objb);
