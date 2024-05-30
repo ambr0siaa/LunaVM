@@ -117,7 +117,7 @@ void lexer_create(Arena *arena, String_View src, Lexer *L)
 {
     Arena local = {0};
     if (lexer_keys.capacity == 0)
-        lexer_keys_init(&local, &lexer_keys, LEXER_KEYS_COUNT);
+        lexer_keys_init(&local, &lexer_keys, LEXER_KEYS_COUNT + 1); // for now it necessary make capacity not divisible by 2
 
     size_t line_num = 1;
     size_t line_ptr = 0;

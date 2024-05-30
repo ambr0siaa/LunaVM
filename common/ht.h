@@ -10,11 +10,32 @@
 # include <stdint.h>
 #endif
 
+
 #define HT_MAGIC    0x428a2f98    // cubic root of 2
 #define HT_CAPACITY 69
 
 typedef long long int hshv_t; // hash value
 typedef hshv_t (*hash_func_t) (const char *s);
+
+#define MD5_CHUNK_SIZE 64
+#define F(x, y, z) ((x & y) | ((~x) & z))
+#define G(x, y, z) ((x & z) | ((~z) & y))
+#define H(x, y, z) (x ^ y ^ z)
+#define I(x, y, z) (y ^ ((~z) | x))
+
+#define rol(x, c) (((x) << (c)) | ((x) >> (32 - (c))))
+#define ror(x, c) (((x) >> (c)) | ((x) << (32 - (c))))
+
+struct md5 {
+    uint8_t sub_chunk[2][MD5_CHUNK_SIZE];
+    uint8_t chunk[MD5_CHUNK_SIZE];
+    size_t chunk_count;
+    uint32_t h[4];
+    int flag;
+};
+
+extern const uint32_t md5_shifts[64];
+extern const uint32_t md5_keys[64];
 
 // sha256 implementation stolen from https://github.com/leahneukirchen/redo-c/blob/master/redo.c
 struct sha256 {
@@ -65,8 +86,6 @@ struct Hash_Table {
 #define ht_overflow(ht)         (ht)->overflow_flag = (ht)->item_count + 1 > (ht)->capacity ? 1 : 0
 #define ht_colision(ht, index)  (ht)->collision_flag = (ht)->items[index] != NULL ? 1 : 0
 #define ht_index(hash, max)     (hash) % (max)
-
-uint32_t ror(uint32_t n, int k);
 
 hshv_t hash_func_primary(const char *str);
 hshv_t hash_func_secondary(const char *s);
