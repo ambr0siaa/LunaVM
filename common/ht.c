@@ -311,8 +311,6 @@ void ht_insert(Arena *a, Hash_Table *ht, const char *key, void *value)
     hshv_t hash = ht->hfp(key);
     struct ht_item *new_item = ht_item_create(a, key, value, hash);
     hshv_t index = ht_index(new_item->hash, ht->capacity);
-    printf("index1: %lli\n", index);
-    printf("hash1: %lli\n", hash);
 
     ht_overflow(ht);
     ht_colision(ht, index);
@@ -322,8 +320,6 @@ void ht_insert(Arena *a, Hash_Table *ht, const char *key, void *value)
             new_item->hash = ht->hfs(new_item->key); 
             index = ht_index(new_item->hash, ht->capacity);
             ht_colision(ht, index);
-            printf("index2: %lli\n", index);
-            printf("hash2: %lli\n", new_item->hash);
 
             if (ht->collision_flag) {
                 ht_bucket_push(a, ht, new_item, index);
@@ -350,7 +346,6 @@ struct bucket *ht_bucket_search(struct bucket *list, hshv_t hash)
 int ht_get(Hash_Table *ht, const char *key, void **dst)
 {
     hshv_t hash1 = ht->hfp(key);
-    printf("hash1 get: %lli\n", hash1);
     hshv_t index1 = hash1 % ht->capacity;
     if (ht->items[index1] != NULL && ht->items[index1]->hash == hash1) {
         *dst = ht->items[index1]->value;
@@ -358,7 +353,6 @@ int ht_get(Hash_Table *ht, const char *key, void **dst)
     }
 
     hshv_t hash2 = ht->hfs(key);
-    printf("hash2 get: %lli\n", hash2);
     hshv_t index2 = hash2 % ht->capacity; 
     if (ht->items[index2] != NULL && ht->items[index2]->hash == hash2) {
         *dst = ht->items[index2]->value;

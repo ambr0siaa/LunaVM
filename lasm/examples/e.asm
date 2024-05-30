@@ -18,7 +18,8 @@ exp:
     mov f3, &default  ;; n
     mov f4, &limit    ;; limit of iterations
 
-    loop:
+    loop
+    :
         ;; calculate next element
         mul f2, f0
         div f2, f3

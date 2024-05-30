@@ -33,7 +33,6 @@ typedef enum {
     TK_DOLLAR,
     TK_COLON,
     TK_STRING,
-    TK_INST,
     TK_DOT,
     TK_TEXT,
     TK_COMMA,
@@ -89,10 +88,12 @@ void token_back(Lexer *lex, int shift);
 Token token_yield(Lexer *lex, Token_Type type);
 Token token_get(Lexer *lex, int shift, int skip);
 
+const char *tk_type_as_cstr(Token_Type type);
+
 String_View lexer_cut_string(String_View *src);
 
 int tokenizer(String_View *src, Token *tk, size_t *location);
-void lexer_create(Arena *arena, String_View src, Lexer *L);
+void lexer_init(Arena *arena, String_View src, Lexer *L);
 
 size_t lexer_key_get(Hash_Table *ht, const char *key);
 void lexer_keys_init(Arena *a, Hash_Table *ht, size_t capacity);

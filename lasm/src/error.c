@@ -2,13 +2,20 @@
 
 Luna_Error err_global;
 
-static size_t err_pos(String_View where, String_View what)
+void printse(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+}
+
+size_t err_pos(String_View where, String_View what)
 {
     size_t i = 0;
     while (i < where.count) {
         String_View tmp = sv_from_parts((char*)(where.data + i), what.count);
-        if (sv_cmp(tmp, what))
-            break;
+        if (sv_cmp(tmp, what)) break;
         i++;
     }
     return i;
@@ -30,16 +37,16 @@ void pr_error(error_level level, Token tk, const char *fmt, ...)
     if (err_global.defined && tk.type != TK_NONE) {
         line = err_line(tk.line);
         pos = err_pos(line, tk.txt);
-        fprintf(stderr, "In \"%s\" at line %u in position %zu\n",
+        printse("In \"%s\" at line %u in position %zu\n",
                 err_global.program, tk.location, pos + 1);
     }
 
     switch (level) {
-        case INPUT_ERR:   fprintf(stderr, "Input Error: ");   break;
-        case LEXICAL_ERR: fprintf(stderr, "Lexical Error: "); break;
-        case PROGRAM_ERR: fprintf(stderr, "Program Error: "); break;
+        case INPUT_ERR:   printse("Input Error: ");   break;
+        case LEXICAL_ERR: printse("Lexical Error: "); break;
+        case PROGRAM_ERR: printse("Program Error: "); break;
         default:
-            fprintf(stderr, "Error: unknown case\n");
+            printse("Error: unknown case in `pr_error`\n");
             exit(1);
     }
 
@@ -47,17 +54,21 @@ void pr_error(error_level level, Token tk, const char *fmt, ...)
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     if (!err_global.defined && tk.type != TK_NONE)
-        fprintf(stderr, ", at line %u", tk.location);
-    fprintf(stderr, "\n");
+        printse(", at line %u", tk.location);
+    printse("\n");
     va_end(args);
 
     if (err_global.defined && tk.type != TK_NONE) {
-        fprintf(stderr, "|\n");
-        fprintf(stderr, "|    "SV_Fmt"\n", SV_Args(line));
-        fprintf(stderr, "|    ");
+        line = sv_trim(line);
+        printse("|\n");
+        printse("|    "SV_Fmt"\n", SV_Args(line));
+        printse("|    ");
         for (size_t i = 0; i < pos; ++i)
-            fprintf(stderr, " ");
-        fprintf(stderr, "^\n");
+            printse(" ");
+        printse("^");
+        for (size_t i = 0; i < tk.txt.count - 1; ++i)
+            printse("~");
+        printse("\n");
     }
 
     if (err_global.a != NULL)

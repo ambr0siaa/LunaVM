@@ -41,6 +41,35 @@ String_View lexer_cut_string(String_View *src)
     return result;
 }
 
+const char *tk_type_as_cstr(Token_Type type)
+{
+    switch (type) {
+    case TK_EQ:            return "=";
+    case TK_DOT:           return ".";
+    case TK_NONE:          return "none";
+    case TK_TEXT:          return "text";
+    case TK_CONST:         return "const";
+    case TK_ENTRY:         return "entry";
+    case TK_COLON:         return ":";
+    case TK_COMMA:         return ",";
+    case TK_NUMBER:        return "number";
+    case TK_DOLLAR:        return "$";
+    case TK_STRING:        return "string";
+    case TK_OPERATOR:      return "operator";
+    case TK_SEMICOLON:     return ";";
+    case TK_AMPERSAND:     return "&";
+    case TK_OPEN_CURLY:    return "{";
+    case TK_OPEN_PAREN:    return "(";
+    case TK_CLOSE_PAREN:   return ")";
+    case TK_CLOSE_CURLY:   return "}";
+    case TK_OPEN_BRACKET:  return "[";
+    case TK_CLOSE_BRACKET: return "]";
+    default:
+        pr_error(ERROR, "unknown type `%u`", type);
+    }
+    return NULL;
+}
+
 int tokenizer(String_View *src, Token *tk, size_t *location)
 {
     int shift = 1;
@@ -113,7 +142,7 @@ int tokenizer(String_View *src, Token *tk, size_t *location)
     return 1;
 }
 
-void lexer_create(Arena *arena, String_View src, Lexer *L)
+void lexer_init(Arena *arena, String_View src, Lexer *L)
 {
     Arena local = {0};
     if (lexer_keys.capacity == 0)
@@ -168,8 +197,8 @@ Token token_yield(Lexer *lex, Token_Type type)
         pr_error(ERROR, "all tokens were yielded");
 
     if (tk.type != type)
-        pr_error(ERROR, "expected %d, but provided %d",
-                 type, tk.type);
+        pr_error(LEXICAL_ERR, tk, "expected `%s`, but provided `%s`",
+                 tk_type_as_cstr(type), tk_type_as_cstr(tk.type));
 
     return tk;
 }
