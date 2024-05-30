@@ -18,4 +18,6 @@ void lasm_cut_comments_from_line(String_View *line);
 void lasm_save_program_to_file(Lasm *L);
 void lasm_translate_source(Lasm *L);
 
+Linizer lexical_analyze(Arena *global, String_View src, Hash_Table *ht);
+
 #endif // COMPILER_H_

@@ -70,7 +70,7 @@ const char *tk_type_as_cstr(Token_Type type)
     return NULL;
 }
 
-int tokenizer(String_View *src, Token *tk, size_t *location)
+int lexer(String_View *src, Token *tk, size_t *location)
 {
     int shift = 1;
     tk->location = *location;
@@ -140,33 +140,6 @@ int tokenizer(String_View *src, Token *tk, size_t *location)
         sv_cut_space_left(src);
     }
     return 1;
-}
-
-void lexer_init(Arena *arena, String_View src, Lexer *L)
-{
-    Arena local = {0};
-    if (lexer_keys.capacity == 0)
-        lexer_keys_init(&local, &lexer_keys, LEXER_KEYS_COUNT + 1); // for now it necessary make capacity not divisible by 2
-
-    size_t line_num = 1;
-    size_t line_ptr = 0;
-
-    while (src.count > 0) {
-        String_View line = sv_div_by_delim(&src, '\n');
-        if (err_global.defined) da_append(arena, &err_global, line);
-        sv_cut_space_left(&line);
-
-        while (line.count > 0) {
-            Token tk = {0};
-            if (err_global.defined) tk.line = line_ptr;
-            int status = tokenizer(&line, &tk, &line_num);
-            if (status > 0) lexer_append(arena, L, tk);
-        }
-
-        line_ptr = line_num++;
-    }
-
-    arena_free(&local);
 }
 
 Token token_next(Lexer *lex)

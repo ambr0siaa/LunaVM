@@ -37,7 +37,7 @@ const uint32_t md5_keys[64] = {
     0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391
 };
 
-hshv_t hash_func_primary(const char *str)
+hshv_t hash_func_secondary(const char *str)
 {
     hshv_t result = 0;
     struct md5 m = {0};
@@ -175,7 +175,7 @@ void sha256_proc(struct sha256 *s, const uint8_t *buf)
     s->h[7] += h;
 }
 
-hshv_t hash_func_secondary(const char *str)
+hshv_t hash_func_primary(const char *str)
 {
     hshv_t result = 0;
     struct sha256 s;

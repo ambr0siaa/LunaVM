@@ -232,3 +232,8 @@ void lasm_help()
     fprintf(stdout, "\t-dbLexTxts  print lexer's tokens with type `TYPE_TXT` while working function `lexer`\n");
     fprintf(stdout, "\t-dbFull     print all debug info into console\n");
 }
+
+Linizer lexical_analyze(Arena *global, String_View src, Hash_Table *ht)
+{
+    assert(0 && "I'll remove code here soon. For now it in testing");
+}

@@ -92,8 +92,7 @@ const char *tk_type_as_cstr(Token_Type type);
 
 String_View lexer_cut_string(String_View *src);
 
-int tokenizer(String_View *src, Token *tk, size_t *location);
-void lexer_init(Arena *arena, String_View src, Lexer *L);
+int lexer(String_View *src, Token *tk, size_t *location);
 
 size_t lexer_key_get(Hash_Table *ht, const char *key);
 void lexer_keys_init(Arena *a, Hash_Table *ht, size_t capacity);
