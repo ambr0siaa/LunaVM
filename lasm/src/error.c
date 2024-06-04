@@ -1,4 +1,4 @@
-#include "../include/error.h"
+#include "error.h"
 
 Luna_Error err_global;
 
@@ -43,6 +43,7 @@ void pr_error(error_level level, Token tk, const char *fmt, ...)
 
     switch (level) {
         case INPUT_ERR:   printse("Input Error: ");   break;
+        case SYNTAX_ERR:  printse("Syntax Error: ");  break;
         case LEXICAL_ERR: printse("Lexical Error: "); break;
         case PROGRAM_ERR: printse("Program Error: "); break;
         default:

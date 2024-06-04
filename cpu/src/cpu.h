@@ -122,12 +122,15 @@ typedef enum {
 } Inst;
 
 typedef enum {
-    KIND_REG_REG= 0,
+    KIND_REG_REG = 0,
     KIND_REG_VAL,
     KIND_REG,
     KIND_VAL,
-    KIND_NONE
+    KIND_NONE,
+    NUMBER_OF_KINDS
 } Inst_Kind;
+
+extern Inst inst_defs[IC][NUMBER_OF_KINDS];
 
 // Abstract representation of all types that can use vm
 typedef union {
@@ -163,11 +166,10 @@ typedef struct {
     uint8_t halt;
 } CPU;
 
-
 #if defined(__GNUC__) || defined(__clang__)
 #  define PACKED __attribute__((packed))
 #else
-#  warning "Packed attributes for struct is not implemented for this compiler. This may result in a program working incorrectly. Feel free to fix that and submit a Pull Request to https://github.com/tsoding/bng"
+#  error "Packed attributes for struct is not implemented for this compiler. This may result in a program working incorrectly. Feel free to fix that and submit a Pull Request to https://github.com/tsoding/bng"
 #  define PACKED
 #endif
 

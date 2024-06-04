@@ -17,6 +17,9 @@
 *
 *    -hdlr  bil's handler flag. It simplify working with main targets (lasm, lunem, dilasm) by making path's to examples 
 *           Example: type in terminal [ bin/bil -hdlr lasm -i call.asm -o call.ln ]
+*
+* TODO: 1) Make parsing command arguments better
+*       2) Implement building of all examples
 */
 
 #define BIL_IMPLEMENTATION
@@ -26,8 +29,8 @@
 #define DEBUG_MODE "-g3", "-ggdb"
 #define CFLAGS "-Wall", "-Wextra", "-flto"
 
-#define CPU_INCLUDE "-Icpu/src/"
-#define COMMON_INCLUDE "-Icommon/"
+#define CPU_INCLUDE_PATH "-Icpu/src/"
+#define COMMON_INCLUDE_PATH "-Icommon/"
 
 #define SRC_CPU      \
     "cpu/src/cpu.c", \
@@ -37,13 +40,15 @@
     "common/sv.c", \
     "common/ht.c"
 
-#define SRC_LASM           \
-    "lasm/src/compiler.c", \
-    "lasm/src/parser.c",   \
-    "lasm/src/lexer.c",    \
-    "lasm/src/linizer.c",  \
-    "lasm/src/consts.c",   \
-    "lasm/src/eval.c"
+#define SRC_LASM            \
+    "lasm/src/compiler.c",  \
+    "lasm/src/parser.c",    \
+    "lasm/src/lexer.c",     \
+    "lasm/src/linizer.c",   \
+    "lasm/src/consts.c",    \
+    "lasm/src/expr.c",      \
+    "lasm/src/statement.c", \
+    "lasm/src/error.c"
 
 static int debug = 0;
 static int hdlr = 0;
@@ -70,9 +75,9 @@ enum {
 };
 
 char *outputs[] = {
-    "lasm/src/lasm",
-    "cpu/src/lunem",
-    "dilasm/dilasm"
+    "bin/lasm",
+    "bin/lunem",
+    "bin/dilasm"
 };
 
 #define PREF_DOT "."
@@ -93,8 +98,8 @@ void mk_path_to_example(Bil_String_Builder *sb, char *where, int *argc, char ***
     do {                                                                                \
         bil_cmd_append(cmd, CC);                                                        \
         bil_cmd_append(cmd, CFLAGS);                                                    \
-        bil_cmd_append(cmd, CPU_INCLUDE);                                               \
-        bil_cmd_append(cmd, COMMON_INCLUDE);                                            \
+        bil_cmd_append(cmd, CPU_INCLUDE_PATH);                                               \
+        bil_cmd_append(cmd, COMMON_INCLUDE_PATH);                                            \
         if (debug) bil_cmd_append(cmd, DEBUG_MODE);                                     \
         bil_cmd_append(cmd, "-o");                                                      \
         bil_cmd_append(cmd, outputs[tar]);                                              \
@@ -152,6 +157,8 @@ int cmd_args(int *argc, char ***argv)
                     bil_defer_status(BIL_EXIT_SUCCESS);
 
             } else if (!strcmp("-b", flag)) {
+                flag = bil_shift_args(argc, argv);
+                if (!strcmp("only", flag)) status = 2;
                 size_t target = 0;
                 size_t build_amount = 3;
                 if (*argc > 0) {
@@ -182,6 +189,7 @@ int cmd_args(int *argc, char ***argv)
 
 defer:
     bil_workflow_end(WORKFLOW_NO_TIME);
+    if (status == 2) BIL_EXIT(BIL_EXIT_SUCCESS);
     return status;
 }
 
@@ -198,8 +206,10 @@ void cmd_handler(int *argc, char ***argv)
 
             Bil_Cmd handler = {0};
             const char *target = bil_shift_args(argc, argv);
-            Bil_String_Builder target_path = {0};
-        
+            Bil_String_Builder target_path = PATH(binary_dir_path, target);
+            sb_join_nul(&target_path);
+            bil_cmd_append(&handler, target_path.items);
+
             if (!strcmp("lasm", target)) {
                 if (*argc < 1) {
                     lasm_error:
@@ -207,10 +217,6 @@ void cmd_handler(int *argc, char ***argv)
                     CMD("lasm/src/lasm", "-h");
                     bil_defer_status(BIL_EXIT_FAILURE);
                 }
-
-                target_path = PATH(PREF_LASM, PREF_SRC, target);
-                sb_join_nul(&target_path);
-                bil_cmd_append(&handler, target_path.items);
 
                 Bil_String_Builder output_path = {0};
                 Bil_String_Builder input_path = {0};
@@ -241,10 +247,6 @@ void cmd_handler(int *argc, char ***argv)
                     bil_defer_status(BIL_EXIT_FAILURE);
                 }
 
-                target_path = PATH(PREF_CPU, PREF_SRC, target);
-                sb_join_nul(&target_path);
-                bil_cmd_append(&handler, target_path.items);
-
                 Bil_String_Builder lunem_tar_path = {0};
 
                 while (*argc > 0) {
@@ -265,17 +267,14 @@ void cmd_handler(int *argc, char ***argv)
                     bil_defer_status(BIL_EXIT_FAILURE);
                 }
 
-                target_path = PATH(PREF_DOT, "dilasm", target);
-                sb_join_nul(&target_path);
-                bil_cmd_append(&handler, target_path.items);
-
                 Bil_String_Builder input_path = {0};
                 mk_path_to_example(&input_path, PREF_BYTECODE, argc, argv);
 
                 bil_cmd_append(&handler, input_path.items);
                 if (!bil_cmd_run_sync(&handler))
                     bil_defer_status(BIL_EXIT_FAILURE);
-            }
+            } else
+                bil_defer_status(BIL_EXIT_FAILURE);
 
     defer:
         bil_workflow_end();

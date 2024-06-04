@@ -1,4 +1,4 @@
-.entry main:
+entry main:
     mov r0, 1
     mov r1, 1
 

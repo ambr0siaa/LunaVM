@@ -1,4 +1,4 @@
-#include "../include/consts.h"
+#include "consts.h"
 
 Const_Statement *cnst_state_create(Arena *a, String_View name, Const_Type type, Const_Value val)
 {

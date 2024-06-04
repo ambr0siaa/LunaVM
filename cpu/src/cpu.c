@@ -1,5 +1,30 @@
 #include "./cpu.h"
 
+Inst inst_defs[IC][NUMBER_OF_KINDS] = {
+    [INST_MOV]  = { [KIND_REG_REG] = INST_MOV_RR, [KIND_REG_VAL] = INST_MOV_RV, [KIND_VAL] = INST_MOVS   },
+    [INST_RET]  = { [KIND_REG_REG] = INST_RET_RR, [KIND_REG_VAL] = INST_RET_RV, [KIND_NONE] = INST_RET_N },
+    [INST_ADD]  = { [KIND_REG_REG] = INST_ADD_RR, [KIND_REG_VAL] = INST_ADD_RV },
+    [INST_SUB]  = { [KIND_REG_REG] = INST_SUB_RR, [KIND_REG_VAL] = INST_SUB_RV },
+    [INST_MUL]  = { [KIND_REG_REG] = INST_MUL_RR, [KIND_REG_VAL] = INST_MUL_RV },
+    [INST_DIV]  = { [KIND_REG_REG] = INST_DIV_RR, [KIND_REG_VAL] = INST_DIV_RV },
+    [INST_AND]  = { [KIND_REG_REG] = INST_AND_RR, [KIND_REG_VAL] = INST_AND_RV },
+    [INST_OR]   = { [KIND_REG_REG] = INST_OR_RR , [KIND_REG_VAL] = INST_OR_RV  },
+    [INST_XOR]  = { [KIND_REG_REG] = INST_XOR_RR, [KIND_REG_VAL] = INST_XOR_RV },
+    [INST_SHR]  = { [KIND_REG_REG] = INST_SHR_RR, [KIND_REG_VAL] = INST_SHR_RV },
+    [INST_SHL]  = { [KIND_REG_REG] = INST_SHL_RR, [KIND_REG_VAL] = INST_SHL_RV },
+    [INST_PUSH] = { [KIND_VAL]     = INST_PUSH_V, [KIND_REG]     = INST_PUSH_R },
+    [INST_POP]  = { [KIND_REG]     = INST_POP_R,  [KIND_NONE]    = INST_POP_N  },
+    [INST_DBR]  = { [KIND_REG]     = INST_DBR  },
+    [INST_NOT]  = { [KIND_REG]     = INST_NOT  },
+    [INST_CALL] = { [KIND_VAL]     = INST_CALL },
+    [INST_JMP]  = { [KIND_VAL]     = INST_JMP  },
+    [INST_JNZ]  = { [KIND_VAL]     = INST_JNZ  },
+    [INST_JZ]   = { [KIND_VAL]     = INST_JZ   },
+    [INST_HLT]  = { [KIND_NONE]    = INST_HLT  },
+    [INST_VLAD] = { [KIND_NONE]    = INST_VLAD },
+    [INST_CMP]  = { [KIND_REG_REG] = INST_CMP  }
+};
+
 char *reg_as_cstr(uint64_t operand)
 {
     switch (operand) {
@@ -93,9 +118,9 @@ void cpu_execute_inst(CPU *const c)
 
         case INST_MOVS:
             reg1 = cpu_fetch(c).reg;
-            operand1 = cpu_fetch(c);
+            size_t shift = cpu_fetch(c).i64 + STACK_FRAME_SIZE;
 
-            Object stack_value = c->stack[c->stack_size - 1 - operand1.i64];
+            Object stack_value = c->stack[c->stack_size - 1 - shift];
 
             if (reg1 >= F0) CPU_OP(c, regsf, stack_value.f64, reg1 - CPU_REGS, IP_INC_TRUE);
             else CPU_OP(c, regs, stack_value.i64, reg1, IP_INC_TRUE);

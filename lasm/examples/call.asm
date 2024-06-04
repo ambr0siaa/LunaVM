@@ -18,7 +18,7 @@ plus:
     dbr r1
     ret
 
-.entry main:
+entry main:
     mov r0, 12
     mov r1, 435
     dbr r0

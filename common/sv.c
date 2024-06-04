@@ -245,6 +245,23 @@ int sv_in_sv(String_View sv1, String_View sv2)
     return 0;
 }
 
+double sv_to_flt(String_View sv)
+{
+    char *float_cstr = malloc(sizeof(char) * sv.count + 1);
+    char *endptr = float_cstr; 
+    memcpy(float_cstr, sv.data, sv.count);
+
+    double d = strtod(float_cstr, &float_cstr);
+
+    if (d == 0 && endptr == float_cstr) {
+        fprintf(stderr, "error: cannot convert `%s` to float64 (double)\n", float_cstr);
+        exit(1);
+    }
+    
+    free(endptr);
+    return d;
+}
+
 // return null terminated c-string
 char *sv_to_cstr(String_View sv)
 {

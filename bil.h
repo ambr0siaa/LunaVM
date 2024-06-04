@@ -922,6 +922,7 @@ Bil_String_Builder bil_mk_dependence_from_info(Bil_Deps_Info *info)
     return sb;
 }
 
+// TODO: if new dependence was appended bil don't push it to info file
 bool bil_dep_ischange(Bil_Dep *dep)
 {
     bool result = false;
@@ -950,6 +951,7 @@ bool bil_dep_ischange(Bil_Dep *dep)
         struct bil_dep_info target = {0};
         bool found = bil_deps_info_search(&info, dependence_info.id, &target);
 
+        // in this place TODO
         if (found == false)
             bil_log(BIL_WARNING, "cannot find dependence for `%s`",
                     dependence);

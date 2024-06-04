@@ -8,11 +8,12 @@
 #include "lexer.h"
 #endif
 
-// TODO: better compiler error when somewhere error occured
-//       remove this file to common and add errors for cpu and dilasm
+// TODO: 1) better compiler error when somewhere error occured
+//       2) remove this file to common and add errors for cpu and dilasm
 
 typedef enum {
     LEXICAL_ERR = 0,
+    SYNTAX_ERR,
     PROGRAM_ERR,
     INPUT_ERR,
 } error_level;

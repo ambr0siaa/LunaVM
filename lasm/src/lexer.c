@@ -1,4 +1,4 @@
-#include "../include/lexer.h"
+#include "lexer.h"
 
 Hash_Table lexer_keys = {0};
 
@@ -105,7 +105,7 @@ int lexer(String_View *src, Token *tk, size_t *location)
                 break;
             }
             case ';': {
-                if (src->data[1] == ';') {
+                if (src->data[1] == ';') { // skip comments
                     sv_div_by_delim(src, '\n');
                     return 0;
                 } else tk->type = TK_SEMICOLON;

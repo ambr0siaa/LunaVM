@@ -32,12 +32,13 @@ String_View sv_trim_right(String_View sv);
 String_View sv_trim(String_View sv);
 String_View sv_div_by_delim(String_View *sv, char delim);
 
-int sv_cmp(String_View sv1, String_View sv2);
 int sv_to_int(String_View sv);
-int sv_is_float(String_View sv);
+double sv_to_flt(String_View sv);
+char *sv_to_cstr(String_View sv);
 int char_in_sv(String_View sv, char c);
 int sv_in_sv(String_View sv1, String_View sv2);
-char *sv_to_cstr(String_View sv);
+int sv_cmp(String_View sv1, String_View sv2);
+int sv_is_float(String_View sv);
 
 void sv_cut_space_left(String_View *sv);
 void sv_cut_space_right(String_View *sv);

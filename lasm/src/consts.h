@@ -4,22 +4,21 @@
 #include <inttypes.h>
 
 #ifndef SV_H_
-#include "./sv.h"
+#include "../common/sv.h"
 #endif
 
-#ifndef ARENA_H_
-#include "../arena.h"
+#ifndef HT_H_
+#include "../common/ht.h"
 #endif
-
-#include "ht.h"
 
 typedef enum {
     CONST_TYPE_INT = 0,
-    CONST_TYPE_UINT,
     CONST_TYPE_FLOAT,
+    CONST_TYPE_UINT,
     CONST_TYPE_ERR
 } Const_Type;
 
+// TODO: replace by Expr
 typedef union {
     int64_t as_i64;
     uint64_t as_u64;
@@ -32,7 +31,7 @@ typedef struct {
     Const_Value value;
 } Const_Statement;
 
-#define CT_CAPACITY 60
+#define CT_CAPACITY 69
 
 typedef Hash_Table Const_Table;
 void ct_init(Arena *a, Const_Table *ct, size_t capacity);
