@@ -183,6 +183,7 @@ int cmd_args(int *argc, char ***argv)
                     if (status == BIL_EXIT_FAILURE)
                         bil_defer_status(status);
                 }
+                status = 2;
                 bil_defer_status(status);
             }
         }
