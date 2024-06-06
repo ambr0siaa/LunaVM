@@ -86,7 +86,7 @@ void cpu_inst_return(CPU *c)
 void cpu_execute_inst(CPU *const c)
 {
     if (c->ip >= c->program_size) {
-        fprintf(stderr, "Error: illigal instruction access\n");
+        fprintf(stderr, "Error: access denied\n");
         exit(1);
     }
 
@@ -386,7 +386,8 @@ void cpu_execute_inst(CPU *const c)
             }
 
             operand1 = cpu_fetch(c);
-            CPU_OP(c, stack, operand1, c->stack_size++, IP_INC_TRUE);
+            CPU_OP(c, stack, operand1, c->stack_size, IP_INC_TRUE);
+            c->stack_size++;
             c->sp++;
             break;
 
@@ -413,9 +414,10 @@ void cpu_execute_inst(CPU *const c)
 
             reg1 = cpu_fetch(c).reg;
             
-            if (reg1 >= F0) CPU_OP(c, regsf, c->stack[--c->stack_size].f64, reg1 - CPU_REGS, IP_INC_TRUE);
-            else CPU_OP(c, regs, c->stack[--c->stack_size].i64, reg1, IP_INC_TRUE);
+            if (reg1 >= F0) CPU_OP(c, regsf, c->stack[c->stack_size - 1].f64, reg1 - CPU_REGS, IP_INC_TRUE);
+            else CPU_OP(c, regs, c->stack[c->stack_size - 1].i64, reg1, IP_INC_TRUE);
 
+            c->stack_size -= 1;
             c->sp -= 1;
             break;
 
@@ -600,6 +602,13 @@ int inst_has_no_ops(Inst inst)
     }
 }
 
+int inst_isjump(Inst inst)
+{
+    if (inst >= INST_CALL && inst <= INST_JZ)
+        return 1;
+    return 0;
+}
+
 int inst_has_1_op(Inst inst)
 {
     switch (inst) {
@@ -629,6 +638,7 @@ void debug_regs(CPU *const c)
     printf("\n");
 }
 
+// TODO: rework stack debug
 void debug_stack(CPU *const c)
 {
     printf("Stack:\n");

@@ -65,7 +65,7 @@ void parse_state_label(String_View name, Lasm *L)
     label_append(L->a, &L->jmps, label);
 }
 
-Object expr_value_as_obj(Expr *expr, Const_Table *constT)
+Object expr_value_as_obj(Expr expr, Const_Table *constT)
 {
     Object obj = {0};
     Expr val = eval_expr(expr, constT);
@@ -96,7 +96,7 @@ void parse_state_inst(StateInst s, Lasm *L)
                 lasm_push_obj(L, reg);
                 break;
             case KIND_REG_VAL:
-                Object obj = expr_value_as_obj(&s.src, &L->constT);
+                Object obj = expr_value_as_obj(s.src, &L->constT);
                 lasm_push_obj(L, obj);
                 break;
             default:
@@ -108,14 +108,16 @@ void parse_state_inst(StateInst s, Lasm *L)
             lasm_push_obj(L, OBJ_REG(s.dst));
 
         Object obj = {0};
-        if (s.src.t == EXPR_LIT_STR) {
-            Label label = label_search(&L->jmps, s.src.v.as_str);
-            if (label.addr == (Inst_Addr)(-1)) {
-                label.addr = L->program_size;
-                label_append(L->a, &L->defered_jmps, label);
-            }
-            obj = OBJ_UINT(label.addr);
-        } else obj = expr_value_as_obj(&s.src, &L->constT);
+        if (inst_isjump(inst)) {
+            if (s.src.t == EXPR_LIT_STR) {
+                Label label = label_search(&L->jmps, s.src.v.as_str);
+                if (label.addr == (Inst_Addr)(-1)) {
+                    label.addr = L->program_size;
+                    label_append(L->a, &L->defered_jmps, label);
+                }
+                obj = OBJ_UINT(label.addr);
+            } else goto as_value;
+        } else as_value: obj = expr_value_as_obj(s.src, &L->constT);
         lasm_push_obj(L, obj);
     }
 }
@@ -128,8 +130,8 @@ void parse_state_entry(StateEntry s, Lasm *L)
 
 void parse_state_const(StateConst s, Lasm *L)
 {
-    Expr value = eval_expr(&s.value, &L->constT);
-    size_t type = value.t;
+    Expr value = eval_expr(s.value, &L->constT);
+    size_t type = value.t == EXPR_LIT_FLT ? CONST_TYPE_FLOAT : CONST_TYPE_INT;
     Const_Value val = type == CONST_TYPE_INT ?
                       (Const_Value) { .as_i64 = value.v.as_int } :
                       (Const_Value) { .as_f64 = value.v.as_flt };

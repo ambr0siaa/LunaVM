@@ -37,7 +37,7 @@ typedef struct {
     Arena *a;
 } Lasm;
 
-Object expr_value_as_obj(Expr *expr, Const_Table *constT);
+Object expr_value_as_obj(Expr expr, Const_Table *constT);
 
 void parse_state_inst(StateInst s, Lasm *L);
 void parse_state_const(StateConst s, Lasm *L);

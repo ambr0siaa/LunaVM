@@ -72,8 +72,6 @@ typedef enum {
     INST_POP_R,
     INST_POP_N,
 
-    INST_CALL,
-
     // inst ret header
     INST_RET,
 
@@ -108,6 +106,8 @@ typedef enum {
     INST_SHR_RV,
     INST_SHL_RV,
 
+    // DONT CHANGE THIS ORDER OF JUMP INSTS!!!
+    INST_CALL,
     INST_JMP,
     INST_JNZ,
     INST_JZ,
@@ -205,6 +205,7 @@ typedef struct {
 int inst_has_1_op(Inst inst);
 int inst_has_2_regs(Inst inst);
 int inst_has_no_ops(Inst inst);
+int inst_isjump(Inst inst);
 
 char *inst_as_cstr(Inst inst);
 char *reg_as_cstr(uint64_t operand);

@@ -145,6 +145,7 @@ int lexer(String_View *src, Token *tk, size_t *location)
 Token token_next(Lexer *lex)
 {
     if ((size_t)lex->tp >= lex->count) {
+        lex->tp += 1;
         return (Token) { .type = TK_NONE };
     } else {
         Token tk = lex->items[lex->tp];
