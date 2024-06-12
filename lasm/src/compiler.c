@@ -132,10 +132,4 @@ void lasm_help()
     fprintf(stdout, "Options:\n");
     fprintf(stdout, "\t-i          mandatory flag. Input source code with extention `.asm`\n");
     fprintf(stdout, "\t-o          mandatory flag. Input file for output (output is Luna's byte code) with extention `.ln`\n");
-    fprintf(stdout, "\t-dbHt       print a hash table state\n");
-    fprintf(stdout, "\t-dbLnz      print a linizer that was formed from lexer\n");
-    fprintf(stdout, "\t-dbLex      print a lexer that was formed from source code\n");
-    fprintf(stdout, "\t-dbLine     print lines with instruction and them kind\n");
-    fprintf(stdout, "\t-dbLexTxts  print lexer's tokens with type `TYPE_TXT` while working function `lexer`\n");
-    fprintf(stdout, "\t-dbFull     print all debug info into console\n");
 }
