@@ -2,14 +2,13 @@
 #define HT_H_
 
 #ifndef CPU_H_
-# include "./cpu.h"
+# include "../luna/src/luna.h"
 #else
 # include <stdio.h>
 # include <stdlib.h>
 # include <string.h>
 # include <stdint.h>
 #endif
-
 
 #define HT_MAGIC    0x428a2f98    // cubic root of 2
 #define HT_CAPACITY 69

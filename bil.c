@@ -2,7 +2,7 @@
 * This `bil` file builds:
 *   in dilasm `dilasm.c` - disassembly bytecode and print it in console
 *   in lasm/src `lasm.c` - translate assembly code to Luna's bytecode
-*   in cpu/src `lunem.c` - emulate program the Luna's bytecode
+*   in luna/src `lunem.c` - emulate program the Luna's bytecode
 *
 * All usages in `.c` files and in README
 *
@@ -29,11 +29,11 @@
 #define DEBUG_MODE "-g3", "-ggdb"
 #define CFLAGS "-Wall", "-Wextra", "-flto"
 
-#define CPU_INCLUDE_PATH "-Icpu/src/"
+#define CPU_INCLUDE_PATH "-Iluna/src/"
 #define COMMON_INCLUDE_PATH "-Icommon/"
 
 #define SRC_CPU      \
-    "cpu/src/cpu.c", \
+    "luna/src/luna.c", \
     "common/arena.c"
 
 #define SRC_COMMON \
@@ -63,7 +63,7 @@ const char *dilasm_dep_path = "bin/dep/dilasm.bil";
 
 char *targets[] = {
     "lasm/src/lasm.c",
-    "cpu/src/lunem.c",
+    "luna/src/lunem.c",
     "dilasm/dilasm.c"
 };
 
@@ -81,7 +81,7 @@ char *outputs[] = {
 };
 
 #define PREF_DOT "."
-#define PREF_CPU "cpu"
+#define PREF_CPU "luna"
 #define PREF_SRC "src"
 #define PREF_LASM "lasm"
 #define PREF_EXAMPLES "examples"
@@ -278,7 +278,7 @@ void cmd_handler(int *argc, char ***argv)
                 bil_defer_status(BIL_EXIT_FAILURE);
 
     defer:
-        bil_workflow_end();
+        bil_workflow_end(WORKFLOW_NO_TIME);
         BIL_EXIT(status);
     }
 }

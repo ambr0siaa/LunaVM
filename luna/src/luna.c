@@ -1,4 +1,4 @@
-#include "./cpu.h"
+#include "luna.h"
 
 Inst inst_defs[IC][NUMBER_OF_KINDS] = {
     [INST_MOV]  = { [KIND_REG_REG] = INST_MOV_RR, [KIND_REG_VAL] = INST_MOV_RV, [KIND_VAL] = INST_MOVS   },
@@ -57,41 +57,41 @@ char *reg_as_cstr(uint64_t operand)
     }
 }
 
-Object cpu_fetch(CPU *const c)
+Object luna_fetch(Luna *const L)
 {
-    c->ip += 1;
-    return c->program[c->ip];
+    L->ip += 1;
+    return L->program[L->ip];
 }
 
-void cpu_inst_return(CPU *c)
+void luna_inst_return(Luna *L)
 {
-    uint64_t tmp = c->fp;
-    c->ip = c->stack[c->fp - 1].u64;
-    c->sp = c->stack[c->fp - 2].u64;
-    c->fp = c->stack[c->fp - 3].u64;
-    c->zero_flag = c->stack[c->fp - 4].u64;
+    uint64_t tmp = L->fp;
+    L->ip = L->stack[L->fp - 1].u64;
+    L->sp = L->stack[L->fp - 2].u64;
+    L->fp = L->stack[L->fp - 3].u64;
+    L->zero_flag = L->stack[L->fp - 4].u64;
 
     tmp -= 4;
     
     for (int i = ACCF; i >= F0; --i) {
-        int t = i - CPU_REGS;
-        c->regsf[t] = c->stack[--tmp].f64;
+        int t = i - LUNA_REGS;
+        L->regsf[t] = L->stack[--tmp].f64;
     }
 
     for (int i = ACC; i >= R0; --i) {
-        c->regs[i] = c->stack[--tmp].i64;
+        L->regs[i] = L->stack[--tmp].i64;
     }
 }
 
-void cpu_execute_inst(CPU *const c)
+void luna_execute_inst(Luna *const L)
 {
-    if (c->ip >= c->program_size) {
+    if (L->ip >= L->program_size) {
         fprintf(stderr, "Error: access denied\n");
         exit(1);
     }
 
-    uint64_t ip = c->ip;
-    Inst inst = c->program[ip].inst;
+    uint64_t ip = L->ip;
+    Inst inst = L->program[ip].inst;
 
     Register reg1;
     Register reg2;
@@ -99,391 +99,390 @@ void cpu_execute_inst(CPU *const c)
 
     switch (inst) {
         case INST_MOV_RR:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
+            reg2 = luna_fetch(L).reg;
 
-            if (reg1 >= F0) CPU_OP(c, regsf, c->regsf[reg2 - CPU_REGS], reg1 - CPU_REGS, IP_INC_TRUE);
-            else CPU_OP(c, regs, c->regs[reg2], reg1, IP_INC_TRUE);
+            if (reg1 >= F0) LUNA_OP(L, regsf, L->regsf[reg2 - LUNA_REGS], reg1 - LUNA_REGS, IP_INC_TRUE);
+            else LUNA_OP(L, regs, L->regs[reg2], reg1, IP_INC_TRUE);
 
             break;
 
         case INST_MOV_RV:
-            reg1 = cpu_fetch(c).reg;
-            operand1 = cpu_fetch(c);
+            reg1 = luna_fetch(L).reg;
+            operand1 = luna_fetch(L);
 
-            if (reg1 >= F0) CPU_OP(c, regsf, operand1.f64, reg1 - CPU_REGS, IP_INC_TRUE);
-            else CPU_OP(c, regs, operand1.i64, reg1, IP_INC_TRUE);
+            if (reg1 >= F0) LUNA_OP(L, regsf, operand1.f64, reg1 - LUNA_REGS, IP_INC_TRUE);
+            else LUNA_OP(L, regs, operand1.i64, reg1, IP_INC_TRUE);
 
             break;
 
         case INST_MOVS:
-            reg1 = cpu_fetch(c).reg;
-            size_t shift = cpu_fetch(c).i64 + STACK_FRAME_SIZE;
+            reg1 = luna_fetch(L).reg;
+            size_t shift = luna_fetch(L).i64 + STACK_FRAME_SIZE;
 
-            Object stack_value = c->stack[c->stack_size - 1 - shift];
+            Object stack_value = L->stack[L->stack_size - 1 - shift];
 
-            if (reg1 >= F0) CPU_OP(c, regsf, stack_value.f64, reg1 - CPU_REGS, IP_INC_TRUE);
-            else CPU_OP(c, regs, stack_value.i64, reg1, IP_INC_TRUE);
+            if (reg1 >= F0) LUNA_OP(L, regsf, stack_value.f64, reg1 - LUNA_REGS, IP_INC_TRUE);
+            else LUNA_OP(L, regs, stack_value.i64, reg1, IP_INC_TRUE);
             break;
 
         case INST_ADD_RR:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
+            reg2 = luna_fetch(L).reg;
 
-            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], c->regsf[reg2 - CPU_REGS], +, reg1 - CPU_REGS);
-            else AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], +, reg1);
+            if (reg1 >= F0) AREFMETIC_OP(L, f, L->regsf[reg1 - LUNA_REGS], L->regsf[reg2 - LUNA_REGS], +, reg1 - LUNA_REGS);
+            else AREFMETIC_OP(L, ,L->regs[reg1], L->regs[reg2], +, reg1);
 
             break;
 
         case INST_SUB_RR:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
+            reg2 = luna_fetch(L).reg;
 
-            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], c->regsf[reg2 - CPU_REGS], -, reg1 - CPU_REGS);
-            else AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], -, reg1);
+            if (reg1 >= F0) AREFMETIC_OP(L, f, L->regsf[reg1 - LUNA_REGS], L->regsf[reg2 - LUNA_REGS], -, reg1 - LUNA_REGS);
+            else AREFMETIC_OP(L, ,L->regs[reg1], L->regs[reg2], -, reg1);
 
             break;
 
         case INST_DIV_RR:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
+            reg2 = luna_fetch(L).reg;
 
-            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], c->regsf[reg2 - CPU_REGS], /, reg1 - CPU_REGS);
-            else AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], /, reg1);
+            if (reg1 >= F0) AREFMETIC_OP(L, f, L->regsf[reg1 - LUNA_REGS], L->regsf[reg2 - LUNA_REGS], /, reg1 - LUNA_REGS);
+            else AREFMETIC_OP(L, ,L->regs[reg1], L->regs[reg2], /, reg1);
 
             break;
 
         case INST_MUL_RR:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
+            reg2 = luna_fetch(L).reg;
 
-            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], c->regsf[reg2 - CPU_REGS], *, reg1 - CPU_REGS);
-            else AREFMETIC_OP(c, ,c->regs[reg1], c->regs[reg2], *, reg1);
+            if (reg1 >= F0) AREFMETIC_OP(L, f, L->regsf[reg1 - LUNA_REGS], L->regsf[reg2 - LUNA_REGS], *, reg1 - LUNA_REGS);
+            else AREFMETIC_OP(L, ,L->regs[reg1], L->regs[reg2], *, reg1);
 
             break;
 
         case INST_ADD_RV:
-            reg1 = cpu_fetch(c).reg;
-            operand1 = cpu_fetch(c);
+            reg1 = luna_fetch(L).reg;
+            operand1 = luna_fetch(L);
 
-            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], operand1.f64, +, reg1 - CPU_REGS);
-            else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, +, reg1);
+            if (reg1 >= F0) AREFMETIC_OP(L, f, L->regsf[reg1 - LUNA_REGS], operand1.f64, +, reg1 - LUNA_REGS);
+            else AREFMETIC_OP(L, , L->regs[reg1], operand1.i64, +, reg1);
 
             break;
 
         case INST_SUB_RV:
-            reg1 = cpu_fetch(c).reg;
-            operand1 = cpu_fetch(c);
+            reg1 = luna_fetch(L).reg;
+            operand1 = luna_fetch(L);
 
-            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], operand1.f64, -, reg1 - CPU_REGS);
-            else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, -, reg1);
+            if (reg1 >= F0) AREFMETIC_OP(L, f, L->regsf[reg1 - LUNA_REGS], operand1.f64, -, reg1 - LUNA_REGS);
+            else AREFMETIC_OP(L, , L->regs[reg1], operand1.i64, -, reg1);
 
             break;
 
         case INST_DIV_RV:
-            reg1 = cpu_fetch(c).reg;
-            operand1 = cpu_fetch(c);
+            reg1 = luna_fetch(L).reg;
+            operand1 = luna_fetch(L);
 
-            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], operand1.f64, /, reg1 - CPU_REGS);
-            else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, /, reg1);
+            if (reg1 >= F0) AREFMETIC_OP(L, f, L->regsf[reg1 - LUNA_REGS], operand1.f64, /, reg1 - LUNA_REGS);
+            else AREFMETIC_OP(L, , L->regs[reg1], operand1.i64, /, reg1);
 
             break;
 
         case INST_MUL_RV:
-            reg1 = cpu_fetch(c).reg;
-            operand1 = cpu_fetch(c);
+            reg1 = luna_fetch(L).reg;
+            operand1 = luna_fetch(L);
 
-            if (reg1 >= F0) AREFMETIC_OP(c, f, c->regsf[reg1 - CPU_REGS], operand1.f64, *, reg1 - CPU_REGS);
-            else AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, *, reg1);
+            if (reg1 >= F0) AREFMETIC_OP(L, f, L->regsf[reg1 - LUNA_REGS], operand1.f64, *, reg1 - LUNA_REGS);
+            else AREFMETIC_OP(L, , L->regs[reg1], operand1.i64, *, reg1);
 
             break;
 
         case INST_AND_RV:
-            reg1 = cpu_fetch(c).reg;
-            operand1 = cpu_fetch(c);
+            reg1 = luna_fetch(L).reg;
+            operand1 = luna_fetch(L);
 
             if (reg1 >= F0) {
                 fprintf(stderr, "Error: for bitwise operation need not float register\n");
                 exit(1);
             }
 
-            AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, &, reg1);
+            AREFMETIC_OP(L, , L->regs[reg1], operand1.i64, &, reg1);
             break;
 
         case INST_OR_RV:
-            reg1 = cpu_fetch(c).reg;
-            operand1 = cpu_fetch(c);
+            reg1 = luna_fetch(L).reg;
+            operand1 = luna_fetch(L);
 
             if (reg1 >= F0) {
                 fprintf(stderr, "Error: for bitwise operation need not float register\n");
                 exit(1);
             }
 
-            AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, |, reg1);
+            AREFMETIC_OP(L, , L->regs[reg1], operand1.i64, |, reg1);
             break;
 
         case INST_NOT:
-            reg1 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
 
             if (reg1 >= F0) {
                 fprintf(stderr, "Error: for bitwise operation need not float register\n");
                 exit(1);
             }
 
-            c->regs[reg1] = ~c->regs[reg1];
-            c->ip += 1;
+            L->regs[reg1] = ~L->regs[reg1];
+            L->ip += 1;
             break;
 
         case INST_XOR_RV:
-            reg1 = cpu_fetch(c).reg;
-            operand1 = cpu_fetch(c);
+            reg1 = luna_fetch(L).reg;
+            operand1 = luna_fetch(L);
 
             if (reg1 >= F0) {
                 fprintf(stderr, "Error: for bitwise operation need not float register\n");
                 exit(1);
             }
             
-            AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, ^, reg1);
+            AREFMETIC_OP(L, , L->regs[reg1], operand1.i64, ^, reg1);
             break;
 
         case INST_SHR_RV:
-            reg1 = cpu_fetch(c).reg;
-            operand1 = cpu_fetch(c);
+            reg1 = luna_fetch(L).reg;
+            operand1 = luna_fetch(L);
 
             if (reg1 >= F0) {
                 fprintf(stderr, "Error: for bitwise operation need not float register\n");
                 exit(1);
             }
 
-            AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, >>, reg1);
+            AREFMETIC_OP(L, , L->regs[reg1], operand1.i64, >>, reg1);
             break;
 
         case INST_SHL_RV:
-            reg1 = cpu_fetch(c).reg;
-            operand1 = cpu_fetch(c);
+            reg1 = luna_fetch(L).reg;
+            operand1 = luna_fetch(L);
 
             if (reg1 >= F0) {
                 fprintf(stderr, "Error: for bitwise operation need not float register\n");
                 exit(1);
             }
 
-            AREFMETIC_OP(c, , c->regs[reg1], operand1.i64, <<, reg1);
+            AREFMETIC_OP(L, , L->regs[reg1], operand1.i64, <<, reg1);
             break;
         
         case INST_AND_RR:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
+            reg2 = luna_fetch(L).reg;
 
             if (reg1 >= F0 || reg2 >= F0) {
                 fprintf(stderr, "Error: registers must be non float for bitwise operation\n");
                 exit(1);
             }
 
-            AREFMETIC_OP(c, , c->regs[reg1], c->regs[reg2], &, reg1);
+            AREFMETIC_OP(L, , L->regs[reg1], L->regs[reg2], &, reg1);
             break;
 
         case INST_OR_RR:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
+            reg2 = luna_fetch(L).reg;
 
             if (reg1 >= F0 || reg2 >= F0) {
                 fprintf(stderr, "Error: registers must be non float for bitwise operation\n");
                 exit(1);
             }
 
-            AREFMETIC_OP(c, , c->regs[reg1], c->regs[reg2], |, reg1);
+            AREFMETIC_OP(L, , L->regs[reg1], L->regs[reg2], |, reg1);
             break;
 
         case INST_XOR_RR:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
+            reg2 = luna_fetch(L).reg;
 
             if (reg1 >= F0 || reg2 >= F0) {
                 fprintf(stderr, "Error: registers must be non float for bitwise operation\n");
                 exit(1);
             }
 
-            AREFMETIC_OP(c, , c->regs[reg1], c->regs[reg2], ^, reg1);
+            AREFMETIC_OP(L, , L->regs[reg1], L->regs[reg2], ^, reg1);
             break;
 
         case INST_SHR_RR:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
+            reg2 = luna_fetch(L).reg;
 
             if (reg1 >= F0 || reg2 >= F0) {
                 fprintf(stderr, "Error: registers must be non float for bitwise operation\n");
                 exit(1);
             }
 
-            AREFMETIC_OP(c, , c->regs[reg1], c->regs[reg2], >>, reg1);
+            AREFMETIC_OP(L, , L->regs[reg1], L->regs[reg2], >>, reg1);
             break;
 
         case INST_SHL_RR:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
+            reg2 = luna_fetch(L).reg;
 
             if (reg1 >= F0 || reg2 >= F0) {
                 fprintf(stderr, "Error: registers must be non float for bitwise operation\n");
                 exit(1);
             }
 
-            AREFMETIC_OP(c, , c->regs[reg1], c->regs[reg2], <<, reg1);
+            AREFMETIC_OP(L, , L->regs[reg1], L->regs[reg2], <<, reg1);
             break;
 
-
         case INST_JMP:
-            operand1.u64 = cpu_fetch(c).u64;
-            c->ip = operand1.u64;
+            operand1.u64 = luna_fetch(L).u64;
+            L->ip = operand1.u64;
             break;
 
         case INST_JNZ:
-            operand1 = cpu_fetch(c);
-            if (c->zero_flag == 1) c->ip = operand1.u64;
-            else c->ip += 1;
+            operand1 = luna_fetch(L);
+            if (L->zero_flag == 1) L->ip = operand1.u64;
+            else L->ip += 1;
             break;
 
         case INST_CMP:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
+            reg2 = luna_fetch(L).reg;
             
             if (reg1 >= F0 && reg2 >= F0) {
-                c->zero_flag = c->regsf[reg1 - CPU_REGS] == c->regsf[reg2 - CPU_REGS];
+                L->zero_flag = L->regsf[reg1 - LUNA_REGS] == L->regsf[reg2 - LUNA_REGS];
             } else if (reg1 < F0 && reg1 < F0) {
-                c->zero_flag = c->regs[reg1] == c->regs[reg2];
+                L->zero_flag = L->regs[reg1] == L->regs[reg2];
             } else {
                 fprintf(stderr, "Error: in inst `cmp` registers must be with equal types\n");
                 exit(1);
             }
 
-            c->ip += 1;
+            L->ip += 1;
             break;
 
         case INST_DBR:
-            reg1 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
             printf("%s: ", reg_as_cstr(reg1));
 
-            if (reg1 >= F0) printf("%lf\n",c->regsf[reg1 - CPU_REGS]);
-            else printf("%"PRIi64"\n", c->regs[reg1]);
+            if (reg1 >= F0) printf("%lf\n",L->regsf[reg1 - LUNA_REGS]);
+            else printf("%"PRIi64"\n", L->regs[reg1]);
 
-            c->ip += 1;
+            L->ip += 1;
             break;
 
         case INST_HLT:
-            c->halt = 1;
+            L->halt = 1;
             break;
 
         case INST_JZ:
-            operand1 = cpu_fetch(c);
+            operand1 = luna_fetch(L);
 
-            if (c->zero_flag == 0) c->ip = operand1.u64;
-            else c->ip += 1;
+            if (L->zero_flag == 0) L->ip = operand1.u64;
+            else L->ip += 1;
             break;
 
         case INST_PUSH_V:
-            if (c->stack_size > STACK_CAPACITY) {
+            if (L->stack_size > STACK_CAPACITY) {
                 fprintf(stderr, "Error: stack overflow\n");
                 exit(1);
             }
 
-            operand1 = cpu_fetch(c);
-            CPU_OP(c, stack, operand1, c->stack_size, IP_INC_TRUE);
-            c->stack_size++;
-            c->sp++;
+            operand1 = luna_fetch(L);
+            LUNA_OP(L, stack, operand1, L->stack_size, IP_INC_TRUE);
+            L->stack_size++;
+            L->sp++;
             break;
 
         case INST_PUSH_R:
-            if (c->stack_size > STACK_CAPACITY) {
+            if (L->stack_size > STACK_CAPACITY) {
                 fprintf(stderr, "Error: stack overflow\n");
                 exit(1);
             }
 
-            reg1 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
 
-            if (reg1 >= F0) operand1 = OBJ_FLOAT(c->regsf[reg1 - CPU_REGS]);
-            else operand1 = OBJ_INT(c->regs[reg1]);
+            if (reg1 >= F0) operand1 = OBJ_FLOAT(L->regsf[reg1 - LUNA_REGS]);
+            else operand1 = OBJ_INT(L->regs[reg1]);
 
-            CPU_OP(c, stack, operand1, c->stack_size++, IP_INC_TRUE);
-            c->sp++;
+            LUNA_OP(L, stack, operand1, L->stack_size++, IP_INC_TRUE);
+            L->sp++;
             break;
 
         case INST_POP_R:
-            if (c->stack_size < 1) {
+            if (L->stack_size < 1) {
                 fprintf(stderr, "Error: stack underflow\n");
                 exit(1);
             }
 
-            reg1 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
             
-            if (reg1 >= F0) CPU_OP(c, regsf, c->stack[c->stack_size - 1].f64, reg1 - CPU_REGS, IP_INC_TRUE);
-            else CPU_OP(c, regs, c->stack[c->stack_size - 1].i64, reg1, IP_INC_TRUE);
+            if (reg1 >= F0) LUNA_OP(L, regsf, L->stack[L->stack_size - 1].f64, reg1 - LUNA_REGS, IP_INC_TRUE);
+            else LUNA_OP(L, regs, L->stack[L->stack_size - 1].i64, reg1, IP_INC_TRUE);
 
-            c->stack_size -= 1;
-            c->sp -= 1;
+            L->stack_size -= 1;
+            L->sp -= 1;
             break;
 
         case INST_POP_N:
-            if (c->stack_size < 1) {
+            if (L->stack_size < 1) {
                 fprintf(stderr, "Error: stack underflow\n");
                 exit(1);
             }
 
-            c->stack_size -= 1;
-            c->sp -= 1;
-            c->ip += 1;
+            L->stack_size -= 1;
+            L->sp -= 1;
+            L->ip += 1;
             break;
 
         case INST_CALL:
-            operand1 = cpu_fetch(c);
+            operand1 = luna_fetch(L);
 
             for (int i = R0; i < ACC + 1; ++i) {
-                CPU_OP(c, stack, OBJ_INT(c->regs[i]), c->stack_size++, IP_INC_FLASE);
+                LUNA_OP(L, stack, OBJ_INT(L->regs[i]), L->stack_size++, IP_INC_FLASE);
             }
 
             for (int i = F0; i < ACCF + 1; ++i) {
-                CPU_OP(c, stack, OBJ_FLOAT(c->regsf[i - CPU_REGS]), c->stack_size++, IP_INC_FLASE);
+                LUNA_OP(L, stack, OBJ_FLOAT(L->regsf[i - LUNA_REGS]), L->stack_size++, IP_INC_FLASE);
             }
 
-            CPU_OP(c, stack, OBJ_UINT(c->zero_flag), c->stack_size++, IP_INC_FLASE);
-            CPU_OP(c, stack, OBJ_UINT(c->fp), c->stack_size++, IP_INC_FLASE);
-            CPU_OP(c, stack, OBJ_UINT(c->sp), c->stack_size++, IP_INC_FLASE);
-            CPU_OP(c, stack, OBJ_UINT(c->ip), c->stack_size++, IP_INC_FLASE);
+            LUNA_OP(L, stack, OBJ_UINT(L->zero_flag), L->stack_size++, IP_INC_FLASE);
+            LUNA_OP(L, stack, OBJ_UINT(L->fp), L->stack_size++, IP_INC_FLASE);
+            LUNA_OP(L, stack, OBJ_UINT(L->sp), L->stack_size++, IP_INC_FLASE);
+            LUNA_OP(L, stack, OBJ_UINT(L->ip), L->stack_size++, IP_INC_FLASE);
 
-            c->sp += STACK_FRAME_SIZE;
-            c->fp = c->sp;
-            c->ip = operand1.u64;
+            L->sp += STACK_FRAME_SIZE;
+            L->fp = L->sp;
+            L->ip = operand1.u64;
             break;
 
         case INST_RET_N:
-            cpu_inst_return(c);
-            c->ip += 1;
+            luna_inst_return(L);
+            L->ip += 1;
             break;
 
         case INST_RET_RR:
-            reg1 = cpu_fetch(c).reg;
-            reg2 = cpu_fetch(c).reg;
+            reg1 = luna_fetch(L).reg;
+            reg2 = luna_fetch(L).reg;
 
-            if (reg2 >= F0) operand1.f64 = c->regsf[reg2 - CPU_REGS];
-            else operand1.i64 = c->regs[reg2];
+            if (reg2 >= F0) operand1.f64 = L->regsf[reg2 - LUNA_REGS];
+            else operand1.i64 = L->regs[reg2];
 
-            cpu_inst_return(c);
+            luna_inst_return(L);
 
-            if (reg1 >= F0) CPU_OP(c, regsf, operand1.f64, reg1 - CPU_REGS, IP_INC_TRUE);
-            else CPU_OP(c, regs, operand1.i64, reg1, IP_INC_TRUE);
+            if (reg1 >= F0) LUNA_OP(L, regsf, operand1.f64, reg1 - LUNA_REGS, IP_INC_TRUE);
+            else LUNA_OP(L, regs, operand1.i64, reg1, IP_INC_TRUE);
             break;
 
         case INST_RET_RV:
-            reg1 = cpu_fetch(c).reg;
-            operand1 = cpu_fetch(c);
+            reg1 = luna_fetch(L).reg;
+            operand1 = luna_fetch(L);
 
-            cpu_inst_return(c);
+            luna_inst_return(L);
 
-            if (reg1 >= F0) CPU_OP(c, regsf, operand1.f64, reg1 - CPU_REGS, IP_INC_TRUE);
-            else CPU_OP(c, regs, operand1.i64, reg1, IP_INC_TRUE);
+            if (reg1 >= F0) LUNA_OP(L, regsf, operand1.f64, reg1 - LUNA_REGS, IP_INC_TRUE);
+            else LUNA_OP(L, regs, operand1.i64, reg1, IP_INC_TRUE);
             break;
 
         case INST_VLAD:
             printf("Vlad eat's poop!\n");
-            c->ip += 1;
+            L->ip += 1;
             break;
 
         case IC:
@@ -493,14 +492,14 @@ void cpu_execute_inst(CPU *const c)
     }
 }
 
-void cpu_execute_program(CPU *const c, int debug, int limit, int stk)
+void luna_execute_program(Luna *const L, int debug, int limit, int stk)
 {
     size_t ulimit = (size_t)(limit);
-    for (size_t i = 0; c->halt == 0; ++i) {
+    for (size_t i = 0; L->halt == 0; ++i) {
         if (i > ulimit) break;
-        if (debug) debug_regs(c);
-        if (stk) debug_stack(c);
-        cpu_execute_inst(c);
+        if (debug) debug_regs(L);
+        if (stk) debug_stack(L);
+        luna_execute_inst(L);
     }
 }
 
@@ -624,43 +623,43 @@ int inst_has_1_op(Inst inst)
     }
 }
 
-void debug_regs(CPU *const c)
+void debug_regs(Luna *const L)
 {
-    printf("ip: %"PRIu64"\n", c->ip);
-    printf("sp: %"PRIu64"\n", c->sp);
-    printf("fp: %"PRIu64"\n", c->fp);
+    printf("ip: %"PRIu64"\n", L->ip);
+    printf("sp: %"PRIu64"\n", L->sp);
+    printf("fp: %"PRIu64"\n", L->fp);
     for (size_t i = 0; i < RC; ++i) {
-        if (i >= F0) printf("%s: %lf\n", reg_as_cstr(i), c->regsf[i - CPU_REGS]); 
-        else printf("%s: %"PRIi64"\n", reg_as_cstr(i), c->regs[i]);
+        if (i >= F0) printf("%s: %lf\n", reg_as_cstr(i), L->regsf[i - LUNA_REGS]); 
+        else printf("%s: %"PRIi64"\n", reg_as_cstr(i), L->regs[i]);
     }
-    printf("zero flag: %d\n", c->zero_flag);
-    printf("halt: %d\n", c->halt);
+    printf("zero flag: %d\n", L->zero_flag);
+    printf("halt: %d\n", L->halt);
     printf("\n");
 }
 
 // TODO: rework stack debug
-void debug_stack(CPU *const c)
+void debug_stack(Luna *const L)
 {
     printf("Stack:\n");
-    if (c->stack_size == 0) printf("    empty\n");
-    for (size_t i = 0; i < c->stack_size; ++i) {
+    if (L->stack_size == 0) printf("    empty\n");
+    for (size_t i = 0; i < L->stack_size; ++i) {
         printf("    i64: %"PRIi64", u64: %"PRIu64", f64: %lf\n",
-                c->stack[i].i64, c->stack[i].u64, c->stack[i].f64);
+                L->stack[i].i64, L->stack[i].u64, L->stack[i].f64);
     }
 }
 
-void load_program_to_cpu(CPU *c, Object *program, size_t program_size)
+void load_program_to_luna(Luna *L, Object *program, size_t program_size)
 {
     size_t all_size = sizeof(program[0]) * program_size;
-    memcpy(c->program, program, all_size);
-    c->program_size += program_size;
+    memcpy(L->program, program, all_size);
+    L->program_size += program_size;
 }   
 
-void load_program_from_file(Arena *arena, CPU *c, const char *file_path)
+void load_program_from_file(Arena *arena, Luna *L, const char *file_path)
 {
-    if (c->program_capacity == 0) {
-        c->program_capacity = PROGRAM_INIT_CAPACITY;
-        c->program = arena_alloc(arena, c->program_capacity * sizeof(*c->program));
+    if (L->program_capacity == 0) {
+        L->program_capacity = PROGRAM_INIT_CAPACITY;
+        L->program = arena_alloc(arena, L->program_capacity * sizeof(*L->program));
     }
 
     FILE *fp = fopen(file_path, "rb");
@@ -686,24 +685,24 @@ void load_program_from_file(Arena *arena, CPU *c, const char *file_path)
     }
 
 
-    c->program_size = fread(c->program, sizeof(*c->program), meta.program_size, fp);
-    if (meta.program_size != c->program_size) {
+    L->program_size = fread(L->program, sizeof(*L->program), meta.program_size, fp);
+    if (meta.program_size != L->program_size) {
         fprintf(stderr, "Error: expected %"PRIi64" program size reading %"PRIi64"",
-                meta.program_size, c->program_size);
+                meta.program_size, L->program_size);
         exit(1);
     }
 
-    c->ip = meta.entry;
+    L->ip = meta.entry;
 
     fclose(fp);
 }
 
-void cpu_clean_program(CPU *const c)
+void luna_clean_program(Luna *const L)
 {
-    free(c->program);
-    c->program = NULL;
-    c->program_capacity = 0;
-    c->program_size = 0;
+    free(L->program);
+    L->program = NULL;
+    L->program_capacity = 0;
+    L->program_size = 0;
 }
 
 char *luna_shift_args(int *argc, char ***argv)

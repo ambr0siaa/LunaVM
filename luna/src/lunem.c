@@ -1,10 +1,10 @@
-#include "cpu.h"
+#include "luna.h"
 
 #define USAGE(program) \
     fprintf(stderr, "Usage: %s -i <input.ln> [-l limit] [-db debug registers] [-h help] [-stk debug stack]\n", (program))
 
 static Arena arena = {0};
-static CPU cpu = {0};
+static Luna L = {0};
 
 void lunem_help();
 
@@ -70,8 +70,8 @@ int main(int argc, char **argv)
         }
     }
 
-    load_program_from_file(&arena, &cpu, input_file_path);
-    cpu_execute_program(&cpu, db, limit, stk);
+    load_program_from_file(&arena, &L, input_file_path);
+    luna_execute_program(&L, db, limit, stk);
 
     arena_free(&arena);
     

@@ -2,7 +2,7 @@
 #define STATEMENT_H_
 
 #ifndef CPU_H_
-#include "./cpu.h"
+#include "../../luna/src/luna.h"
 #endif
 
 #include "expr.h"

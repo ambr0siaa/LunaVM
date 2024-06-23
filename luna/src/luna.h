@@ -1,5 +1,5 @@
-#ifndef CPU_H_
-#define CPU_H_
+#ifndef LUNA_H_
+#define LUNA_H_
 
 // TODO: separate instructions stuff to diffrent file 
 
@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
-#include "arena.h"
+#include "../../common/arena.h"
 
 #define ARRAY_SIZE(arr) sizeof((arr)) / sizeof((arr)[0])
 
@@ -141,16 +141,16 @@ typedef union {
     Register reg;
 } Object;
 
-// Count of regs in array on cpu
-#define CPU_REGS 10
+// Count of regs in array on luna
+#define LUNA_REGS 10
 
-// Register from enum (without RT and RTF) + registers from CPU (ip, sp, fp, zero_flag)
+// Register from enum (without RT and RTF) + registers from Luna (ip, sp, fp, zero_flag)
 #define STACK_FRAME_SIZE 24
 
 // kernel of virtual machine
 typedef struct {
-    int64_t regs[CPU_REGS];
-    double regsf[CPU_REGS];
+    int64_t regs[LUNA_REGS];
+    double regsf[LUNA_REGS];
 
     Object *program;
     uint64_t program_capacity;
@@ -164,7 +164,7 @@ typedef struct {
 
     uint8_t zero_flag;
     uint8_t halt;
-} CPU;
+} Luna;
 
 #if defined(__GNUC__) || defined(__clang__)
 #  define PACKED __attribute__((packed))
@@ -196,7 +196,7 @@ typedef struct {
 #define IP_INC_TRUE 1
 #define IP_INC_FLASE 0
 
-#define CPU_OP(c, place, op, index, on) \
+#define LUNA_OP(c, place, op, index, on) \
     do {                                \
         (c)->place [(index)] = op;      \
         if (on) (c)->ip += 1;           \
@@ -211,17 +211,17 @@ char *inst_as_cstr(Inst inst);
 char *reg_as_cstr(uint64_t operand);
 char *luna_shift_args(int *argc, char ***argv);
 
-void cpu_inst_return(CPU *c);
-Object cpu_fetch(CPU *const c);
+void luna_inst_return(Luna *c);
+Object luna_fetch(Luna *const c);
 
-void debug_regs(CPU *const c);
-void debug_stack(CPU *const c);
+void debug_regs(Luna *const c);
+void debug_stack(Luna *const c);
 
-void cpu_execute_inst(CPU *const c);
-void cpu_clean_program(CPU *const c);
-void cpu_execute_program(CPU *const c, int debug, int limit, int stk);
+void luna_execute_inst(Luna *const c);
+void luna_clean_program(Luna *const c);
+void luna_execute_program(Luna *const c, int debug, int limit, int stk);
 
-void load_program_from_file(Arena *arena, CPU *c, const char *file_path);
-void load_program_to_cpu(CPU *c, Object *program, size_t program_size);
+void load_program_from_file(Arena *arena, Luna *c, const char *file_path);
+void load_program_to_luna(Luna *c, Object *program, size_t program_size);
 
-#endif // CPU_H_
+#endif // LUNA_H_

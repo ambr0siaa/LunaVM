@@ -6,8 +6,8 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-#include "../common/sv.h"
-#include "../common/ht.h"
+#include "../../common/sv.h"
+#include "../../common/ht.h"
 
 typedef struct Token Token;
 
