@@ -16,10 +16,8 @@
 *    -db    if flag was provided current targets builds with `-g3` and `-ggdb` for debug.
 *
 *    -hdlr  bil's handler flag. It simplify working with main targets (lasm, lunem, dilasm) by making path's to examples 
-*           Example: type in terminal [ bin/bil -hdlr lasm -i call.asm -o call.ln ]
+*           Example: type in terminal [ bin/build -hdlr lasm -i e.asm -o e.ln ]
 *
-* TODO: 1) Make parsing command arguments better
-*       2) Implement building of all examples
 */
 
 #define BIL_IMPLEMENTATION
@@ -29,8 +27,8 @@
 #define DEBUG_MODE "-g3", "-ggdb"
 #define CFLAGS "-Wall", "-Wextra", "-flto"
 
-#define CPU_INCLUDE_PATH "-Iluna/src/"
-#define COMMON_INCLUDE_PATH "-Icommon/"
+#define CPU_INCLUDE_BIL_PATH "-Iluna/src/"
+#define COMMON_INCLUDE_BIL_PATH "-Icommon/"
 
 #define SRC_CPU      \
     "luna/src/luna.c", \
@@ -49,6 +47,36 @@
     "lasm/src/expr.c",      \
     "lasm/src/statement.c", \
     "lasm/src/error.c"
+
+#define SRC_EXAMPLES             \
+    "lasm/examples/e.asm",       \
+    "lasm/examples/call.asm",    \
+    "lasm/examples/bitwise.asm", \
+    "lasm/examples/const.asm",   \
+    "lasm/examples/fib.asm",     \
+    "lasm/examples/ret.asm",     \
+    "lasm/examples/vald.asm",    \
+    "lasm/examples/stack.asm",   \
+    "lasm/examples/float.asm"
+
+#define HDRS_COMMON \
+    "common/arena.h", \
+    "common/sv.h", \
+    "common/ht.h", \
+    "common/types.h"
+
+#define HDRS_LASM \
+    "lasm/src/compiler.h", \
+    "lasm/src/consts.h", \
+    "lasm/src/error.h", \
+    "lasm/src/expr.h", \
+    "lasm/src/lexer.h", \
+    "lasm/src/linizer.h", \
+    "lasm/src/parser.h", \
+    "lasm/src/statement.h"
+
+#define HDRS_LUNA \
+    "luna/src/luna.h"
 
 static int debug = 0;
 static int hdlr = 0;
@@ -90,16 +118,16 @@ char *outputs[] = {
 void mk_path_to_example(Bil_String_Builder *sb, char *where, int *argc, char ***argv)
 {
     const char *target = bil_shift_args(argc, argv);
-    *sb = PATH(PREF_LASM, where, target);
-    sb_join_nul(sb);
+    *sb = BIL_PATH(PREF_LASM, where, target);
+    bil_sb_join_nul(sb);
 }
 
 #define BUILD_TARGET(tar, cmd, ...)                                                     \
     do {                                                                                \
         bil_cmd_append(cmd, CC);                                                        \
         bil_cmd_append(cmd, CFLAGS);                                                    \
-        bil_cmd_append(cmd, CPU_INCLUDE_PATH);                                               \
-        bil_cmd_append(cmd, COMMON_INCLUDE_PATH);                                            \
+        bil_cmd_append(cmd, CPU_INCLUDE_BIL_PATH);                                          \
+        bil_cmd_append(cmd, COMMON_INCLUDE_BIL_PATH);                                       \
         if (debug) bil_cmd_append(cmd, DEBUG_MODE);                                     \
         bil_cmd_append(cmd, "-o");                                                      \
         bil_cmd_append(cmd, outputs[tar]);                                              \
@@ -129,6 +157,37 @@ int build_dilasm(Bil_Cmd *cmd)
     BUILD_TARGET(TARGET_DILASM, cmd, SRC_CPU);
 }
 
+int build_examples(void)
+{
+    Bil_Cmd cmd = {0};
+    int status = BIL_EXIT_SUCCESS;
+
+    bil_workflow_begin();
+        
+        Bil_Cstr_Array examples = {0};
+        bil_cstr_array_append(&examples, SRC_EXAMPLES);
+
+        for (size_t i = 0; i < examples.count; ++i) {
+            bil_cmd_append(&cmd, "bin/lasm");
+            bil_cmd_append(&cmd, "-i",  examples.items[i]);
+
+            Bil_String_Builder output = bil_sb_from_cstr(examples.items[i]);
+            bil_replace_file_extension(&output, "ln");
+            bil_sb_join_nul(&output);
+
+            bil_cmd_append(&cmd, "-o", output.items);
+            
+            if (!bil_cmd_run_sync(&cmd))
+                bil_defer_status(BIL_EXIT_FAILURE);
+            
+            cmd.count = 0;
+        }
+        
+defer:
+    bil_workflow_end();
+    return status;
+}
+
 int cmd_args(int *argc, char ***argv)
 {
     int status = -1;
@@ -145,8 +204,8 @@ int cmd_args(int *argc, char ***argv)
 
             } else if (!strcmp("-d", flag)) {
                 if (strcmp(binary_dir_path, BIL_CURRENT_DIR)) {
-                    Bil_String_Builder sb = PATH(PREF_DOT, binary_dir_path, DELETEME_FILE);
-                    sb_join_nul(&sb);
+                    Bil_String_Builder sb = BIL_PATH(PREF_DOT, binary_dir_path, DELETEME_FILE);
+                    bil_sb_join_nul(&sb);
                     if (!bil_delete_file(sb.items))
                         bil_defer_status(BIL_EXIT_FAILURE);
                 } else
@@ -157,23 +216,37 @@ int cmd_args(int *argc, char ***argv)
                     bil_defer_status(BIL_EXIT_SUCCESS);
 
             } else if (!strcmp("-b", flag)) {
-                flag = bil_shift_args(argc, argv);
-                if (!strcmp("only", flag)) status = 2;
-                size_t target = 0;
-                size_t build_amount = 3;
+                
                 if (*argc > 0) {
                     flag = bil_shift_args(argc, argv);
+                
+                    if (!strcmp("only", flag)) {
+                        status = 2;
+                    } else if (!strcmp("examples", flag)) {
+                        status = build_examples();
+                        bil_defer_status(status);
+                    }
+                }
+
+                size_t target = 0;
+                size_t build_amount = 3;
+
+                if (*argc > 0) {
+                    flag = bil_shift_args(argc, argv);
+
                     if (!strcmp(flag, "lasm")) target = TARGET_LASM;
                     else if (!strcmp(flag, "lunem")) target = TARGET_LUNEM;
                     else if (!strcmp(flag, "dilasm")) target = TARGET_DILASM;
                     else {
-                        bil_log(BIL_ERROR, "Unknown target for building `%s`",flag);
+                        bil_report(BIL_ERROR, "Unknown target for building `%s`",flag);
                         bil_defer_status(BIL_EXIT_FAILURE);
                     }
+
                     build_amount = target + 1;
                 }
 
                 Bil_Cmd cmd = {0};
+
                 for (size_t i = target; i < build_amount; ++i) {
                     switch (i) {
                         case TARGET_LASM: status = build_lasm(&cmd); break;
@@ -183,6 +256,7 @@ int cmd_args(int *argc, char ***argv)
                     if (status == BIL_EXIT_FAILURE)
                         bil_defer_status(status);
                 }
+
                 status = 2;
                 bil_defer_status(status);
             }
@@ -201,20 +275,20 @@ void cmd_handler(int *argc, char ***argv)
         bil_workflow_begin();
 
             if (*argc < 1) {
-                bil_log(BIL_ERROR, "expected commands for handler");
+                bil_report(BIL_ERROR, "expected commands for handler");
                 bil_defer_status(BIL_EXIT_FAILURE);
             }
 
             Bil_Cmd handler = {0};
             const char *target = bil_shift_args(argc, argv);
-            Bil_String_Builder target_path = PATH(binary_dir_path, target);
-            sb_join_nul(&target_path);
+            Bil_String_Builder target_path = BIL_PATH(binary_dir_path, target);
+            bil_sb_join_nul(&target_path);
             bil_cmd_append(&handler, target_path.items);
 
             if (!strcmp("lasm", target)) {
                 if (*argc < 1) {
                     lasm_error:
-                    bil_log(BIL_ERROR, "expected commands for `lasm`");
+                    bil_report(BIL_ERROR, "expected commands for `lasm`");
                     CMD("lasm/src/lasm", "-h");
                     bil_defer_status(BIL_EXIT_FAILURE);
                 }
@@ -243,7 +317,7 @@ void cmd_handler(int *argc, char ***argv)
 
             } else if (!strcmp("lunem", target)) {
                 if (*argc < 1) {
-                    bil_log(BIL_ERROR, "expected commands for `lunem`");
+                    bil_report(BIL_ERROR, "expected commands for `lunem`");
                     CMD("lasm/src/lunem", "-h");
                     bil_defer_status(BIL_EXIT_FAILURE);
                 }
@@ -264,7 +338,7 @@ void cmd_handler(int *argc, char ***argv)
 
             } else if (!strcmp("dilasm", target)) {
                 if (*argc < 1) {
-                    bil_log(BIL_ERROR, "expected commands for `dilasm`");
+                    bil_report(BIL_ERROR, "expected commands for `dilasm`");
                     bil_defer_status(BIL_EXIT_FAILURE);
                 }
 
@@ -295,23 +369,30 @@ void mk_important_dirs()
 int main(int argc, char **argv)
 {
     BIL_REBUILD(argc, argv, binary_dir_path);
-
     mk_important_dirs();
+
     if (cmd_args(&argc, &argv) == 1)
             BIL_EXIT(BIL_EXIT_FAILURE);
+
     cmd_handler(&argc, &argv);
+
+    int status = -1;
+    Bil_Cmd cmd = {0};
+    Bil_Dep lasm = {0}, lunem = {0}, dilasm = {0};
 
     bil_workflow_begin();
 
-        int status = -1;
-        Bil_Cmd cmd = {0};
-        Bil_Dep lasm = {0}, lunem = {0}, dilasm = {0};
+        bil_dep_init(&lasm, lasm_dep_path, targets[TARGET_LASM],
+                     SRC_LASM, SRC_CPU, SRC_COMMON, HDRS_COMMON, HDRS_LASM, HDRS_LUNA);
 
-        bil_dep_init(&lasm, lasm_dep_path, targets[TARGET_LASM], SRC_LASM, SRC_CPU, SRC_COMMON);
-        bil_dep_init(&lunem, lunem_dep_path, targets[TARGET_LUNEM], SRC_CPU);
-        bil_dep_init(&dilasm, dilasm_dep_path, targets[TARGET_DILASM], SRC_CPU);
+        bil_dep_init(&lunem, lunem_dep_path,
+                     targets[TARGET_LUNEM], SRC_CPU, HDRS_COMMON, HDRS_LUNA);
+
+        bil_dep_init(&dilasm, dilasm_dep_path,
+                     targets[TARGET_DILASM], SRC_CPU, HDRS_COMMON, HDRS_LUNA);
 
         int *changes = bil_check_deps(lasm, lunem, dilasm);
+
         for (size_t target = 0; target < TARGET_AMOUNT; ++target) {
             if (changes[target]) {
                 switch (target) {
@@ -324,7 +405,7 @@ int main(int argc, char **argv)
 
         if (status == -1) {
             status = BIL_EXIT_SUCCESS;
-            bil_log(BIL_INFO, "No changes");
+            bil_report(BIL_INFO, "No changes");
         }
 
     bil_workflow_end();

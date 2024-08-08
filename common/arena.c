@@ -22,7 +22,8 @@ void *arena_alloc_aligned(Arena *arena, size_t size, size_t alignment)
     }
 
     Region *cur = arena->head;
-    while (1) {
+
+    for (;;) {
         if (cur == NULL) {
             Region* r = region_create(ARENA_CMP(align_size));
             arena->tail->next = r;

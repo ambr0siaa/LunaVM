@@ -18,6 +18,7 @@ size_t err_pos(String_View where, String_View what)
         if (sv_cmp(tmp, what)) break;
         i++;
     }
+
     return i;
 }
 
@@ -64,8 +65,7 @@ void pr_error(error_level level, Token tk, const char *fmt, ...)
         printse("|\n");
         printse("|    "SV_Fmt"\n", SV_Args(line));
         printse("|    ");
-        for (size_t i = 0; i < pos; ++i)
-            printse(" ");
+        for (size_t i = 0; i < pos; ++i) printse(" ");
         printse("^");
         for (size_t i = 0; i < tk.txt.count - 1; ++i)
             printse("~");

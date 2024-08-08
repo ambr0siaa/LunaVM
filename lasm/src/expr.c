@@ -112,6 +112,28 @@ Expr binOp_operand(Arena *a, Lexer *L)
     return e;
 }
 
+#define BINOP_EVAL(dst, op, lhs, rhs) \
+    do { \
+        if ((lhs).t == EXPR_LIT_FLT && \
+            (rhs).t == EXPR_LIT_FLT) { \
+                *(dst) = (Expr) { \
+                    .t = EXPR_LIT_FLT, \
+                    .v.as_flt = (lhs).v.as_flt op (rhs).v.as_flt \
+                }; \
+        } else if ((lhs).t == EXPR_LIT_INT && \
+                   (rhs).t == EXPR_LIT_INT) { \
+                *(dst) = (Expr) { \
+                    .t = EXPR_LIT_INT, \
+                    .v.as_int = (lhs).v.as_int op (rhs).v.as_int \
+                }; \
+        } else { /* TODO: Makes errors more informative*/ \
+            pr_error(SYNTAX_ERR, TOKEN_NONE, /* TODO: instead of real types print them as string */ \
+                     "operands have diffrent type." \
+                     "left: `%u`, right `%u`.", \
+                     (lhs).t, (rhs).t); \
+        } \
+    } while (0)
+
 Expr binOp_eval(BinOp_Type type, Expr lhs, Expr rhs)
 {
     Expr e = {0};

@@ -1,3 +1,7 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+
 #include "sv.h"
 
 String_View sv_from_parts(char *data, size_t count)
@@ -70,19 +74,13 @@ String_View sv_div_by_delim(String_View *sv, char delim)
     return result;
 }
 
-hshv_t sv_get_hash(String_View sv)
-{
-    char *s = sv_to_cstr(sv);
-    hshv_t hash = hash_func_primary(s);
-    free(s);
-    return hash;
-}
-
 int sv_cmp(String_View sv1, String_View sv2)
 {
-    hshv_t h1 = sv_get_hash(sv1);
-    hshv_t h2 = sv_get_hash(sv2);
-    return h1 == h2; 
+    if (sv1.count != sv2.count) {
+        return 0;
+    } else {
+        return memcmp(sv1.data, sv2.data, sv1.count) == 0;
+    }
 }
 
 int sv_to_int(String_View sv)

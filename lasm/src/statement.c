@@ -76,8 +76,11 @@ StateInst inststat(Arena *a, Lexer *L, Hash_Table *instT)
     String_View inst_name = tk.txt;
     char *key = sv_to_cstr(inst_name);
     int inst = inst_table_get(instT, key);
-    if (inst < 0)
+
+    if (inst < 0) {
         pr_error(SYNTAX_ERR, tk, "%s not an instruction", key);
+    }
+
     free(key);
     s.inst = inst;
 
@@ -90,6 +93,7 @@ StateInst inststat(Arena *a, Lexer *L, Hash_Table *instT)
         case TK_TEXT: {
             if (try_register(tk.txt)) {
                 s.dst = parse_register(tk.txt);
+
                 tk = token_next(L);
                 if (tk.type != TK_COMMA) {
                     s.kind = KIND_REG;
@@ -97,29 +101,29 @@ StateInst inststat(Arena *a, Lexer *L, Hash_Table *instT)
                 }
 
                 tk = token_next(L);
-                if (tk.type == TK_NUMBER ||
-                    tk.type == TK_AMPERSAND ||
-                    tk.type == TK_OPEN_PAREN) {
-                        token_back(L, 1);
-                        s.kind = KIND_REG_VAL;
-                        s.src = parse_expr(a, L);
+                if (tk.type == TK_NUMBER || tk.type == TK_AMPERSAND || tk.type == TK_OPEN_PAREN) {
+                    token_back(L, 1);
+                    s.kind = KIND_REG_VAL;
+                    s.src = parse_expr(a, L);
 
                 } else if (tk.type == TK_TEXT) {
                     s.kind = KIND_REG_REG;
                     s.src.t = EXPR_LIT_INT;
                     int reg = parse_register(tk.txt);
-                    if (reg < 0)
-                        pr_error(SYNTAX_ERR, tk, "argument `"SV_Fmt"` not a register",
-                                 SV_Args(tk.txt));
+
+                    if (reg < 0) {
+                        pr_error(SYNTAX_ERR, tk, "argument `"SV_Fmt"` not a register", SV_Args(tk.txt));
+                    }
+
                     s.src.v.as_int = reg;
 
                 } else if (tk.type == TK_DOLLAR) {
                     s.kind = KIND_VAL;
                     s.src = parse_expr(a, L);
 
-                } else
-                    pr_error(SYNTAX_ERR, tk, "invalid argument `"SV_Fmt"` for instruction",
-                             SV_Args(tk.txt));
+                } else {
+                    pr_error(SYNTAX_ERR, tk, "invalid argument `"SV_Fmt"` for instruction", SV_Args(tk.txt));
+                }
             } else {
                 s.kind = KIND_VAL;
                 s.src.t = EXPR_LIT_STR;
@@ -149,8 +153,10 @@ StateConst conststat(Arena *a, Lexer *L)
     StateConst s = {0};
     String_View name = token_yield(L, TK_TEXT).txt;
     Expr value = parse_expr(a, L);
+
     s.name = name;
     s.value = value;
+
     return s;
 }
 

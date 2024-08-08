@@ -1,7 +1,16 @@
+#include <ctype.h>
+
 #include "luna.h"
 
+// [-l limit] [-db debug registers] [-h help] [-stk debug stack]
+
 #define USAGE(program) \
-    fprintf(stderr, "Usage: %s -i <input.ln> [-l limit] [-db debug registers] [-h help] [-stk debug stack]\n", (program))
+    fprintf(stderr, "Usage: %s -i [input.ln] [options]\n", (program)); \
+    fprintf(stderr, "options:\n"); \
+    fprintf(stderr, "-l    limit of instruction execution. By default no limit\n"); \
+    fprintf(stderr, "-db   debug register state on each cycle of execution. By default flag is off\n"); \
+    fprintf(stderr, "-stk  debug stack state on each cycle of execution. By default flag is off\n"); \
+    fprintf(stderr, "-h    prints this usage\n")
 
 static Arena arena = {0};
 static Luna L = {0};
@@ -60,7 +69,6 @@ int main(int argc, char **argv)
 
         } else if (!strcmp(flag, "-h")) {
             USAGE(program);
-            lunem_help();
             return EXIT_SUCCESS;
             
         } else {
@@ -74,17 +82,5 @@ int main(int argc, char **argv)
     luna_execute_program(&L, db, limit, stk);
 
     arena_free(&arena);
-    
     return EXIT_SUCCESS;
-}
-
-void lunem_help()
-{
-    printf("\n--------------------------------------------------- Lunem Usage ---------------------------------------------------\n\n");
-    fprintf(stdout, "-i    input file name to execute. Expects files with `.ln` extension\n");
-    fprintf(stdout, "-l    limit of executing program. Default is -1\n");
-    fprintf(stdout, "-db   if flag was provided, emulator will print info about all registers state. Not enabled by default\n");
-    fprintf(stdout, "-stk  flag is the same as -db, but debug stack state. Not enabled by default");
-    fprintf(stdout, "-h    print this text and exit\n");
-    printf("\n----------------------------------------------------------------------------------------------------------------\n");
 }

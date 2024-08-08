@@ -118,7 +118,7 @@ Linizer lexical_analyze(Arena *global, String_View src, Hash_Table *instT)
 
         while (src.count > 0) {
             String_View line = sv_div_by_delim(&src, '\n');
-            if (err_global.defined) da_append(global, &err_global, line);
+            if (err_global.defined) arena_da_append(global, &err_global, line);
             sv_cut_space_left(&line);
 
             while (line.count > 0) {

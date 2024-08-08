@@ -3,12 +3,6 @@
 
 #include <ctype.h>
 #include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-
-#ifndef HT_H_
-#   include "ht.h"
-#endif
 
 typedef struct {
     char *data;

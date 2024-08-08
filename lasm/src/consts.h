@@ -3,13 +3,10 @@
 
 #include <inttypes.h>
 
-#ifndef SV_H_
-#include "../common/sv.h"
-#endif
+#include "../../common/sv.h"
+#include "../../common/ht.h"
 
-#ifndef HT_H_
-#include "../common/ht.h"
-#endif
+typedef Hash_Table Const_Table;
 
 typedef enum {
     CONST_TYPE_INT = 0,
@@ -33,13 +30,14 @@ typedef struct {
 
 #define CT_CAPACITY 69
 
-typedef Hash_Table Const_Table;
-void ct_init(Arena *a, Const_Table *ct, size_t capacity);
+LUNA_API void ct_init(Arena *a, Const_Table *ct, size_t capacity);
 
-void ct_print(Const_Table *ct);
-Const_Statement *cnst_state_create(Arena *a, String_View name, Const_Type type, Const_Value val);
-void cnst_print(Const_Statement *cnst);
-void ct_insert(Arena *a, Const_Table *ct, Const_Statement *cnst);
-Const_Statement *ct_get(Const_Table *ct, String_View name);
+LUNA_API Const_Statement *cnst_state_create(Arena *a, String_View name, Const_Type type, Const_Value val);
+
+LUNA_API void ct_print(Const_Table *ct);
+LUNA_API void cnst_print(Const_Statement *cnst);
+
+LUNA_API void ct_insert(Arena *a, Const_Table *ct, Const_Statement *cnst);
+LUNA_API Const_Statement *ct_get(Const_Table *ct, String_View name);
 
 #endif // CONSTS_H_

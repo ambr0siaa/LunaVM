@@ -10,6 +10,7 @@ void lexer_keys_init(Arena *a, Hash_Table *ht, size_t capacity)
 {
     size_t tk = TK_CONST;
     ht_init(a, ht, capacity);
+
     for (size_t i = 0; i < LEXER_KEYS_COUNT; ++i) {
         size_t *value = arena_alloc(a, sizeof(size_t));
         *value = tk + i;
@@ -22,6 +23,7 @@ size_t lexer_key_get(Hash_Table *ht, const char *key)
     size_t *dst;
     if (!ht_get(ht, key, (void**)(&dst)))
         return 0;
+
     return *dst;
 }
 
@@ -31,9 +33,7 @@ String_View lexer_cut_string(String_View *src)
         sv_cut_left(src, 1);
 
     size_t i = 0;
-    while (i < src->count && src->data[i] != '"') {
-        i++;
-    }
+    while (i < src->count && src->data[i] != '"') ++i;
 
     String_View result = sv_from_parts(src->data, i);
     sv_cut_left(src, i + 1); // plus 1 for skipping quote
@@ -108,8 +108,10 @@ int lexer(String_View *src, Token *tk, size_t *location)
                 if (src->data[1] == ';') { // skip comments
                     sv_div_by_delim(src, '\n');
                     return 0;
-                } else tk->type = TK_SEMICOLON;
-                break;
+                } else {
+                    tk->type = TK_SEMICOLON;
+                    break;
+                }
             }
             case '\000': {
                 sv_cut_left(src, shift);
@@ -139,6 +141,7 @@ int lexer(String_View *src, Token *tk, size_t *location)
         sv_cut_left(src, shift);
         sv_cut_space_left(src);
     }
+
     return 1;
 }
 

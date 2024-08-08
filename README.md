@@ -8,14 +8,14 @@ Simple register-based virtual machine with own assembler.
 
 ## Quick Start
 
-To build all project at start use ```bilSetup.sh``` then run ```bil```:
+To build all project at start use `bilSetup.sh` then run `build`:
 ```
 $ ./bilSetup.sh
-$ ./bin/bil -b
+$ ./bin/build -b
 ```
 
 To test some example:
 ```
-$ ./bin/bil -hdlr lasm -i <example.asm> -o <example.ln>
-$ ./bin/bil -hldr lunem -i <example.ln>
+$ ./bin/build -hdlr lasm -i <example.asm> -o <example.ln>
+$ ./bin/build -hldr lunem -i <example.ln>
 ```

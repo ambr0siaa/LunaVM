@@ -38,19 +38,24 @@ void lasm_cmd_args(Lasm *L, int *argc, char ***argv)
 {
     const char *program = luna_shift_args(argc, argv);
 
-    if (*argc < 1)
+    if (*argc < 1) {
         pr_error(ERRI, "%s expected input and output\n", program);
+    }
 
     while (*argc > 0) {
         const char *flag = luna_shift_args(argc, argv);
         if (!strcmp("-o", flag)) {
-            if (*argc < 1)
+            if (*argc < 1) {
                 pr_error(ERRI, "%s expected output file\n", program);
+            }
+
             L->output_file = luna_shift_args(argc, argv);
 
         } else if (!strcmp("-i", flag)) {
-            if (*argc < 1)
+            if (*argc < 1) {
                 pr_error(ERRI, "%s expected input file\n", program);
+            }
+
             L->input_file = luna_shift_args(argc, argv);
 
         } else if (!strcmp("-h", flag)) {
@@ -60,8 +65,9 @@ void lasm_cmd_args(Lasm *L, int *argc, char ***argv)
         } else if (!strcmp("-g", flag)) {
             err_global.defined = 1;
 
-        } else
+        } else {
             pr_error(ERRI, "unknown flag `%s`\n", flag);
+        }
     }
 
     err_global.a = L->a;
@@ -73,8 +79,7 @@ void lasm_load_file(Lasm *L)
     FILE *f = fopen(L->input_file, "rb");
     if (!f) pr_error(ERRI, "cannot open file `%s`\n", L->input_file);
 
-    if (fseek(f, 0, SEEK_END) < 0)
-        goto error;
+    if (fseek(f, 0, SEEK_END) < 0) goto error;
 
     long int file_size = ftell(f);
     if (file_size < 0) goto error;
@@ -98,8 +103,9 @@ error:
 void lasm_save_program_to_file(Lasm *L)
 {
     FILE *fp = fopen(L->output_file, "wb");
-    if (!fp)
+    if (!fp) {
         pr_error(ERRI, "cannot open file by `%s` path\n", L->output_file);
+    }
 
     Luna_File_Meta meta = {
         .magic = LUNA_MAGIC,

@@ -29,14 +29,13 @@ typedef struct {
 
 void printse(const char *fmt, ...); // se - standart error (like stderr)
 
-extern Luna_Error err_global;
+LUNA_API Luna_Error err_global;
 
 #define ERROR PROGRAM_ERR, TOKEN_NONE
 #define ERRI INPUT_ERR, TOKEN_NONE
 
-String_View err_line(size_t line_ptr);
-size_t err_pos(String_View where, String_View what);
-void pr_error(error_level level, Token tk, const char *fmt, ...);
-
+LUNA_API String_View err_line(size_t line_ptr);
+LUNA_API size_t err_pos(String_View where, String_View what);
+LUNA_API void pr_error(error_level level, Token tk, const char *fmt, ...);
 
 #endif // ERROR_H_

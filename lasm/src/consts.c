@@ -45,11 +45,14 @@ void ct_print(Const_Table *ct)
 {
     for (size_t i = 0; i < ct->capacity; ++i) {
         Const_Statement *cnst = (Const_Statement*)ct->items[i]->value;
-        if (cnst != NULL)
+        if (cnst != NULL) {
             cnst_print(cnst);
+        }
+
         cnst = (Const_Statement*)ct->buckets[i]->item->value;
-        if (cnst != NULL)
+        if (cnst != NULL) {
             cnst_print(cnst);
+        }
     }
 }
 
@@ -57,10 +60,12 @@ Const_Statement *ct_get(Const_Table *ct, String_View name)
 {
     Const_Statement *dst;
     char *key = sv_to_cstr(name);
+
     if (!ht_get(ct, key, (void**)&dst)) {
         dst = NULL;
         fprintf(stderr, "error: cannot get constant by name `"SV_Fmt"`\n", SV_Args(name));
     }
+
     free(key);
     return dst;
 }

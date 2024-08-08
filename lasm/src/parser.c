@@ -2,15 +2,10 @@
 
 void lasm_push_obj(Lasm *L, Object obj)
 {
-    if (L->program_capacity == 0) {
-        L->program_capacity = INIT_CAPACITY;
-        L->program = arena_alloc(L->a, sizeof(*L->program) * L->program_capacity);
-    }
-
     if (L->program_size + 1 > L->program_capacity) {
-        size_t old_size = L->program_capacity * sizeof(*L->program);
-        L->program_capacity *= 2;
-        L->program = arena_realloc(L->a, L->program, old_size, L->program_capacity * sizeof(*L->program));
+        size_t old_size = L->program_capacity*sizeof(*L->program);
+        L->program_capacity = L->program_capacity == 0 ? ARENA_DA_INIT_CAP : L->program_capacity * 2;
+        L->program = arena_realloc(L->a, L->program, old_size, L->program_capacity*sizeof(*L->program));
     }
 
     L->program[L->program_size++] = obj;
@@ -116,8 +111,13 @@ void parse_state_inst(StateInst s, Lasm *L)
                     label_append(L->a, &L->defered_jmps, label);
                 }
                 obj = OBJ_UINT(label.addr);
-            } else goto as_value;
-        } else as_value: obj = expr_value_as_obj(s.src, &L->constT);
+            } else {
+                goto as_value;
+            }
+        } else {
+        as_value:
+            obj = expr_value_as_obj(s.src, &L->constT);
+        }
         lasm_push_obj(L, obj);
     }
 }

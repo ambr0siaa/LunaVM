@@ -1,9 +1,8 @@
 /*
-*  This custom build system like MakeFile, Cmake and etc
-*  But as C single header style library (stb-style)
-*  Its crose platform (well, its work on windows and linux)
-* 
-*  This tiny build system has inspired by `https://github.com/tsoding/nobuild`
+*  This custom build system is like MakeFile, Cmake and etc
+*  but implemented as single header style C library (stb-style).
+*  Library can by used on Linux and Windows.
+*  Project has inspired by `https://github.com/tsoding/nobuild`
 * 
 *  Copyright (c) 2024 Matthew Sokolkin <sokolkin227@gmail.com>
 * 
@@ -29,16 +28,16 @@
 #ifndef BIL_H_
 #define BIL_H_
 
-#include <ctype.h>
-#include <errno.h>
-#include <stdio.h>
 #include <assert.h>
+#include <ctype.h>
 #include <dirent.h>
+#include <errno.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
-#include <stdbool.h>
 
 #ifdef _WIN32
 #    include <windows.h>
@@ -61,17 +60,26 @@
 #define BIL_EXIT exit
 #define BIL_REALLOC bil_context_realloc
 
-#define BIL_INFO_COLOR "\033[0;36m"
-#define BIL_ERROR_COLOR "\033[0;31m"
-#define BIL_NORMAL_COLOR "\x1B[0m"
-#define BIL_WARNING_COLOR "\x1b[36m"
+#define BIL_INFO_COLOR "\x1b[1m"
+#define BIL_ERROR_COLOR "\x1b[38;5;9m"
+#define BIL_NORMAL_COLOR "\x1b[0m"
+#define BIL_WARNING_COLOR "\x1b[1m"
 
-/*
-*  Using for workflow context.
-*  When provided `bil_workflow_begin` build system use's context alloc
-*  if not then build system use's default malloc
-*/
-static int bil_alloc_flag;
+#define BIL_EXIT_SUCCESS 0
+#define BIL_EXIT_FAILURE 1
+
+#ifndef BIL_REBUILD_COMMAND
+#  define BIL_REBUILD_CFLAGS "-Wall", "-Wextra", "-flto", "-O3", "-fPIE"
+#  if _WIN32
+#    if defined(__GNUC__)
+#       define BIL_REBUILD_COMMAND(source_path, output_path) "gcc", "-o", (output_path), (source_path), BIL_REBUILD_CFLAGS
+#    elif defined(__clang__)
+#       define BIL_REBUILD_COMMAND(source_path, output_path) "clang", "-o", (output_path), (source_path), BIL_REBUILD_CFLAGS
+#    endif
+#  else
+#       define BIL_REBUILD_COMMAND(source_path, output_path) "gcc", "-o", (output_path), (source_path), BIL_REBUILD_CFLAGS
+#  endif
+#endif // BIL_REBUILD_COMMAND
 
 #ifdef _WIN32
 typedef HANDLE Bil_Proc;
@@ -81,44 +89,36 @@ typedef int Bil_Proc;
 #define BIL_INVALID_PROC (-1)
 #endif
 
-#define bil_da_init(da, cap)                    \
-    do {                                        \
-        (da)->items = bil_context_alloc((cap)); \
-        (da)->capacity = (cap);                 \
-        (da)->count = 0;                        \
+#define bil_da_append(da, new_item)                                                        \
+    do {                                                                                   \
+        if ((da)->count + 1 >= (da)->capacity) {                                           \
+            size_t old_size = BIL_DA_SIZE((da));                                           \
+            (da)->capacity = (da)->capacity > 0 ? (da)->capacity*2 : BIL_DA_INIT_CAPACITY; \
+            (da)->items = BIL_REALLOC((da)->items, old_size, BIL_DA_SIZE((da)));           \
+            BIL_ASSERT((da)->items != NULL);                                               \
+        }                                                                                  \
+        (da)->items[(da)->count++] = (new_item);                                           \
     } while (0)
 
-#define bil_da_append(da, new_item)                                                                  \
-    do {                                                                                             \
-        if ((da)->count >= (da)->capacity) {                                                         \
-            size_t new_cap = (da)->capacity > 0 ? (da)->capacity * 2 : BIL_DA_INIT_CAPACITY;         \
-            (da)->items = BIL_REALLOC((da)->items, BIL_DA_SIZE((da)), new_cap*sizeof(*(da)->items)); \
-            BIL_ASSERT((da)->items != NULL);                                                         \
-            (da)->capacity = new_cap;                                                                \
-        }                                                                                            \
-        (da)->items[(da)->count++] = (new_item);                                                     \
+#define bil_da_append_many(da, new_items, items_count)                                      \
+    do {                                                                                    \
+        if ((da)->count + (items_count) >= (da)->capacity) {                                \
+            size_t old_size = BIL_DA_SIZE((da));                                            \
+            if ((da)->capacity == 0) (da)->capacity = BIL_DA_INIT_CAPACITY;                 \
+            while ((da)->count + (items_count) >= (da)->capacity) { (da)->capacity *= 2; }  \
+            (da)->items = BIL_REALLOC((da)->items, old_size, BIL_DA_SIZE((da)));            \
+            BIL_ASSERT((da)->items != NULL);                                                \
+        }                                                                                   \
+        memcpy((da)->items + (da)->count, (new_items), (items_count)*sizeof(*(da)->items)); \
+        (da)->count += (items_count);                                                       \
     } while (0)
 
-#define bil_da_append_many(da, new_items, items_count)                                        \
-    do {                                                                                      \
-        if ((da)->capacity == 0) bil_da_init((da), BIL_DA_INIT_CAPACITY);                     \
-        if ((da)->count + (items_count) >= (da)->capacity) {                                  \
-            if ((da)->capacity == 0) (da)->capacity = BIL_DA_INIT_CAPACITY;                   \
-            size_t old_size = BIL_DA_SIZE((da));                                              \
-            while ((da)->count + (items_count) >= (da)->capacity) { (da)->capacity *= 2; }    \
-            (da)->items = BIL_REALLOC((da)->items, old_size, BIL_DA_SIZE((da)));              \
-            BIL_ASSERT((da)->items != NULL);                                                  \
-        }                                                                                     \
-        memcpy((da)->items + (da)->count, (new_items), (items_count) * sizeof(*(da)->items)); \
-        (da)->count += (items_count);                                                         \
-    } while (0)
 
 #define bil_da_append_da(dst, src)                                                               \
     do {                                                                                         \
-        if ((dst)->capacity == 0) bil_da_init((dst), BIL_DA_INIT_CAPACITY);                      \
         if ((dst)->count + (src)->count >= (dst)->capacity) {                                    \
-            if ((dst)->capacity == 0) (dst)->capacity = BIL_DA_INIT_CAPACITY;                    \
             size_t old_size = BIL_DA_SIZE((dst));                                                \
+            if ((dst)->capacity == 0) (dst)->capacity = BIL_DA_INIT_CAPACITY;                    \
             while ((dst)->count + (src)->count >= (dst)->capacity) { (dst)->capacity *= 2; }     \
             (dst)->items = BIL_REALLOC((dst)->items, old_size, BIL_DA_SIZE((dst)));              \
             BIL_ASSERT((dst)->items != NULL);                                                    \
@@ -131,6 +131,7 @@ typedef int Bil_Proc;
     do {                                              \
         if ((da)->items != NULL && bil_alloc_flag) {  \
             BIL_FREE((da)->items);                    \
+            (da)->items = NULL;                       \
             (da)->capacity = 0;                       \
             (da)->count = 0;                          \
         }                                             \
@@ -140,23 +141,61 @@ typedef enum {
     BIL_INFO = 0,
     BIL_ERROR,
     BIL_WARNING
-} bil_log_flags;
+} bil_report_flags;
 
-#define BIL_EXIT_SUCCESS 0
-#define BIL_EXIT_FAILURE 1
+void bil_report(bil_report_flags flag, char *fmt, ...);
 
-#ifndef BIL_REBUILD_COMMAND
-#  define BIL_REBUILD_CFLAGS "-Wall", "-Wextra", "-flto", "-O3"
-#  if _WIN32
-#    if defined(__GNUC__)
-#       define BIL_REBUILD_COMMAND(source_path, output_path) "gcc", "-o", (output_path), (source_path), BIL_REBUILD_CFLAGS
-#    elif defined(__clang__)
-#       define BIL_REBUILD_COMMAND(source_path, output_path) "clang", "-o", (output_path), (source_path), BIL_REBUILD_CFLAGS
-#    endif
-#  else
-#       define BIL_REBUILD_COMMAND(source_path, output_path) "gcc", "-o", (output_path), (source_path), BIL_REBUILD_CFLAGS
-#  endif
-#endif // BIL_REBUILD_COMMAND
+typedef struct {
+    char **items;
+    size_t count;
+    size_t capacity;
+} Bil_Cstr_Array;
+
+void bil_cstr_arr_clean(Bil_Cstr_Array *arr);
+void bil_cstr_arr_append(Bil_Cstr_Array *arr, char *item);                                  // Appends only one item
+void bil_cstr_arr_append_many(Bil_Cstr_Array *arr, const char **items, size_t items_count); // Appends fixed count of items
+
+// Appends variable count of items
+#define bil_cstr_array_append(arr, ...) \
+    bil_da_append_many((arr), ((const char *[]){__VA_ARGS__}), sizeof((const char *[]){__VA_ARGS__}) / sizeof(const char*))
+
+typedef struct {
+    char *items;
+    size_t count;
+    size_t capacity;
+} Bil_String_Builder;
+
+#define SB_Args(sb) (int) (sb).count, (sb).items
+#define SB_Fmt "%.*s"
+
+void bil_sb_join_many(Bil_String_Builder *sb, ...);
+void bil_sb_join_cstr(Bil_String_Builder *sb, const char *cstr);
+
+Bil_String_Builder bil_sb_from_cstr(char *cstr);
+
+#define bil_sb_clean(sb)     bil_da_clean(sb);
+#define bil_sb_join_nul(sb)  bil_da_append_many(sb, "", 1)
+#define SB_JOIN(sb,...)      bil_sb_join_many((sb), __VA_ARGS__, NULL)
+
+typedef struct {
+    char *data;
+    size_t count;
+} Bil_String_View;
+
+#define SV_Fmt SB_Fmt
+#define SV_Args(sv) (int) (sv).count, (sv).data
+
+Bil_String_View bil_sv_from_cstr(char *cstr);
+Bil_String_View bil_sv_cut_value(Bil_String_View *sv);
+Bil_String_View bil_sv_chop_by_space(Bil_String_View *sv);
+
+void bil_sv_cut_space_left(Bil_String_View *sv);
+
+int bil_char_in_sv(Bil_String_View sv, char c);
+int bil_sv_cmp(Bil_String_View s1, Bil_String_View s2);
+
+uint32_t bil_sv_to_u32(Bil_String_View sv);
+char *bil_sv_to_cstr(Bil_String_View sv);
 
 typedef struct {
     char **items;
@@ -176,54 +215,11 @@ typedef struct {
 
 void cmd_single_run(const char **args, size_t args_count);
 
-bool bil_cmd_run_sync(Bil_Cmd *cmd);
-Bil_Proc bil_cmd_run_async(Bil_Cmd *cmd);
-
-bool bil_proc_await(Bil_Proc proc);
-void bil_log(bil_log_flags flag, char *fmt, ...);
-bool bil_rename_file(const char *file_path, const char *new_path);
-bool bil_check_for_rebuild(const char *output_file_path, const char *source_file_path);
-
-typedef struct {
-    char **items;
-    size_t count;
-    size_t capacity;
-} Bil_Cstr_Array;
-
-void cstr_arr_clean(Bil_Cstr_Array *arr);
-void cstr_arr_append(Bil_Cstr_Array *arr, char *item);
-void cstr_arr_append_many(Bil_Cstr_Array *arr, const char **items, size_t items_count);
-
-typedef struct {
-    char *items;
-    size_t count;
-    size_t capacity;
-} Bil_String_Builder;
-
-#define SB_Args(sb) (int) (sb).count, (sb).items
-#define SB_Fmt "%.*s"
-
-void sb_join_many(Bil_String_Builder *sb, ...);
-void sb_join_cstr(Bil_String_Builder *sb, const char *cstr);
-
-Bil_String_Builder sb_from_cstr(char *cstr);
 Bil_String_Builder bil_cmd_create(Bil_Cmd *cmd);
 
-#define sb_clean(sb)     bil_da_clean(sb);
-#define sb_join_nul(sb)  bil_da_append_many(sb, "", 1)
-#define SB_JOIN(sb,...)  sb_join_many((sb), __VA_ARGS__, NULL)
-
-typedef struct {
-    char *data;
-    size_t count;
-} Bil_String_View;
-
-#define SV_Fmt SB_Fmt
-#define SV_Args(sv) (int) (sv).count, (sv).data
-
-Bil_String_View sv_from_cstr(char *cstr);
-Bil_String_View sv_cut_value(Bil_String_View *sv);
-uint32_t sv_to_u32(Bil_String_View sv);
+Bil_Proc bil_cmd_run_async(Bil_Cmd *cmd);
+bool bil_proc_await(Bil_Proc proc);
+bool bil_cmd_run_sync(Bil_Cmd *cmd);
 
 #ifdef _WIN32
 #define Bil_FileTime FILETIME
@@ -238,7 +234,7 @@ uint32_t sv_to_u32(Bil_String_View sv);
 #endif
 
 struct bil_dep_info {
-    uint32_t id;        // polinomial hash (probably i'll implemente sha256)
+    uint32_t id;
     Bil_FileTime t;
 #ifdef _WIN32
     long int ltime;     // load time from parser
@@ -256,20 +252,18 @@ typedef struct {
 *  Bil_Dep - bil's dependence. Uses for keep tracking of dependent files.
 *  Takes many dependences and 1 output file where writes info about depenences.
 *  Output file I prefer name's with extention `.bil` but you can also use diffrent extention.
+*
+*  Usage for dependences:
+*      Bil_Dep dep = {0};
+*      bil_dep_init(&dep, <output file path>, <dependeces>);
 */
 typedef struct {
     Bil_Cstr_Array deps;    
     const char *output_file;
 } Bil_Dep;
 
-/*
-*  Usage for dependences:
-*      Bil_Dep dep = {0};
-*      bil_dep_init(&dep, <output file path>, <dependeces>);
-*/
-
-bool bil_dep_ischange(Bil_Dep *dep);    // the main workhorse function for dependencies
-int *bil_deps_ischange(const Bil_Dep *deps, size_t count);
+bool bil_dep_ischange(Bil_Dep *dep);                         // the main workhorse function for dependencies
+int *bil_deps_ischange(const Bil_Dep *deps, size_t count);   // checks many dependeces
 
 // returns array of ints with `bil_dep_ischange` result respectively provided dependences
 #define bil_check_deps(...) \
@@ -290,18 +284,17 @@ bool bil_deps_info_search(Bil_Deps_Info *info, uint32_t id, struct bil_dep_info 
 #define bil_dep_init(dep, output_file_path, ...)                                  \
     do {                                                                          \
         (dep)->output_file = output_file_path;                                    \
-        cstr_arr_append_many(&(dep)->deps,                                        \
+        bil_cstr_arr_append_many(&(dep)->deps,                                    \
                              ((const char*[]){__VA_ARGS__}),                      \
                              sizeof((const char*[]){__VA_ARGS__})/sizeof(char*)); \
     } while (0)
 
-#define bil_dep_clean(dep) cstr_arr_clean(&(dep)->deps)
-
-void bil_mkdir(const char *name);
-bool bil_dir_exist(const char *dir_path);
+#define bil_dep_clean(dep) bil_cstr_arr_clean(&(dep)->deps)
 
 #define DELETEME_FILE "DELETEME"
 #define BIL_CURRENT_DIR "cur"
+
+bool bil_check_for_rebuild(const char *output_file_path, const char *source_file_path);
 
 /*
 *  Macro for rebuilding building executable file when it provided.
@@ -317,45 +310,64 @@ bool bil_dir_exist(const char *dir_path);
             bool rebuild_is_need = bil_check_for_rebuild(output_file_path, source_file_path);           \
                                                                                                         \
             if (rebuild_is_need) {                                                                      \
-                Bil_String_Builder deleteme_sb_path = {0};                                              \
+                Bil_String_Builder deleteme_bil_sb_path = {0};                                          \
                 const char *deleteme_path;                                                              \
                                                                                                         \
                 int is_current = strcmp(deleteme_dir, BIL_CURRENT_DIR);                                 \
                                                                                                         \
                 if (is_current) {                                                                       \
-                    deleteme_sb_path = PATH(".", deleteme_dir, DELETEME_FILE);                          \
-                    deleteme_path = deleteme_sb_path.items;                                             \
+                    deleteme_bil_sb_path = BIL_PATH(".", deleteme_dir, DELETEME_FILE);                  \
+                    deleteme_path = deleteme_bil_sb_path.items;                                         \
                 } else {                                                                                \
                     deleteme_path = DELETEME_FILE;                                                      \
                 }                                                                                       \
                                                                                                         \
                 if (!bil_rename_file(output_file_path, deleteme_path)) extra_exit();                    \
-                if (is_current) sb_clean(&deleteme_sb_path);                                            \
+                if (is_current) bil_sb_clean(&deleteme_bil_sb_path);                                    \
                                                                                                         \
                 Bil_Cmd rebuild_cmd = {0};                                                              \
                 bil_cmd_append(&rebuild_cmd, BIL_REBUILD_COMMAND(source_file_path, output_file_path));  \
                 if (!bil_cmd_run_sync(&rebuild_cmd)) bil_defer_status(BIL_EXIT_FAILURE);                \
-                bil_log(BIL_INFO, "rebuild complete");                                                  \
+                bil_report(BIL_INFO, "rebuild complete");                                               \
                 bil_cmd_clean(&rebuild_cmd);                                                            \
                                                                                                         \
                 Bil_Cmd cmd = {0};                                                                      \
                 bil_da_append_many(&cmd, argv, argc);                                                   \
-                bil_cmd_run_sync(&cmd);                                                                 \
+                status = bil_cmd_run_sync(&cmd);                                                        \
                 bil_cmd_clean(&cmd);                                                                    \
+                bil_defer_status(!status);                                                              \
             }                                                                                           \
     defer:                                                                                              \
         bil_workflow_end(WORKFLOW_NO_TIME);                                                             \
         if (status != -1) BIL_EXIT(status);                                                             \
     } while (0)
 
+// Using for cutting file extension
+#define BIL_DOT_NEED    1
+#define BIL_DOT_NOTNEED 0
+
+void bil_mkdir(const char *name);
+bool bil_dir_exist(const char *dir_path);
+
 bool bil_file_exist(const char *file_path);
 bool bil_delete_file(const char *file_path);
 bool bil_read_file(const char *file_path, char **dst);
+bool bil_read_entire_file(const char *file_path, Bil_String_View *dst);
+bool bil_rename_file(const char *file_path, const char *new_path);
+void bil_cut_file_extension(Bil_String_Builder *file, bool dot);
+void bil_replace_file_extension(Bil_String_Builder *file, const char *ext);
 
 char *bil_shift_args(int *argc, char ***argv);
 
 Bil_String_Builder bil_mk_path(char *file, ...);
-#define PATH(file, ...) bil_mk_path(file, __VA_ARGS__, NULL)
+#define BIL_PATH(file, ...) bil_mk_path(file, __VA_ARGS__, NULL)
+
+/*
+*  Using for workflow context.
+*  When provided `bil_workflow_begin` build system use's context alloc
+*  if not then build system use's default malloc
+*/
+static int bil_alloc_flag;
 
 // Memmory region for context alloc (its like arenas)
 typedef struct Bil_Region Bil_Region;
@@ -421,6 +433,8 @@ typedef struct {
 
 static Bil_Workflow *workflow = NULL;
 
+double workflow_time_taken(struct timeval end, struct timeval begin);
+
 void bil_workflow_begin();
 void workflow_end(const int *args, int argc);
 void extra_exit();
@@ -431,6 +445,21 @@ void extra_exit();
 #endif // BIL_H_
 
 #ifdef BIL_IMPLEMENTATION
+
+void bil_cut_file_extension(Bil_String_Builder *file, bool dot)
+{
+    size_t i = 0;
+    while (i < file->count && file->items[file->count - i - 1] != '.') ++i;
+    
+    if (!dot) --i;
+    file->count -= i;
+}
+
+void bil_replace_file_extension(Bil_String_Builder *file, const char *ext)
+{
+    bil_cut_file_extension(file, BIL_DOT_NEED);
+    bil_sb_join_cstr(file, ext);
+}
 
 void extra_exit()
 {
@@ -449,7 +478,7 @@ void extra_exit()
             wfc = next;
         } 
     } else
-        bil_log(BIL_WARNING, "Some allocations may not cleaned");
+        bil_report(BIL_WARNING, "Some allocations may not cleaned");
     BIL_EXIT(BIL_EXIT_FAILURE);
 }
 
@@ -488,7 +517,7 @@ void *bil_context_alloc(size_t size)
 {
     if (workflow == NULL) {
         bil_alloc_flag = 1;
-        bil_log(BIL_WARNING, "Default malloc is used. Keep memory clean!");
+        bil_report(BIL_WARNING, "Default malloc is used. Keep memory clean!");
         return malloc(size);
     }
 
@@ -497,7 +526,7 @@ void *bil_context_alloc(size_t size)
     Bil_Region *cur = actual->r_head;
     size_t align_size = (size + (BIL_ALIGNMENT - 1)) & ~(BIL_ALIGNMENT - 1);
 
-    while (1) {
+    for(;;) {
         if (cur == NULL) {
             Bil_Region* r = bil_region_create((size) < BIL_REGION_DEFAULT_CAPACITY ?
                                               BIL_REGION_DEFAULT_CAPACITY : (size));
@@ -534,15 +563,16 @@ void bil_workflow_begin()
 {
     WfContext *wfc = malloc(sizeof(WfContext));
     wfc->end = (struct timeval) {0};
+
 #ifdef _WIN32
     gettimeofday(&wfc->begin);
 #else
     gettimeofday(&wfc->begin, NULL);
 #endif
+
     Bil_Region *r = bil_region_create(BIL_REGION_DEFAULT_CAPACITY);
     wfc->r_head = r;
     wfc->r_tail = r;
-
     wfc->next = NULL;
     
     if (workflow == NULL) {
@@ -555,10 +585,17 @@ void bil_workflow_begin()
     }
 }
 
+double workflow_time_taken(struct timeval end, struct timeval begin)
+{
+    double time_taken = (end.tv_sec - begin.tv_sec) * 1e6;
+    time_taken = (time_taken + (end.tv_usec - begin.tv_usec)) * 1e-6;
+    return time_taken;
+}
+
 void workflow_end(const int *args, int argc)
 {
     if (workflow == NULL) {
-        bil_log(BIL_WARNING, "Cannot clear workflow that not exist. All workflows have already done or haven't begun\n");
+        bil_report(BIL_WARNING, "Cannot clear workflow that not exist. All workflows have already done or haven't begun\n");
         return;
     }
 
@@ -571,10 +608,11 @@ void workflow_end(const int *args, int argc)
     #else
         gettimeofday(&wfc->end, NULL);
     #endif
-        double time_taken = (wfc->end.tv_sec - wfc->begin.tv_sec) * 1e6;
-        time_taken = (time_taken + (wfc->end.tv_usec - wfc->begin.tv_usec)) * 1e-6;
-        bil_log(BIL_INFO, "Workflow has taken %lf sec", time_taken);
-    } else if (argc > 0 && args[0] != WORKFLOW_NO_TIME) goto workflow_time;
+        double time_taken = workflow_time_taken(wfc->end, wfc->begin);
+        bil_report(BIL_INFO, "Workflow has taken %lf sec", time_taken);
+    } else if (argc > 0 && args[0] != WORKFLOW_NO_TIME) {
+        goto workflow_time;
+    }
 
     Bil_Region *r = wfc->r_head;
     while(r != NULL) {
@@ -592,22 +630,32 @@ void workflow_end(const int *args, int argc)
         return;
     }
 
-    while (cur->next != wfc)
-        cur = cur->next;
+    while (cur->next != wfc) cur = cur->next;
+
     free(wfc);
     cur->next = NULL;
     workflow->tail = cur;
 }
 
-uint32_t sv_to_u32(Bil_String_View sv)
+uint32_t bil_sv_to_u32(Bil_String_View sv)
 {
     uint32_t result = 0;
+
     for (size_t i = 0; i < sv.count && isdigit(sv.data[i]); ++i)
-        result = result * 10 + sv.data[i] - '0'; 
+        result = result * 10 + sv.data[i] - '0';
+
     return result;
 }
 
-Bil_String_View sv_from_cstr(char *cstr)
+char *bil_sv_to_cstr(Bil_String_View sv)
+{
+    char *cstr = bil_context_alloc(sv.count + 1);
+    memcpy(cstr, sv.data, sv.count);
+    cstr[sv.count] = '\0';
+    return cstr;
+}
+
+Bil_String_View bil_sv_from_cstr(char *cstr)
 {
     return (Bil_String_View) {
         .count = strlen(cstr),
@@ -615,13 +663,12 @@ Bil_String_View sv_from_cstr(char *cstr)
     };
 }
 
-Bil_String_View sv_cut_value(Bil_String_View *sv)
+Bil_String_View bil_sv_cut_value(Bil_String_View *sv)
 {
     Bil_String_View result;
     size_t i = 0;
-    while (i < sv->count && (isdigit(sv->data[i]) || sv->data[i] == '.')) {
-        i++;
-    }
+
+    while (i < sv->count && (isdigit(sv->data[i]) || sv->data[i] == '.')) ++i;
 
     result.data = sv->data;
     result.count = i;
@@ -632,18 +679,54 @@ Bil_String_View sv_cut_value(Bil_String_View *sv)
     return result;
 }
 
-void sv_cut_space_left(Bil_String_View *sv)
+int bil_char_in_sv(Bil_String_View sv, char c)
+{
+    int result = 0;
+    for (size_t i = 0; i < sv.count; ++i) {
+        if (sv.data[i] == c) {
+            result = 1;
+            break;
+        }
+    }
+
+    return result;
+}
+
+void bil_sv_cut_space_left(Bil_String_View *sv)
 {
     size_t i = 0;
-    while (i < sv->count && isspace(sv->data[i])) {
-        i++;
-    }
+    while (i < sv->count && isspace(sv->data[i])) ++i;
 
     sv->count -= i;
     sv->data += i;
 }
 
-void sv_cut_left(Bil_String_View *sv, int shift)
+int bil_sv_cmp(Bil_String_View s1, Bil_String_View s2)
+{
+    if (s1.count == s2.count) {
+        return memcmp(s1.data, s2.data, s1.count) == 0;
+    } else {
+        return 0;
+    }
+}
+
+Bil_String_View bil_sv_chop_by_space(Bil_String_View *sv)
+{
+    Bil_String_View result = {0};
+    size_t i = 0;
+
+    while (i < sv->count && !isspace(sv->data[i])) ++i;
+
+    result.data = sv->data;
+    result.count = i;
+
+    sv->count -= i;
+    sv->data += i;
+    
+    return result;
+}
+
+void bil_sv_cut_left(Bil_String_View *sv, int shift)
 {
     sv->data += shift;
     sv->count -= shift;
@@ -652,62 +735,66 @@ void sv_cut_left(Bil_String_View *sv, int shift)
 Bil_Deps_Info bil_parse_dep(char *src)
 {
     Bil_Deps_Info info = {0};
-    Bil_String_View source = sv_from_cstr(src);
+    Bil_String_View source = bil_sv_from_cstr(src);
+
     while (source.count > 0 && source.data[0] != '\0') {
         struct bil_dep_info i = {0};
+
         if (isdigit(source.data[0])) {
-            i.id = sv_to_u32(sv_cut_value(&source));
-            sv_cut_left(&source, 1);
+            i.id = bil_sv_to_u32(bil_sv_cut_value(&source));
+            bil_sv_cut_left(&source, 1);
 
             if (source.data[0] == '-')
-                sv_cut_left(&source, 1);
+                bil_sv_cut_left(&source, 1);
 
             #ifdef _WIN32
-            i.ltime = sv_to_u32(sv_cut_value(&source));
+            i.ltime = bil_sv_to_u32(bil_sv_cut_value(&source));
             #else
-            i.t = sv_to_u32(sv_cut_value(&source));
+            i.t = bil_sv_to_u32(bil_sv_cut_value(&source));
             #endif
 
-            sv_cut_left(&source, 1);
+            bil_sv_cut_left(&source, 1);
+
         } else if (source.data[0] == '-') {
-            sv_cut_left(&source, 1);
+            bil_sv_cut_left(&source, 1);
 
         } else {
-            bil_log(BIL_ERROR, "unknown character `%c`", source.data[0]);
+            bil_report(BIL_ERROR, "unknown character `%c`", source.data[0]);
             extra_exit();
         }
+
         bil_da_append(&info, i);
     }
     return info;
 }
 
-void cstr_arr_append_many(Bil_Cstr_Array *arr, const char **items, size_t items_count)
+void bil_cstr_arr_append_many(Bil_Cstr_Array *arr, const char **items, size_t items_count)
 {
     bil_da_append_many(arr, items, items_count);
 }
 
-void cstr_arr_append(Bil_Cstr_Array *arr, char *item)
+void bil_cstr_arr_append(Bil_Cstr_Array *arr, char *item)
 {
     bil_da_append(arr, item);
 }
 
-void cstr_arr_clean(Bil_Cstr_Array *arr)
+void bil_cstr_arr_clean(Bil_Cstr_Array *arr)
 {
     bil_da_clean(arr);
 }
 
 void bil_mkdir(const char *dir_path)
 {
-    bil_log(BIL_INFO, "Make directory %s", dir_path);
+    bil_report(BIL_INFO, "Make directory %s", dir_path);
 #ifdef _WIN32
     if (CreateDirectoryA(dir_path, NULL) == 0) {
-        bil_log(BIL_ERROR, "cannot create directory `%s`: %lu",
+        bil_report(BIL_ERROR, "cannot create directory `%s`: %lu",
                 dir_path, GetLastError());
         extra_exit();
     }
 #else
     if (mkdir(dir_path, 0777) < 0) {
-        bil_log(BIL_ERROR, "cannot create directory `%s`: %s\n",
+        bil_report(BIL_ERROR, "cannot create directory `%s`: %s\n",
                 dir_path, strerror(errno));
         extra_exit();
     }
@@ -718,14 +805,16 @@ bool bil_dir_exist(const char *dir_path)
 {
     bool result = true;
     DIR *dir = opendir(dir_path);
+
     if (dir) {
         result = true;
     } else if (ENOENT == errno) {
         result = false;
     } else {
-        bil_log(BIL_ERROR, "file `%s` not a directory\n", dir_path);
+        bil_report(BIL_ERROR, "file `%s` not a directory\n", dir_path);
         result = false;
     }
+
     closedir(dir);
     return result;
 }
@@ -775,16 +864,27 @@ bool bil_read_file(const char *file_path, char **dst)
 defer:
     fclose(f);
     if (status != true)
-        bil_log(BIL_ERROR, "cannot read from `%s`: %s",
+        bil_report(BIL_ERROR, "cannot read from `%s`: %s",
                 file_path, strerror(errno));
+
     return status;
+}
+
+bool bil_read_entire_file(const char *file_path, Bil_String_View *dst)
+{
+    char *content;
+    if (!bil_read_file(file_path, &content))
+        return false;
+
+    *dst = bil_sv_from_cstr(content);
+    return true;
 }
 
 Bil_FileTime bil_file_last_update(const char *path)
 {
     Bil_FileTime result;
     if (!bil_file_exist(path)) {
-        bil_log(BIL_ERROR, "cannot find dependence by path `%s`", path);
+        bil_report(BIL_ERROR, "cannot find dependence by path `%s`", path);
         extra_exit();
     }
 #ifdef _WIN32
@@ -792,7 +892,7 @@ Bil_FileTime bil_file_last_update(const char *path)
 
     HANDLE file = CreateFile(path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
     if (file == BIL_INVALID_PROC) {
-        bil_log(BIL_ERROR, "cannot open `%s`: %lu", path, GetLastError());
+        bil_report(BIL_ERROR, "cannot open `%s`: %lu", path, GetLastError());
         extra_exit();
     }
 
@@ -801,7 +901,7 @@ Bil_FileTime bil_file_last_update(const char *path)
     CloseHandle(file);
 
     if (!Proc) {
-        bil_log(BIL_ERROR, "cannot get `%s` time: %lu", path, GetLastError());
+        bil_report(BIL_ERROR, "cannot get `%s` time: %lu", path, GetLastError());
         extra_exit();
     }
 
@@ -809,9 +909,10 @@ Bil_FileTime bil_file_last_update(const char *path)
 #else
     struct stat statbuf = {0};
     if (stat(path, &statbuf) < 0) {
-        bil_log(BIL_ERROR, "cannot get info about `%s`: %s", strerror(errno));
+        bil_report(BIL_ERROR, "cannot get info about `%s`: %s", strerror(errno));
         extra_exit();
     }
+
     result = statbuf.st_ctime;
 #endif
     return result;
@@ -821,15 +922,16 @@ bool bil_dep_write(const char *path, Bil_String_Builder *dep)
 {
     bool status = true;
     FILE *f = fopen(path, "w");
+
     if (!f) {
-        bil_log(BIL_ERROR, "cannot open file by path `%s`", path);
+        bil_report(BIL_ERROR, "cannot open file by path `%s`", path);
         bil_defer_status(false);
     }
 
     fwrite(dep->items, sizeof(dep->items[0]), sizeof(dep->items[0]) * dep->count, f);
 
     if (ferror(f)) {
-        bil_log(BIL_ERROR, "cannot write to `%s` file", path);
+        bil_report(BIL_ERROR, "cannot write to `%s` file", path);
         bil_defer_status(false);
     }
 
@@ -845,39 +947,46 @@ uint32_t bil_file_id(char *file_path)
     uint32_t id = 0x0;
     const int magic = 0x428a2f98; // cubic root of 2
     const size_t len = strlen(file_path);
+
     for (size_t i = len; i > 0; --i) {
         char c = file_path[i - 1];
         if (c == '\\' || c == '/') break;
         id += (int)(c) * (p ^ magic);
         p = (p << 2) % m;
     }
+
     return id;
 }
 
 Bil_String_Builder bil_mk_dependence_file(Bil_Cstr_Array deps)
 {
     Bil_String_Builder sb = {0};
+
     for (size_t i = 0; i < deps.count; ++i) {
         char buf[256];
         char *file_path = deps.items[i];
         Bil_FileTime t = bil_file_last_update(file_path);
+
         long int time;
         #ifdef _WIN32
         bil_ft2li(t, time);
         #else
         time = t;
         #endif
+
         uint32_t id = bil_file_id(file_path);
         snprintf(buf, sizeof(buf), "%u %li\n", id, time);
-        sb_join_cstr(&sb, buf);
+        bil_sb_join_cstr(&sb, buf);
     }
-    sb_join_nul(&sb);
+
+    bil_sb_join_nul(&sb);
     return sb;
 }
 
 bool bil_deps_info_search(Bil_Deps_Info *info, uint32_t id, struct bil_dep_info *target)
 {
     bool result = false;
+
     for (size_t i = 0; i < info->count; ++i) {
         if (info->items[i].id == id) {
             *target = info->items[i];
@@ -885,6 +994,7 @@ bool bil_deps_info_search(Bil_Deps_Info *info, uint32_t id, struct bil_dep_info 
             break;
         }
     }
+
     return result;
 }
 
@@ -905,9 +1015,11 @@ void bil_change_dep_info(Bil_Deps_Info *info, struct bil_dep_info new_info)
 Bil_String_Builder bil_mk_dependence_from_info(Bil_Deps_Info *info)
 {
     Bil_String_Builder sb = {0};
+
     for (size_t i = 0; i < info->count; ++i) {
         char buf[256];
         struct bil_dep_info new = info->items[i];
+
         long int time;
         #ifdef _WIN32
         time = new.ltime;
@@ -915,23 +1027,32 @@ Bil_String_Builder bil_mk_dependence_from_info(Bil_Deps_Info *info)
         #else
         time = new.t;
         #endif
+
         snprintf(buf, sizeof(buf), "%u %li\n", info->items[i].id, time);
-        sb_join_cstr(&sb, buf);
+        bil_sb_join_cstr(&sb, buf);
     }
-    sb_join_nul(&sb);
+
+    bil_sb_join_nul(&sb);
     return sb;
 }
 
-// TODO: if new dependence was appended bil don't push it to info file
 bool bil_dep_ischange(Bil_Dep *dep)
 {
     bool result = false;
+    const char *update = NULL;
+
     if (!bil_file_exist(dep->output_file)) {
+    dep_write:
         Bil_String_Builder out = bil_mk_dependence_file(dep->deps);
         bil_dep_write(dep->output_file, &out);
-        bil_log(BIL_INFO, "Created dependece output `%s`",
-                dep->output_file);
-        sb_clean(&out);
+        
+        if (update) {
+            bil_report(BIL_INFO, "Updated dependence output `%s`", dep->output_file);
+        } else {
+            bil_report(BIL_INFO, "Created dependece output `%s`", dep->output_file);
+        }
+
+        bil_sb_clean(&out);
         return false;
     }
 
@@ -951,10 +1072,10 @@ bool bil_dep_ischange(Bil_Dep *dep)
         struct bil_dep_info target = {0};
         bool found = bil_deps_info_search(&info, dependence_info.id, &target);
 
-        // in this place TODO
-        if (found == false)
-            bil_log(BIL_WARNING, "cannot find dependence for `%s`",
-                    dependence);
+        if (!found) {
+            update = dependence;
+            goto dep_write;
+        }
 
     #ifdef _WIN32
         long int dependece_time;
@@ -969,15 +1090,16 @@ bool bil_dep_ischange(Bil_Dep *dep)
         }
 
         if (changed == true) {
-            bil_log(BIL_INFO, "Dependence `%s` has changed", dependence);
             bil_change_dep_info(&info, dependence_info);
+            bil_report(BIL_INFO, ": %sFILE%s %s : dependence `%s` has changed",
+                       BIL_INFO_COLOR, BIL_NORMAL_COLOR, dep->output_file, dependence);
         }
     }
 
     if (result == true) {
         Bil_String_Builder out = bil_mk_dependence_from_info(&info);
         bil_dep_write(dep->output_file, &out);
-        sb_clean(&out);
+        bil_sb_clean(&out);
     }
 
     if (bil_alloc_flag) free(buf);
@@ -988,8 +1110,10 @@ bool bil_dep_ischange(Bil_Dep *dep)
 int *bil_deps_ischange(const Bil_Dep *deps, size_t count)
 {
     int *changes = bil_context_alloc(sizeof(int)*count);
+
     for (size_t i = 0; i < count; ++i)
         changes[i] = bil_dep_ischange((Bil_Dep*)(&deps[i]));
+
     return changes;
 }
 
@@ -1004,37 +1128,39 @@ void cmd_single_run(const char **args, size_t args_count)
 Bil_String_Builder bil_mk_path(char *file, ...)
 {
     Bil_String_Builder sb = {0};
-    sb_join_cstr(&sb, file);
-    sb_join_cstr(&sb, "/");
+    bil_sb_join_cstr(&sb, file);
+    bil_sb_join_cstr(&sb, "/");
 
     va_list args;
     va_start(args, file);
 
     char *arg = va_arg(args, char*);
     while (1) {
-        sb_join_cstr(&sb, arg);
+        bil_sb_join_cstr(&sb, arg);
         arg = va_arg(args, char*);
         if (arg == NULL) break;
-        sb_join_cstr(&sb, "/");
+        bil_sb_join_cstr(&sb, "/");
     }
     va_end(args);
     
     return sb;
 }
 
-void bil_log(bil_log_flags flag, char *fmt, ...)
+void bil_report(bil_report_flags flag, char *fmt, ...)
 {
+    fprintf(stderr, ":: ");
+
     switch (flag) {
     case BIL_INFO:
-        fprintf(stderr, "%sINFO%s: ", 
+        fprintf(stderr, "%sINFO%s ", 
                 BIL_INFO_COLOR, BIL_NORMAL_COLOR);
         break;
     case BIL_ERROR:
-        fprintf(stderr, "%sERROR%s: ", 
+        fprintf(stderr, "%sERROR%s ", 
                 BIL_ERROR_COLOR, BIL_NORMAL_COLOR);
         break;
     case BIL_WARNING:
-        fprintf(stderr, "%sWARNING%s: ",
+        fprintf(stderr, "%sWARNING%s ",
                 BIL_WARNING_COLOR, BIL_NORMAL_COLOR);
         break;
     default:
@@ -1049,7 +1175,7 @@ void bil_log(bil_log_flags flag, char *fmt, ...)
     printf("\n");
 }
 
-Bil_String_Builder sb_from_cstr(char *cstr)
+Bil_String_Builder bil_sb_from_cstr(char *cstr)
 {
     size_t len = strlen(cstr);
     size_t capacity = BIL_DA_INIT_CAPACITY;
@@ -1068,19 +1194,19 @@ Bil_String_Builder sb_from_cstr(char *cstr)
     };
 }
 
-void sb_join_cstr(Bil_String_Builder *sb, const char *cstr)
+void bil_sb_join_cstr(Bil_String_Builder *sb, const char *cstr)
 {
     size_t len = strlen(cstr);
     bil_da_append_many(sb, cstr, len);
 }
 
-void sb_join_many(Bil_String_Builder *sb, ...)
+void bil_sb_join_many(Bil_String_Builder *sb, ...)
 {
     va_list args;
     va_start(args, sb);
     char *arg = va_arg(args, char*);
     while (arg != NULL) {
-        sb_join_cstr(sb, arg);
+        bil_sb_join_cstr(sb, arg);
         arg = va_arg(args, char*);
     }
     va_end(args);
@@ -1089,22 +1215,27 @@ void sb_join_many(Bil_String_Builder *sb, ...)
 Bil_String_Builder bil_cmd_create(Bil_Cmd *cmd)
 {
     Bil_String_Builder sb = {0};
-    for (size_t i = 0; i < cmd->count; ++i)
-        SB_JOIN(&sb, cmd->items[i], " ");
+
+    for (size_t i = 0; i < cmd->count; ++i) {
+        SB_JOIN(&sb, cmd->items[i]);
+        if (i + 1 != cmd->count) SB_JOIN(&sb, " ");
+    }
+
     return sb;
 }
 
 Bil_Proc bil_cmd_run_async(Bil_Cmd *cmd)
 {
     if (cmd->count < 1) {
-        bil_log(BIL_ERROR, "Could not execute empty command\n");
+        bil_report(BIL_ERROR, "Could not execute empty command\n");
         return BIL_INVALID_PROC;
     }
 
     Bil_String_Builder command = bil_cmd_create(cmd);
-    sb_join_nul(&command);
+    bil_sb_join_nul(&command);
 
-    bil_log(BIL_INFO, "CMD: %s", command.items);
+    bil_report(BIL_INFO, ": %sCMD%s [%s]",
+            BIL_INFO_COLOR, BIL_NORMAL_COLOR,command.items);
 
 #ifdef _WIN32
     STARTUPINFO si;
@@ -1123,19 +1254,19 @@ Bil_Proc bil_cmd_run_async(Bil_Cmd *cmd)
     BOOL proc = CreateProcessA(NULL, command.items, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi);
 
     if (!proc) {
-        bil_log(BIL_ERROR, "Could not create child process: %lu", GetLastError());
+        bil_report(BIL_ERROR, "Could not create child process: %lu", GetLastError());
         return BIL_INVALID_PROC;
     }
 
     CloseHandle(pi.hThread);
-    sb_clean(&command);
+    bil_sb_clean(&command);
     return pi.hProcess;
 #else
-    sb_clean(&command);
+    bil_sb_clean(&command);
     pid_t cpid = fork();
 
     if (cpid < 0) {
-        bil_log(BIL_ERROR, "Could not fork child process: %s", strerror(errno));
+        bil_report(BIL_ERROR, "Could not fork child process: %s", strerror(errno));
         return BIL_INVALID_PROC;
     }
 
@@ -1145,7 +1276,7 @@ Bil_Proc bil_cmd_run_async(Bil_Cmd *cmd)
         bil_cmd_append(&cmd_null, NULL);
 
         if (execvp(cmd->items[0], (char * const*) cmd_null.items) < 0) {
-            bil_log(BIL_ERROR, "Could not execute child process: %s", strerror(errno));
+            bil_report(BIL_ERROR, "Could not execute child process: %s", strerror(errno));
         }
 
         bil_cmd_clean(&cmd_null);
@@ -1172,18 +1303,18 @@ bool bil_proc_await(Bil_Proc proc)
     DWORD result = WaitForSingleObject(proc, INFINITE);
 
     if (result == WAIT_FAILED) {
-        bil_log(BIL_ERROR, "Could not wait on child process: %lu", GetLastError());
+        bil_report(BIL_ERROR, "Could not wait on child process: %lu", GetLastError());
         return false;
     }
 
     DWORD exit_status;
     if (!GetExitCodeProcess(proc, &exit_status)) {
-        bil_log(BIL_ERROR, "Could not get process exit code: %lu", GetLastError());
+        bil_report(BIL_ERROR, "Could not get process exit code: %lu", GetLastError());
         return false;
     }
 
     if (exit_status != 0) {
-        bil_log(BIL_ERROR, "Command exited with exit code %lu", exit_status);
+        bil_report(BIL_ERROR, "Command exited with exit code %lu", exit_status);
         return false;
     }
 
@@ -1192,21 +1323,21 @@ bool bil_proc_await(Bil_Proc proc)
     for(;;) {
         int wstatus = 0;
         if (waitpid(proc, &wstatus, 0) < 0) {
-            bil_log(BIL_ERROR, "could not wait on command (pid %d): %s", proc, strerror(errno));
+            bil_report(BIL_ERROR, "could not wait on command (pid %d): %s", proc, strerror(errno));
             return false;
         }
 
         if (WIFEXITED(wstatus)) {
             int exit_status = WEXITSTATUS(wstatus);
             if (exit_status != 0) {
-                bil_log(BIL_ERROR, "command exited with exit code %d", exit_status);
+                bil_report(BIL_ERROR, "command exited with exit code %d", exit_status);
                 return false;
             }
             break;
         }
 
         if (WIFSIGNALED(wstatus)) {
-            bil_log(BIL_ERROR, "command process was terminated by %s", strsignal(WTERMSIG(wstatus)));
+            bil_report(BIL_ERROR, "command process was terminated by %s", strsignal(WTERMSIG(wstatus)));
             return false;
         }
     }
@@ -1225,25 +1356,27 @@ bool bil_check_for_rebuild(const char *output_file_path, const char *source_file
 {
     Bil_FileTime src_file_time = bil_file_last_update(source_file_path);
     Bil_FileTime output_file_time = bil_file_last_update(output_file_path);
+
     #ifdef _WIN32
     if (CompareFileTime(&src_file_time, &output_file_time) == 1) return true;
     #else
     if (src_file_time > output_file_time) return true;
     #endif
+
     return false;
 }
 
 bool bil_rename_file(const char *file_name, const char *new_name)
 {
-    bil_log(BIL_INFO, "renaming %s -> %s", file_name, new_name);
+    bil_report(BIL_INFO, "renaming %s -> %s", file_name, new_name);
 #ifdef _WIN32
     if (!MoveFileEx(file_name, new_name, MOVEFILE_REPLACE_EXISTING)) {
-        bil_log(BIL_ERROR, "could not rename %s to %s: %lu", file_name, new_name, GetLastError());
+        bil_report(BIL_ERROR, "could not rename %s to %s: %lu", file_name, new_name, GetLastError());
         return false;
     }
 #else
     if (rename(file_name, new_name) < 0) {
-        bil_log(BIL_ERROR, "could not rename %s to %s: %s", file_name, new_name, strerror(errno));
+        bil_report(BIL_ERROR, "could not rename %s to %s: %s", file_name, new_name, strerror(errno));
         return false;
     }
 #endif
@@ -1255,16 +1388,17 @@ bool bil_delete_file(const char *file_path)
 #ifdef _WIN32
     BOOL fSuccess = DeleteFile(file_path);
     if (!fSuccess) {
-        bil_log(BIL_ERROR, "Cannot delete file by path `%s`", file_path);
+        bil_report(BIL_ERROR, "Cannot delete file by path `%s`", file_path);
         return false;
     }
 #else
     if (remove(file_path) != 0) {
-        bil_log(BIL_ERROR, "Cannot delete file by path `%s`", file_path);
+        bil_report(BIL_ERROR, "Cannot delete file by path `%s`", file_path);
         return false;
     }
 #endif
-    bil_log(BIL_INFO, "File `%s` was deleted\n", file_path);
+
+    bil_report(BIL_INFO, "File `%s` was deleted\n", file_path);
     return true;
 }
 

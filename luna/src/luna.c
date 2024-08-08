@@ -1,4 +1,11 @@
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+
 #include "luna.h"
+
+#define IP_INC_TRUE 1
+#define IP_INC_FLASE 0
 
 Inst inst_defs[IC][NUMBER_OF_KINDS] = {
     [INST_MOV]  = { [KIND_REG_REG] = INST_MOV_RR, [KIND_REG_VAL] = INST_MOV_RV, [KIND_VAL] = INST_MOVS   },
@@ -25,37 +32,17 @@ Inst inst_defs[IC][NUMBER_OF_KINDS] = {
     [INST_CMP]  = { [KIND_REG_REG] = INST_CMP  }
 };
 
-char *reg_as_cstr(uint64_t operand)
-{
-    switch (operand) {
-        case R0:    return  "r0";
-        case R1:    return  "r1";
-        case R2:    return  "r2";
-        case R3:    return  "r3";
-        case R4:    return  "r4";
-        case R5:    return  "r5";
-        case R6:    return  "r6";
-        case R7:    return  "r7";
-        case R8:    return  "r8";
-        case ACC:   return "acc";
+#define AREFMETIC_OP(c, type, op1, op2, operator, dst) \
+    do {                                               \
+        (c)->regs##type [dst] = (op1) operator (op2);  \
+        (c)->ip += 1;                                  \
+    } while (0)
 
-        case F0:    return  "f0";
-        case F1:    return  "f1";
-        case F2:    return  "f2";
-        case F3:    return  "f3";
-        case F4:    return  "f4";
-        case F5:    return  "f5";
-        case F6:    return  "f6";
-        case F7:    return  "f7";
-        case F8:    return  "f8";
-        case ACCF:  return "accf";
-
-        case RC:
-        default:
-            fprintf(stderr, "Error: unreachable reg `%"PRIi64"`\n", operand);
-            exit(1);
-    }
-}
+#define LUNA_OP(c, place, op, index, on) \
+    do {                                \
+        (c)->place [(index)] = op;      \
+        if (on) (c)->ip += 1;           \
+    } while(0)
 
 Object luna_fetch(Luna *const L)
 {
@@ -118,7 +105,7 @@ void luna_execute_inst(Luna *const L)
 
         case INST_MOVS:
             reg1 = luna_fetch(L).reg;
-            size_t shift = luna_fetch(L).i64 + STACK_FRAME_SIZE;
+            size_t shift = luna_fetch(L).i64 + LUNA_STACK_FRAME_SIZE;
 
             Object stack_value = L->stack[L->stack_size - 1 - shift];
 
@@ -379,7 +366,7 @@ void luna_execute_inst(Luna *const L)
             break;
 
         case INST_PUSH_V:
-            if (L->stack_size > STACK_CAPACITY) {
+            if (L->stack_size > LUNA_STACK_CAPACITY) {
                 fprintf(stderr, "Error: stack overflow\n");
                 exit(1);
             }
@@ -391,7 +378,7 @@ void luna_execute_inst(Luna *const L)
             break;
 
         case INST_PUSH_R:
-            if (L->stack_size > STACK_CAPACITY) {
+            if (L->stack_size > LUNA_STACK_CAPACITY) {
                 fprintf(stderr, "Error: stack overflow\n");
                 exit(1);
             }
@@ -447,7 +434,7 @@ void luna_execute_inst(Luna *const L)
             LUNA_OP(L, stack, OBJ_UINT(L->sp), L->stack_size++, IP_INC_FLASE);
             LUNA_OP(L, stack, OBJ_UINT(L->ip), L->stack_size++, IP_INC_FLASE);
 
-            L->sp += STACK_FRAME_SIZE;
+            L->sp += LUNA_STACK_FRAME_SIZE;
             L->fp = L->sp;
             L->ip = operand1.u64;
             break;
@@ -577,6 +564,38 @@ char *inst_as_cstr(Inst inst)
     }
 }
 
+char *reg_as_cstr(uint64_t operand)
+{
+    switch (operand) {
+        case R0:    return  "r0";
+        case R1:    return  "r1";
+        case R2:    return  "r2";
+        case R3:    return  "r3";
+        case R4:    return  "r4";
+        case R5:    return  "r5";
+        case R6:    return  "r6";
+        case R7:    return  "r7";
+        case R8:    return  "r8";
+        case ACC:   return "acc";
+
+        case F0:    return  "f0";
+        case F1:    return  "f1";
+        case F2:    return  "f2";
+        case F3:    return  "f3";
+        case F4:    return  "f4";
+        case F5:    return  "f5";
+        case F6:    return  "f6";
+        case F7:    return  "f7";
+        case F8:    return  "f8";
+        case ACCF:  return "accf";
+
+        case RC:
+        default:
+            fprintf(stderr, "Error: unreachable reg `%"PRIi64"`\n", operand);
+            exit(1);
+    }
+}
+
 int inst_has_2_regs(Inst inst)
 {
     switch (inst) {
@@ -658,7 +677,7 @@ void load_program_to_luna(Luna *L, Object *program, size_t program_size)
 void load_program_from_file(Arena *arena, Luna *L, const char *file_path)
 {
     if (L->program_capacity == 0) {
-        L->program_capacity = PROGRAM_INIT_CAPACITY;
+        L->program_capacity = LUNA_PROGRAM_INIT_CAPACITY;
         L->program = arena_alloc(arena, L->program_capacity * sizeof(*L->program));
     }
 
