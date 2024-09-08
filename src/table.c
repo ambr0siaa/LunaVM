@@ -1,0 +1,52 @@
+#include "table.h"
+
+static inline hash_t ror(hash_t n, hash_t s) { return (n << s | n >> (64 - s)); }
+static inline hash_t rol(hash_t n, hash_t s) { return (n >> s | n << (64 - s)); }
+
+#define LIMIT 128
+
+static const hash_t tp[LIMIT] = {
+    2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53,
+    59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113,
+    127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181,
+    191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251,
+    257, 263, 269, 271, 277, 281, 283, 293, 307, 311, 313, 317,
+    331, 337, 347, 349, 353, 359, 367, 373, 379, 383, 389, 397,
+    401, 409, 419, 421, 431, 433, 439, 443, 449, 457, 461, 463,
+    467, 479, 487, 491, 499, 503, 509, 521, 523, 541, 547, 557,
+    563, 569, 571, 577, 587, 593, 599, 601, 607, 613, 617, 619,
+    631, 641, 643, 647, 653, 659, 661, 673, 677, 683, 691, 701,
+    709, 719
+};
+
+static hash_t tk[LIMIT] = {
+    0x65992, 0xf1b28, 0x4540e, 0xb80ee, 0x1149, 0xdd8b6, 0x432db, 0xf1620,
+    0x82161, 0xb6a19, 0xdf536, 0xbade6, 0xf10cb, 0x87869, 0xf244f, 0xe030a,
+    0xbc408, 0x3f035, 0x7e689, 0x4b71e, 0xb3bc0, 0xdabe2, 0x3cec4, 0x7c8e1,
+    0xe1ddb, 0xd9c64, 0xbef96, 0xefefb, 0x8cdea, 0xf2fc2, 0x38ba7, 0x8ea10,
+    0x51955, 0xaf48c, 0x369fc, 0xef19a, 0xf35de, 0xe43f4, 0xd6c48, 0xeea76,
+    0xf3878, 0x55a4d, 0xc43d1, 0x32674, 0x93d6f, 0x73249, 0xd4adc, 0xf3cbf,
+    0xa928a, 0xe677a, 0xd39c0, 0xed341, 0x97418, 0xe72bd, 0xc8069, 0x98f23,
+    0x5daee, 0xa6041, 0xd16bb, 0x29ea7, 0xec24a, 0xa46cc, 0x9c4a7, 0xf41a3,
+    0x61a8c, 0xe92ca, 0x678d7, 0xa1346, 0x2383e, 0xea6a1, 0x65977, 0x9f934,
+    0xce05e, 0xa1373, 0x6790e, 0xeb036, 0xcf2ca, 0x61a55, 0x6984d, 0xca76c,
+    0x5fa95, 0xf40de, 0xc93fa, 0xd16da, 0xa606d, 0xf3fcc, 0xecafa, 0x18cb3,
+    0xa79ac, 0x5bab9, 0x6f53b, 0x16a4a, 0xf3cbc, 0x958ac, 0xd4afa, 0xe5bd8,
+    0xf3abf, 0xd5bd2, 0x12562, 0xc2efb, 0xe43df, 0x905d9, 0xc1a0b, 0xe3774,
+    0xaf4b6, 0x78d4c, 0xd8cbc, 0xb0caa, 0x7ab44, 0x8cdb8, 0xbef71, 0xe1dc4,
+    0x4d7bb, 0xf2c39, 0xdabfd, 0xf2867, 0x7e6bd, 0xf0b32, 0xdbb35, 0xb5332,
+    0x495f7, 0xbadbf, 0x33a0, 0x474f1, 0xf1629, 0xde701, 0x83ec1, 0xde733
+};
+
+hash_t hash_string(char *s, size_t len)
+{
+    hash_t h = 0x9d200; /* sine of 271 */
+    for (size_t i = 0; i < len; ++i) {
+        hash_t a = (hash_t)s[i] * tp[(hash_t)s[i]];
+        hash_t b = (a * (tk[(a + 1) % LIMIT] ^ tk[(a - 1) % LIMIT]));
+        h = rol(h * b, tp[(a + 1) % LIMIT] % 64);
+        h ^= tk[a % LIMIT];
+        h = ror(h ^ tk[b % LIMIT], tp[(a - 1) % LIMIT] % 64);
+    }
+    return h;
+}
